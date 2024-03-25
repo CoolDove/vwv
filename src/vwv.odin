@@ -1,5 +1,7 @@
 package main
 
+import "core:log"
+import sdl "vendor:sdl2"
 import "./dude"
 
 root : VwvRecord
@@ -57,4 +59,25 @@ vwv_update :: proc() {
     viewport := dude.app.window.size
     rect :dude.Vec4= {20,20, cast(f32)viewport.x-40, cast(f32)viewport.y-40}
     vwv_draw_record(&root, &rect)
+    log.debugf("update")
+}
+
+vwv_window_handler :: proc(using wnd:^dude.Window, event:sdl.Event) {
+    if event.window.event == .RESIZED {
+        dude.manually_update()
+    }
+
+    // if draw {
+    //     using dude
+    //     viewport := app.window.size
+    //     pass_main.viewport = Vec4i{0,0, viewport.x, viewport.y}
+    //     pass_main.camera.viewport = vec_i2f(viewport)
+
+    //     // viewport := dude.app.window.size
+    //     rect :dude.Vec4= {20,20, cast(f32)viewport.x-40, cast(f32)viewport.y-40}
+    //     vwv_draw_record(&root, &rect)
+    //     log.debugf("draw")
+
+    //     sdl.GL_SwapWindow(dude.app.window.window)
+    // }
 }

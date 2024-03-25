@@ -59,7 +59,7 @@ main :: proc() {
     // }
     // defer delete(demo_game.asset_pacbuffer)
     
-	dude.init(dude.WindowInitializer{"vwv - simple tool for simple soul", {sdl.WINDOWPOS_CENTERED, sdl.WINDOWPOS_CENTERED}, {400,860}, {.RESIZABLE}, nil})
+	dude.init(dude.WindowInitializer{"vwv - simple tool for simple soul", {sdl.WINDOWPOS_CENTERED, sdl.WINDOWPOS_CENTERED}, {400,860}, {.RESIZABLE}, vwv_window_handler}, true)
     dude.dude_main(update, init, release, on_mui)
 }
 
