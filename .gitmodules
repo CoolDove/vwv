@@ -1,0 +1,3 @@
+[submodule "src/dude"]
+	path = src/dude
+	url = https://github.com/CoolDove/dude.git
