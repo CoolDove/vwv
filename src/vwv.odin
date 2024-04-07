@@ -7,9 +7,13 @@ import "dude/dude/render"
 import "dude/dude/input"
 import "vui"
 
-
+vwv_app : VwvApp
 vuictx : vui.VuiContext
 root : VwvRecord
+
+VwvApp :: struct {
+    view_offset_y : f32,
+}
 
 VwvRecord :: struct {
     line, detail : string,
@@ -64,12 +68,16 @@ vwv_release :: proc() {
 }
 
 vwv_update :: proc() {
-    viewport := dd.app.window.size
-    rect :dd.Rect= {20,20, cast(f32)viewport.x-40, cast(f32)viewport.y-40}
-
     if input.get_key_down(.A) {
         log.debugf("A down")
     }
+    if wheel := input.get_mouse_wheel(); wheel.y != 0 {
+        vwv_app.view_offset_y += wheel.y * 10.0
+    }
+
+    viewport := dd.app.window.size
+    rect :dd.Rect= {20,20, cast(f32)viewport.x-40, cast(f32)viewport.y-40}
+    rect.y += vwv_app.view_offset_y
 
     vwv_draw_record(&root, &rect)
 }

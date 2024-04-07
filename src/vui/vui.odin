@@ -75,6 +75,7 @@ button :: proc(using ctx: ^VuiContext, id: ID, text: string, rect: dd.Rect) -> b
     if active == id do col = COL_ACTIVE
 
     imdraw.quad(pass, {rect.x,rect.y}, {rect.w,rect.h}, col, order = 42000)
+    imdraw.quad(pass, {rect.x,rect.y}+{4,4}, {rect.w,rect.h}, {2,2,2,128}, order = 42000-1)
     size :f32= 32
     imdraw.text(pass, font, text, {rect.x,rect.y+size}, size, {0,0,0,1}, order = 42001)
     return result
