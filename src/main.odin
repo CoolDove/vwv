@@ -9,6 +9,7 @@ import "core:reflect"
 import "core:strings"
 import "core:math/linalg"
 import "core:math"
+import "core:mem"
 
 import sdl "vendor:sdl2"
 import ma "vendor:miniaudio"
@@ -35,6 +36,22 @@ TheTool :: struct {
 the_tool : TheTool
 
 main :: proc() {
+    tracking_allocator : mem.Tracking_Allocator
+    mem.tracking_allocator_init(&tracking_allocator, context.allocator)
+    context.allocator = mem.tracking_allocator(&tracking_allocator)
+    reset_tracking_allocator :: proc(a: ^mem.Tracking_Allocator) -> bool {
+        fmt.printf("Memory leak report:\n")
+        leaks := false
+        for key, value in a.allocation_map {
+            fmt.printf("%v: Leaked %v bytes\n", value.location, value.size)
+            leaks = true
+        }
+        mem.tracking_allocator_clear(a)
+        return leaks
+    }
+    defer reset_tracking_allocator(&tracking_allocator)
+    
+    
     config : dd.DudeConfig
     config.callbacks = { update, init, release, on_mui }
     config.title = "vwv - simple tool for simple soul"

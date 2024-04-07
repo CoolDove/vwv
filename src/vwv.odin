@@ -17,7 +17,7 @@ VwvApp :: struct {
     state : AppState,
 
     editting_record : ^VwvRecord,
-    input_builder : strings.Builder,
+    // input_builder : strings.Builder,
 }
 
 AppState :: enum {
@@ -25,7 +25,7 @@ AppState :: enum {
 }
 
 VwvRecord :: struct {
-    line, detail : string,
+    line, detail : strings.Builder,
     info : VwvRecordInfo,
     children : [dynamic]VwvRecord,
 }
@@ -43,37 +43,56 @@ vwv_record_release :: proc(r: ^VwvRecord) {
         vwv_record_release(&c)
     }
     delete(r.children)
+    strings.builder_destroy(&r.line)
+    strings.builder_destroy(&r.detail)
 }
 
-
 vwv_init :: proc() {
-    root.line = "vwv"
-    append(&root.children, VwvRecord{
-        line = "hello, world",
-    })
-        append(&root.children[0].children, 
-            VwvRecord{ line = "dddd" },
-            VwvRecord{ line = "sss" },
-            VwvRecord{ line = "aa" },
-        )
-    append(&root.children, VwvRecord{
-        line = "second",
-    })
-        append(&root.children[1].children, 
-            VwvRecord{ line = "jjj" },
-            VwvRecord{ line = "kk" },
-        )
-            append(&root.children[1].children[1].children,
-                VwvRecord{ line = "zz" },
-                VwvRecord{ line = "x" },
-            )
+    // manually init root node
+    strings.builder_init(&root.line)
+    strings.builder_init(&root.detail)
+    root.children = make([dynamic]VwvRecord)
+    
+    record_set_line(&root, "vwv")
 
-    strings.builder_init(&vwv_app.input_builder)
+    ra := record_add_child(&root)
+    ra0 := record_add_child(ra)
+    ra1 := record_add_child(ra)
+
+    rb := record_add_child(&root)
+    rb0 := record_add_child(&root)
+
+    rc := record_add_child(&root)
+    rd := record_add_child(&root)
+
+    record_set_line(ra, "Hello, world.")
+    record_set_line(ra0, "Dove")
+    record_set_line(ra1, "Jet")
+
+    record_set_line(rb, "Lily")
+    record_set_line(rb0, "Spike")
+
+    record_set_line(rc, "Zero")
+    record_set_line(rd, "巴拉巴拉")
+
     vui.init(&vuictx, &pass_main, render.system().font_unifont)
 }
 
+record_add_child :: proc(parent: ^VwvRecord) -> ^VwvRecord {
+    append(&parent.children, VwvRecord{})
+    child := &(parent.children[len(parent.children)-1])
+    strings.builder_init(&child.line)
+    strings.builder_init(&child.detail)
+    child.children = make([dynamic]VwvRecord)
+    return child
+}
+
+record_set_line :: proc(record: ^VwvRecord, line: string) {
+    strings.builder_reset(&record.line)
+    strings.write_string(&record.line, line)
+}
+
 vwv_release :: proc() {
-    strings.builder_destroy(&vwv_app.input_builder)
     vui.release(&vuictx)
     vwv_record_release(&root)
 }
@@ -91,10 +110,10 @@ vwv_update :: proc() {
 
     if vwv_app.state == .Edit {
         if str, ok := input.get_textinput_charactors_temp(); ok {
-            strings.write_string(&vwv_app.input_builder, str)
+            strings.write_string(&vwv_app.editting_record.line, str)
         }
         if input.get_key_down(.ESCAPE) {
-            vwv_app.editting_record.line = strings.to_string(vwv_app.input_builder)
+            // vwv_app.editting_record.line = strings.to_string(vwv_app.input_builder)
             vwv_app.state = .Normal
             vwv_app.editting_record = nil
         }
@@ -107,17 +126,12 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^dd.Rect, depth :f32= 0) {
     corner :dd.Vec2= {rect.x+indent, rect.y}
     size :dd.Vec2= {rect.w-indent, line_height}
 
-    str := r.line
-    if vwv_app.state == .Edit && r == vwv_app.editting_record {
-        str = strings.to_string(vwv_app.input_builder)
-    }
+    str := strings.to_string(r.line)
     editting := vwv_app.state == .Edit && vwv_app.editting_record == r
 
     record_rect :dd.Rect= {corner.x, corner.y, size.x, size.y}
-    if record_card(&vuictx, vui.get_id_string(r.line), r, record_rect, editting) {
+    if record_card(&vuictx, vui.get_id_string(str), r, record_rect, editting) {
         if vwv_app.state == .Normal {
-            strings.builder_reset(&vwv_app.input_builder)
-            strings.write_string(&vwv_app.input_builder, r.line)
             input.textinput_begin()
             input.textinput_set_rect(record_rect)
             vwv_app.state = .Edit

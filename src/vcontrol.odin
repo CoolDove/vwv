@@ -1,5 +1,7 @@
 package main
 
+import "core:strings"
+
 import "vui"
 import "dude/dude"
 import dd "dude/dude/core"
@@ -43,7 +45,8 @@ record_card :: proc(using ctx: ^vui.VuiContext, id: vui.ID, record: ^VwvRecord, 
 
     imdraw.quad(&pass_main, {rect.x,rect.y}, {rect.w,rect.h}, col, order = 42000)
     imdraw.quad(&pass_main, {rect.x,rect.y}+({4,4} if editting else {0,0}), {rect.w,rect.h}, {2,2,2,128}, order = 42000-1)
+    if editting do imdraw.quad(&pass_main, {rect.x,rect.y}+{0, rect.h-5}, {rect.w,4}, {240,64,64,255}, order = 42001)
     size :f32= 32
-    imdraw.text(&pass_main, render.system().font_unifont, record.line, {rect.x,rect.y+size}, size, {0,0,0,1}, order = 42001)
+    imdraw.text(&pass_main, render.system().font_unifont, strings.to_string(record.line), {rect.x,rect.y+size}, size, {0,0,0,1}, order = 42001)
     return result
 }
