@@ -3,7 +3,12 @@ package main
 import "core:log"
 import sdl "vendor:sdl2"
 import dd "dude/dude/core"
+import "dude/dude/render"
+import "dude/dude/input"
+import "vui"
 
+
+vuictx : vui.VuiContext
 root : VwvRecord
 
 VwvRecord :: struct {
@@ -49,20 +54,31 @@ vwv_init :: proc() {
                 VwvRecord{ line = "zz" },
                 VwvRecord{ line = "x" },
             )
+
+    vui.init(&vuictx, &pass_main, render.system().font_unifont)
 }
 
 vwv_release :: proc() {
+    vui.release(&vuictx)
     vwv_record_release(&root)
 }
 
 vwv_update :: proc() {
     viewport := dd.app.window.size
-    rect :dd.Vec4= {20,20, cast(f32)viewport.x-40, cast(f32)viewport.y-40}
+    rect :dd.Rect= {20,20, cast(f32)viewport.x-40, cast(f32)viewport.y-40}
+
+    if input.get_key_down(.A) {
+        log.debugf("A down")
+    }
+
     vwv_draw_record(&root, &rect)
 }
 
 vwv_window_handler :: proc(using wnd: ^dd.Window, event:sdl.Event) {
     if event.window.event == .RESIZED {
+        dd.dispatch_update()
+    }
+    if input.get_input_handle_result() != .None {
         dd.dispatch_update()
     }
 }
