@@ -7,6 +7,7 @@ import sdl "vendor:sdl2"
 import dd "dude/dude/core"
 import "dude/dude/render"
 import "dude/dude/input"
+import "dude/dude"
 import "vui"
 
 vwv_app : VwvApp
@@ -18,7 +19,8 @@ VwvApp :: struct {
     state : AppState,
 
     editting_record : ^VwvRecord,
-    // input_builder : strings.Builder,
+
+    edit_point : dd.Vec2,
 }
 
 AppState :: enum {
@@ -116,18 +118,23 @@ vwv_update :: proc() {
     if vwv_app.state == .Edit {
         if str, ok := input.get_textinput_charactors_temp(); ok {
             strings.write_string(&vwv_app.editting_record.line, str)
+            input.textinput_set_cursor_pos(vwv_app.edit_point)
             dd.dispatch_update()
         }
         if input.get_key_down(.ESCAPE) || input.get_key_down(.RETURN) {
             vwv_app.state = .Normal
             vwv_app.editting_record = nil
+            input.textinput_set_cursor_pos(vwv_app.edit_point)
             dd.dispatch_update()
         }
         if input.get_key_repeat(.BACKSPACE) {
             builder := &vwv_app.editting_record.line
             buf := cast(^runtime.Raw_Dynamic_Array)(&builder.buf)
-            buf.len -= 1
-            dd.dispatch_update()
+            if buf.len > 0 {
+                buf.len -= 1
+                input.textinput_set_cursor_pos(vwv_app.edit_point)
+                dd.dispatch_update()
+            }
         }
     }
 }
@@ -142,16 +149,19 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^dd.Rect, depth :f32= 0) {
     editting := vwv_app.state == .Edit && vwv_app.editting_record == r
 
     record_rect :dd.Rect= {corner.x, corner.y, size.x, size.y}
-    if record_card(&vuictx, vui.get_id_string(str), r, record_rect, editting) {
+    text_measure : dd.Vec2
+    if record_card(&vuictx, vui.get_id_string(str), r, record_rect, editting, &text_measure) {
         if vwv_app.state == .Normal {
-            input.textinput_set_rect(record_rect)
+            vwv_app.edit_point = corner + {text_measure.x, size.y}
             input.textinput_begin()
+            input.textinput_set_cursor_pos(vwv_app.edit_point)
             input.get_textinput_charactors_temp() // clean the buffer
             vwv_app.state = .Edit
             vwv_app.editting_record = r
             dd.dispatch_update()
         }
     }
+    if editting do vwv_app.edit_point = corner + {text_measure.x, size.y}
     
     rect_grow_y(rect, line_height + line_padding)
 

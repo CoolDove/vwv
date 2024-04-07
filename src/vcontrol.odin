@@ -9,8 +9,7 @@ import "dude/dude/imdraw"
 import "dude/dude/input"
 import "dude/dude/render"
 
-
-record_card :: proc(using ctx: ^vui.VuiContext, id: vui.ID, record: ^VwvRecord, rect: dd.Rect, editting:= false) -> bool {
+record_card :: proc(using ctx: ^vui.VuiContext, id: vui.ID, record: ^VwvRecord, rect: dd.Rect, editting:= false, measure_line:^dd.Vec2=nil, measure_editting:^dd.Vec2=nil) -> bool {
     using vui
     inrect := _is_in_rect(input.get_mouse_position(), rect)
     result := false
@@ -48,10 +47,28 @@ record_card :: proc(using ctx: ^vui.VuiContext, id: vui.ID, record: ^VwvRecord, 
     size :f32= 32
     imdraw.text(&pass_main, font, strings.to_string(record.line), {rect.x,rect.y+size}, size, {0,0,0,1}, order = 42001)
 
+    measure_line_value : Vec2
+
     if editting {
-        measure := dude.mesher_text_measure(font, strings.to_string(record.line), size)
-        imdraw.text(&pass_main, font, input.get_textinput_editting_text(), {rect.x+measure.x,rect.y+size}, size, {.5,.5,.5,1}, order = 42001)
-        imdraw.quad(&pass_main, {rect.x+measure.x,rect.y+4}, {6, size}, {64,240,64,255}, order = 42001)
+        measure_line_value := dude.mesher_text_measure(font, strings.to_string(record.line), size)
+        editting_text := input.get_textinput_editting_text()
+
+        if measure_line != nil do measure_line^ = measure_line_value
+        if measure_editting != nil {
+            measure_editting^ = dude.mesher_text_measure(font, editting_text, size)
+        }
+
+        imdraw.text(&pass_main, font, editting_text, {rect.x+measure_line_value.x,rect.y+size}, size, {.5,.5,.5,1}, order = 42001)
+        imdraw.quad(&pass_main, {rect.x+measure_line_value.x,rect.y+4}, {6, size}, {64,240,64,255}, order = 42001)
+    } else {
+        if measure_line != nil {
+            measure_line_value := dude.mesher_text_measure(font, strings.to_string(record.line), size)
+            measure_line^ = measure_line_value
+        } 
+        if measure_editting != nil {
+            editting_text := input.get_textinput_editting_text()
+            measure_editting^ = dude.mesher_text_measure(font, editting_text, size)
+        }
     }
     return result
 }
