@@ -5,6 +5,7 @@ import "core:log"
 import sdl "vendor:sdl2"
 import dd "dude/dude/core"
 import "dude/dude/render"
+import "dude/dude/imdraw"
 import "dude/dude/input"
 import "vui"
 
@@ -17,6 +18,7 @@ VwvApp :: struct {
     state : AppState,
 
     editting_record : ^VwvRecord,
+    editting_point : dd.Vec2,
     // input_builder : strings.Builder,
 }
 
@@ -119,6 +121,10 @@ vwv_update :: proc() {
             dd.dispatch_update()
         }
     }
+
+    // ** debug draw
+    imdraw.quad(&pass_main, vwv_app.editting_point, {4,4}, {255,0,0,255}, order=99999999)
+    
 }
 
 vwv_record_update :: proc(r: ^VwvRecord, rect: ^dd.Rect, depth :f32= 0) {
@@ -131,14 +137,19 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^dd.Rect, depth :f32= 0) {
     editting := vwv_app.state == .Edit && vwv_app.editting_record == r
 
     record_rect :dd.Rect= {corner.x, corner.y, size.x, size.y}
-    if record_card(&vuictx, vui.get_id_string(str), r, record_rect, editting) {
+    measure : dd.Vec2
+    if record_card(&vuictx, vui.get_id_string(str), r, record_rect, editting, &measure) {
         if vwv_app.state == .Normal {
             input.textinput_begin()
-            input.textinput_set_imm_composition_pos(corner)
             vwv_app.state = .Edit
             vwv_app.editting_record = r
+            editting = true
             dd.dispatch_update()
         }
+    }
+    if editting {
+        vwv_app.editting_point = corner + {measure.x, size.y - 16}
+        input.textinput_set_imm_composition_pos(vwv_app.editting_point)
     }
     
     rect_grow_y(rect, line_height + line_padding)
