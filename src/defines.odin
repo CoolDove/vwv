@@ -17,4 +17,7 @@ VUID_BY_RECORD :: proc(r: ^VwvRecord, elem:u8= 0) -> vui.ID {
     return VUID_RECORD_BASE + cast(vui.ID)(r.id * 256) + cast(vui.ID)elem
 }
 
+RECORD_ITEM_BUTTON_ADD_RECORD :u8: 4
+
+
 VUID_RECORD_BASE :vui.ID: 42000

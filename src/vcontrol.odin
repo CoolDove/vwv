@@ -11,44 +11,17 @@ import "dude/dude/input"
 import "dude/dude/render"
 
 
-RecordCardResult :: enum {
-    None, Left, Right
+ButtonResult :: enum {
+    None, Left, Right,
 }
 
-record_card :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord, rect: dd.Rect, 
-                    measure_line:^dd.Vec2=nil/*output*/, measure_editting:^dd.Vec2=nil/*output*/) -> RecordCardResult
+vcontrol_record_card :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord, rect: dd.Rect, 
+                    measure_line:^dd.Vec2=nil/*output*/, measure_editting:^dd.Vec2=nil/*output*/) -> ButtonResult
 {
     using vui
     id := VUID_BY_RECORD(record)
     inrect := _is_in_rect(input.get_mouse_position(), rect)
-    result := RecordCardResult.None
-    if active == id {
-        if input.get_mouse_button_up(.Left) {
-            active = 0
-            if inrect {
-                result = .Left
-            }
-        } else if input.get_mouse_button_up(.Right) {
-            active = 0
-            if inrect {
-                result = .Right
-            }
-        }
-    } else {
-        if hot == id {
-            if inrect {
-                if input.get_mouse_button_down(.Left) || input.get_mouse_button_down(.Right) {
-                    active = id
-                }
-            } else {
-                if !inrect do hot = 0
-            }
-        } else {
-            if inrect && active == 0 {
-                hot = id
-            }
-        }
-    }
+    result := _event_handler_button(ctx, id, inrect)
 
     using theme
     colors : ^ThemeCardColor
@@ -80,7 +53,7 @@ record_card :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord, rect: dd.Rec
     corner_rt :dd.Vec2= {rect.x-rect.w,rect.y}// corner right-top
     size :dd.Vec2= {rect.w, rect.h}
 
-    imdraw.quad(&pass_main, corner, size, col_bg, order = 42000)
+    imdraw.quad(&pass_main, corner, size, col_bg, order = LAYER_MAIN)
 
     font_size :f32= 32
     imdraw.text(&pass_main, font, strings.to_string(record.line), corner+{0,font_size}, font_size, dd.col_u2f(col_text), order = 42002)
@@ -125,6 +98,55 @@ record_card :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord, rect: dd.Rec
             imdraw.quad(&pass_main, {x,y}, {pgb_length_total*closed, pgb_thickness}, {180,30,15, 255}, order=42003)
         }
     }
-    
+
+    return result
+}
+
+vcontrol_button_add_record :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord, rect: dd.Rect) -> ButtonResult {
+    using vui
+    id := VUID_BY_RECORD(record, RECORD_ITEM_BUTTON_ADD_RECORD)
+    inrect := _is_in_rect(input.get_mouse_position(), rect)
+    result := _event_handler_button(ctx, id, inrect)
+
+    using theme
+    col :dd.Color32= {65,65,65, 255}
+    if hot == id do col = {80,80,80, 255}
+    if active == id do col = {95,95,95, 255}
+    imdraw.quad(&pass_main, {rect.x,rect.y+0.5*rect.h-2}, {rect.w,4}, col, order=LAYER_MAIN + 1)
+    imdraw.quad(&pass_main, {rect.x+0.5*rect.w-2,rect.y}, {4,rect.h}, col, order=LAYER_MAIN + 1)
+    return result
+}
+
+@(private="file")
+_event_handler_button :: proc(using ctx: ^vui.VuiContext, id: vui.ID, inrect: bool) -> ButtonResult {
+    using vui
+    result := ButtonResult.None
+    if active == id {
+        if input.get_mouse_button_up(.Left) {
+            active = 0
+            if inrect {
+                result = .Left
+            }
+        } else if input.get_mouse_button_up(.Right) {
+            active = 0
+            if inrect {
+                result = .Right
+            }
+        }
+    } else {
+        if hot == id {
+            if inrect {
+                if input.get_mouse_button_down(.Left) || input.get_mouse_button_down(.Right) {
+                    active = id
+                }
+            } else {
+                if !inrect do hot = 0
+            }
+        } else {
+            if inrect && active == 0 {
+                hot = id
+            }
+        }
+    }
     return result
 }

@@ -117,15 +117,16 @@ vwv_update :: proc() {
 vwv_record_update :: proc(r: ^VwvRecord, rect: ^dd.Rect, depth :f32= 0) {
     using theme
     indent := indent_width*depth
-    corner :dd.Vec2= {rect.x+indent, rect.y}
-    size :dd.Vec2= {rect.w-indent, line_height}
+    corner := dd.Vec2{rect.x+indent, rect.y}// left-top
+    size := dd.Vec2{rect.w-indent, line_height}
+    corner_rb := corner+size// right-bottom
 
     str := strings.to_string(r.line)
     editting := vwv_app.state == .Edit && vwv_app.editting_record == r
 
     record_rect :dd.Rect= {corner.x, corner.y, size.x, size.y}
     measure : dd.Vec2
-    if result := record_card(&vuictx, r, record_rect, &measure); result != .None {
+    if result := vcontrol_record_card(&vuictx, r, record_rect, &measure); result != .None {
         if vwv_app.state == .Edit {
             if !editting {
                 vwv_state_exit_edit()
@@ -156,12 +157,34 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^dd.Rect, depth :f32= 0) {
     rect.y += height_step
     rect.h -= height_step
 
+    if vwv_app.state == .Normal {
+        width, height :f32= 14, 14
+        padding :f32= 2
+        rect := dd.Rect{corner.x - width - padding, corner.y + size.y - height, width, height}
+        if result := vcontrol_button_add_record(&vuictx, r, rect); result != .None {
+            if result == .Left {
+                new_record := record_add_child(r)
+                vwv_state_enter_edit(new_record)
+            }
+        }
+    }
+
     for &c, i in r.children {
         vwv_record_update(&c, rect, depth + 1)
     }
 }
 
 vwv_state_exit_edit :: proc() {
+    assert(vwv_app.state == .Edit, "Should call this when in Edit mode.")
     vwv_app.state = .Normal
     vwv_app.editting_record = nil
+}
+vwv_state_enter_edit :: proc(r: ^VwvRecord) {
+    // TODO: Handle the editting point
+    assert(vwv_app.state == .Normal, "Should call this when in Normal mode.")
+    input.textinput_set_imm_composition_pos(vwv_app.editting_point)
+    input.textinput_begin()
+    vwv_app.state = .Edit
+    vwv_app.editting_record = r
+    dd.dispatch_update()
 }
