@@ -111,11 +111,12 @@ vwv_update :: proc() {
     if vwv_app.state == .Edit {
         if str, ok := input.get_textinput_charactors_temp(); ok {
             strings.write_string(&vwv_app.editting_record.line, str)
+            dd.dispatch_update()
         }
         if input.get_key_down(.ESCAPE) {
-            // vwv_app.editting_record.line = strings.to_string(vwv_app.input_builder)
             vwv_app.state = .Normal
             vwv_app.editting_record = nil
+            dd.dispatch_update()
         }
     }
 }
