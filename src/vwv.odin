@@ -17,9 +17,9 @@ VwvApp :: struct {
     view_offset_y : f32,
     state : AppState,
 
+    // ** edit
     editting_record : ^VwvRecord,
     editting_point : dd.Vec2,
-    // input_builder : strings.Builder,
 }
 
 AppState :: enum {
@@ -37,7 +37,7 @@ VwvRecordInfo :: struct {
     state : VwvRecordState,
 }
 VwvRecordState :: enum {
-    Open, Close, Done,
+    Open, Done, Closed,
 }
 
 vwv_record_release :: proc(r: ^VwvRecord) {
@@ -78,20 +78,6 @@ vwv_init :: proc() {
     record_set_line(rd, "巴拉巴拉")
 
     vui.init(&vuictx, &pass_main, render.system().font_unifont)
-}
-
-record_add_child :: proc(parent: ^VwvRecord) -> ^VwvRecord {
-    append(&parent.children, VwvRecord{})
-    child := &(parent.children[len(parent.children)-1])
-    strings.builder_init(&child.line)
-    strings.builder_init(&child.detail)
-    child.children = make([dynamic]VwvRecord)
-    return child
-}
-
-record_set_line :: proc(record: ^VwvRecord, line: string) {
-    strings.builder_reset(&record.line)
-    strings.write_string(&record.line, line)
 }
 
 vwv_release :: proc() {
@@ -138,12 +124,17 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^dd.Rect, depth :f32= 0) {
 
     record_rect :dd.Rect= {corner.x, corner.y, size.x, size.y}
     measure : dd.Vec2
-    if record_card(&vuictx, vui.get_id_string(str), r, record_rect, editting, &measure) {
-        if vwv_app.state == .Normal {
-            input.textinput_begin()
-            vwv_app.state = .Edit
-            vwv_app.editting_record = r
-            editting = true
+    if result := record_card(&vuictx, vui.get_id_string(str), r, record_rect, &measure); result != .None {
+        if result == .Left {// left click to edit
+            if vwv_app.state == .Normal {
+                input.textinput_begin()
+                vwv_app.state = .Edit
+                vwv_app.editting_record = r
+                editting = true
+                dd.dispatch_update()
+            }
+        } else if result == .Right {// right click to change state
+            r.info.state = dd.enum_step(VwvRecordState, r.info.state)
             dd.dispatch_update()
         }
     }
@@ -162,13 +153,4 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^dd.Rect, depth :f32= 0) {
 rect_grow_y :: proc(rect: ^dd.Rect, y: f32) {
     rect.y += y
     rect.h -= y
-}
-
-vwv_window_handler :: proc(using wnd: ^dd.Window, event:sdl.Event) {
-    if event.window.event == .RESIZED {
-        dd.dispatch_update()
-    }
-    if input.get_input_handle_result() != .None {
-        dd.dispatch_update()
-    }
 }

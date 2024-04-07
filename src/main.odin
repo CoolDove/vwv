@@ -18,10 +18,10 @@ import "dude/dude"
 import dd "dude/dude/core"
 import "dude/dude/dpac"
 import "dude/dude/dgl"
+import "dude/dude/input"
 import "dude/dude/render"
 import mui "dude/dude/microui"
 import "dude/dude/imdraw"
-import hla "dude/dude/collections/hollow_array"
 
 REPAC_ASSETS :: false
 
@@ -116,4 +116,14 @@ release :: proc(game: ^dd.Game) {
 
 @(private="file")
 on_mui :: proc(ctx: ^mui.Context) {
+}
+
+@(private="file")
+vwv_window_handler :: proc(using wnd: ^dd.Window, event:sdl.Event) {
+    if event.window.event == .RESIZED {
+        dd.dispatch_update()
+    }
+    if input.get_input_handle_result() != .None {
+        dd.dispatch_update()
+    }
 }

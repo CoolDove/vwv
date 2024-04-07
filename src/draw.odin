@@ -15,15 +15,24 @@ theme : Theme = {
     indent_width = 12,
     border_width = 2,
 
-    node_background = {233,233,233, 255},
-    node_text  = {5,5,5, 255},
-    node_border = {10,10,10,255},
-
-    card_normal = {200, 200, 200, 255},
-    card_hover = {222, 222, 222, 255},
-    card_active = {255, 255, 255, 255},
-    
-    
+    card_open = {
+        normal = {200, 200, 200, 255},
+        active = {255, 255, 255, 255},
+        text_normal = {20,20,20, 255},
+        text_active = {0,0,0, 255},
+    },
+    card_done = {
+        normal = {20, 200, 20, 255},
+        active = {20, 255, 20, 255},
+        text_normal = {20,20,20, 255},
+        text_active = {0,0,0, 255},
+    },
+    card_closed = {
+        normal = {160, 10, 10, 255},
+        active = {180, 20, 10, 255},
+        text_normal = {180,160,160, 255},
+        text_active = {190,160,160, 255},
+    },
 }
 
 Theme :: struct {
@@ -33,13 +42,9 @@ Theme :: struct {
     border_width : f32,
 
     // ** colors
-    node_background,
-    node_text,
-    node_border : dd.Color32,
+    card_open, card_closed, card_done : ThemeCardColor,
+}
 
-
-    card_normal,
-    card_hover,
-    card_active : dd.Color32,
-    
+ThemeCardColor :: struct {
+    normal, active, text_normal, text_active : dd.Color32
 }
