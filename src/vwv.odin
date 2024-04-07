@@ -102,15 +102,13 @@ vwv_update :: proc() {
             dd.dispatch_update()
         }
         if input.get_key_down(.ESCAPE) {
-            vwv_app.state = .Normal
-            vwv_app.editting_record = nil
+            vwv_state_exit_edit()
             dd.dispatch_update()
         }
     }
 
     // ** debug draw
     imdraw.quad(&pass_main, vwv_app.editting_point, {4,4}, {255,0,0,255}, order=99999999)
-    
 }
 
 vwv_record_update :: proc(r: ^VwvRecord, rect: ^dd.Rect, depth :f32= 0) {
@@ -125,17 +123,25 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^dd.Rect, depth :f32= 0) {
     record_rect :dd.Rect= {corner.x, corner.y, size.x, size.y}
     measure : dd.Vec2
     if result := record_card(&vuictx, vui.get_id_string(str), r, record_rect, &measure); result != .None {
-        if result == .Left {// left click to edit
-            if vwv_app.state == .Normal {
-                input.textinput_begin()
-                vwv_app.state = .Edit
-                vwv_app.editting_record = r
-                editting = true
+        if vwv_app.state == .Edit {
+            if !editting {
+                vwv_state_exit_edit()
                 dd.dispatch_update()
             }
-        } else if result == .Right {// right click to change state
-            r.info.state = dd.enum_step(VwvRecordState, r.info.state)
-            dd.dispatch_update()
+        }
+        if vwv_app.state == .Normal {
+            if result == .Left {// left click to edit
+                if vwv_app.state == .Normal {
+                    input.textinput_begin()
+                    vwv_app.state = .Edit
+                    vwv_app.editting_record = r
+                    editting = true
+                    dd.dispatch_update()
+                }
+            } else if result == .Right {// right click to change state
+                record_set_state(r, dd.enum_step(VwvRecordState, r.info.state))
+                dd.dispatch_update()
+            }
         }
     }
     if editting {
@@ -143,14 +149,16 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^dd.Rect, depth :f32= 0) {
         input.textinput_set_imm_composition_pos(vwv_app.editting_point)
     }
     
-    rect_grow_y(rect, line_height + line_padding)
+    height_step := line_height + line_padding
+    rect.y += height_step
+    rect.h -= height_step
 
     for &c, i in r.children {
         vwv_record_update(&c, rect, depth + 1)
     }
 }
 
-rect_grow_y :: proc(rect: ^dd.Rect, y: f32) {
-    rect.y += y
-    rect.h -= y
+vwv_state_exit_edit :: proc() {
+    vwv_app.state = .Normal
+    vwv_app.editting_record = nil
 }
