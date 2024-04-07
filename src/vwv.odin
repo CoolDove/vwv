@@ -27,6 +27,7 @@ AppState :: enum {
 }
 
 VwvRecord :: struct {
+    id : u64,
     line, detail : strings.Builder,
     info : VwvRecordInfo,
     children : [dynamic]VwvRecord,
@@ -124,7 +125,7 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^dd.Rect, depth :f32= 0) {
 
     record_rect :dd.Rect= {corner.x, corner.y, size.x, size.y}
     measure : dd.Vec2
-    if result := record_card(&vuictx, vui.get_id_string(str), r, record_rect, &measure); result != .None {
+    if result := record_card(&vuictx, r, record_rect, &measure); result != .None {
         if vwv_app.state == .Edit {
             if !editting {
                 vwv_state_exit_edit()

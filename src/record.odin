@@ -5,6 +5,9 @@ import "core:strings"
 // ** basic
 
 // ** record manipulations
+@(private="file")
+_record_next_id :u64= 1
+
 record_add_child :: proc(parent: ^VwvRecord) -> ^VwvRecord {
 	append(&parent.children, VwvRecord{})
 	child := &(parent.children[len(parent.children)-1])
@@ -12,6 +15,8 @@ record_add_child :: proc(parent: ^VwvRecord) -> ^VwvRecord {
 	strings.builder_init(&child.detail)
 	child.children = make([dynamic]VwvRecord)
 	child.parent = parent
+	child.id = _record_next_id
+	_record_next_id += 1
 	_record_calculate_progress(parent)
 	return child
 }

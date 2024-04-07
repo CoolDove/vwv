@@ -15,10 +15,11 @@ RecordCardResult :: enum {
     None, Left, Right
 }
 
-record_card :: proc(using ctx: ^vui.VuiContext, id: vui.ID, record: ^VwvRecord, rect: dd.Rect, 
+record_card :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord, rect: dd.Rect, 
                     measure_line:^dd.Vec2=nil/*output*/, measure_editting:^dd.Vec2=nil/*output*/) -> RecordCardResult
 {
     using vui
+    id := VUID_BY_RECORD(record)
     inrect := _is_in_rect(input.get_mouse_position(), rect)
     result := RecordCardResult.None
     if active == id {
