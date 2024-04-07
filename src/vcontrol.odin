@@ -2,6 +2,7 @@ package main
 
 import "core:log"
 import "core:strings"
+import "core:fmt"
 
 import "vui"
 import "dude/dude"
@@ -80,22 +81,28 @@ vcontrol_record_card :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord, rec
     if len(record.children) != 0 {// ** draw the progress bar
         padding_horizontal :f32= 16
         pgb_length_total :f32= size.x - padding_horizontal
-        pgb_thickness :f32= 3
+        pgb_thickness :f32= 9
         if pgb_length_total > 0 {
             x := corner.x + 0.5 * padding_horizontal
-            y := corner.y + size.y - 5
+            y := corner.y + size.y - 12
             progress := record.info.progress
             done, open, closed := progress[1], progress[0], progress[2]
 
+            progress_message := fmt.tprintf("%.2f%%", done * 100)
+            msg_measure := dude.mesher_text_measure(font, progress_message, font_size * 0.25)
+            imdraw.text(&pass_main, font, progress_message, {x + pgb_length_total - msg_measure.x, y + pgb_thickness-2}, font_size * 0.25, {0,0,0, 0.86}, order=42002)
+
             // ** progress bar background
-            imdraw.quad(&pass_main, {x,y}, {pgb_length_total, pgb_thickness+1}, {10,10,20, 255}, order=42002)
+            imdraw.quad(&pass_main, {x,y+pgb_thickness}, {pgb_length_total, 1}, {10,10,20, 255}, order=42001)
 
             // ** progress bar
-            imdraw.quad(&pass_main, {x,y}, {pgb_length_total*done, pgb_thickness}, {20,180,20, 255}, order=42003)
+            alpha :u8= 128
+            imdraw.quad(&pass_main, {x,y}, {pgb_length_total*done, pgb_thickness}, {20,180,20, alpha}, order=42001)
             x += pgb_length_total*done
-            imdraw.quad(&pass_main, {x,y}, {pgb_length_total*open, pgb_thickness}, {128,128,128, 255}, order=42003)
+            imdraw.quad(&pass_main, {x,y}, {pgb_length_total*open, pgb_thickness}, {128,128,128, alpha}, order=42001)
             x += pgb_length_total*open
-            imdraw.quad(&pass_main, {x,y}, {pgb_length_total*closed, pgb_thickness}, {180,30,15, 255}, order=42003)
+            imdraw.quad(&pass_main, {x,y}, {pgb_length_total*closed, pgb_thickness}, {180,30,15, alpha}, order=42001)
+            
         }
     }
 
