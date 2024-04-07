@@ -1,5 +1,6 @@
 package main
 
+import "core:runtime"
 import "core:strings"
 import "core:log"
 import sdl "vendor:sdl2"
@@ -60,7 +61,9 @@ vwv_init :: proc() {
     ra1 := record_add_child(ra)
 
     rb := record_add_child(&root)
-    rb0 := record_add_child(&root)
+    rb0 := record_add_child(rb)
+    rb1 := record_add_child(rb)
+    rb2 := record_add_child(rb)
 
     rc := record_add_child(&root)
     rd := record_add_child(&root)
@@ -71,6 +74,8 @@ vwv_init :: proc() {
 
     record_set_line(rb, "Lily")
     record_set_line(rb0, "Spike")
+    record_set_line(rb1, "Lilyyyy")
+    record_set_line(rb2, "Spikyyy")
 
     record_set_line(rc, "Zero")
     record_set_line(rd, "巴拉巴拉")
@@ -111,11 +116,18 @@ vwv_update :: proc() {
     if vwv_app.state == .Edit {
         if str, ok := input.get_textinput_charactors_temp(); ok {
             strings.write_string(&vwv_app.editting_record.line, str)
+            dd.dispatch_update()
         }
-        if input.get_key_down(.ESCAPE) {
-            // vwv_app.editting_record.line = strings.to_string(vwv_app.input_builder)
+        if input.get_key_down(.ESCAPE) || input.get_key_down(.RETURN) {
             vwv_app.state = .Normal
             vwv_app.editting_record = nil
+            dd.dispatch_update()
+        }
+        if input.get_key_repeat(.BACKSPACE) {
+            builder := &vwv_app.editting_record.line
+            buf := cast(^runtime.Raw_Dynamic_Array)(&builder.buf)
+            buf.len -= 1
+            dd.dispatch_update()
         }
     }
 }
@@ -132,8 +144,9 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^dd.Rect, depth :f32= 0) {
     record_rect :dd.Rect= {corner.x, corner.y, size.x, size.y}
     if record_card(&vuictx, vui.get_id_string(str), r, record_rect, editting) {
         if vwv_app.state == .Normal {
-            input.textinput_begin()
             input.textinput_set_rect(record_rect)
+            input.textinput_begin()
+            input.get_textinput_charactors_temp() // clean the buffer
             vwv_app.state = .Edit
             vwv_app.editting_record = r
             dd.dispatch_update()
