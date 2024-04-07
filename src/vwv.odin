@@ -133,7 +133,7 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^dd.Rect, depth :f32= 0) {
     if record_card(&vuictx, vui.get_id_string(str), r, record_rect, editting) {
         if vwv_app.state == .Normal {
             input.textinput_begin()
-            input.textinput_set_composition_position(corner)
+            input.textinput_set_imm_composition_pos(corner)
             vwv_app.state = .Edit
             vwv_app.editting_record = r
             dd.dispatch_update()
