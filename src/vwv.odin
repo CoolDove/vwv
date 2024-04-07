@@ -30,11 +30,13 @@ VwvRecord :: struct {
     line, detail : strings.Builder,
     info : VwvRecordInfo,
     children : [dynamic]VwvRecord,
+    parent : ^VwvRecord,
 }
 
 VwvRecordInfo :: struct {
     tag : u32,
     state : VwvRecordState,
+    progress : [3]f32, // Used by a parent node, indicates the portion of: open, done, closed.
 }
 VwvRecordState :: enum {
     Open, Done, Closed,

@@ -1,5 +1,6 @@
 package main
 
+import "core:log"
 import "core:strings"
 
 import "vui"
@@ -87,7 +88,7 @@ record_card :: proc(using ctx: ^vui.VuiContext, id: vui.ID, record: ^VwvRecord, 
     if editting {
         imdraw.quad(&pass_main, corner+{4,4}, size, {2,2,2,128}, order = 42000-1) // draw the shadow
         mesrline := dude.mesher_text_measure(font, strings.to_string(record.line), font_size)
-        imdraw.quad(&pass_main, corner+{mesrline.x, 1}, {2,rect.h-2}, {64,200,64,255}, order = 42001) // draw the cursor
+        imdraw.quad(&pass_main, corner+{mesrline.x, 1}, {2,rect.h-2}, col_text, order = 42001) // draw the cursor
         imdraw.text(&pass_main, font, editting_text, corner+{mesrline.x,font_size}, font_size, dd.col_u2f(col_text)*{1,1,1,0.5}, order = 42002) // draw the editting text
 
         if measure_line != nil do measure_line^ = mesrline
@@ -97,9 +98,31 @@ record_card :: proc(using ctx: ^vui.VuiContext, id: vui.ID, record: ^VwvRecord, 
         if measure_editting != nil && len(editting_text) != 0 do measure_editting^ = dude.mesher_text_measure(font, editting_text, font_size)
     }
 
-    // ** draw the state
+    // ** draw the state or progress
     if record.info.state == .Closed {
-        imdraw.quad(&pass_main, corner+{2,0.5*size.y-1}, {size.x-4, 2}, {255,0,0,200}, order=42003)
+        imdraw.quad(&pass_main, corner+{2,0.5*size.y-1}, {size.x-4, 2}, {10,10,5,128}, order=42003)
+    }
+
+    if len(record.children) != 0 {// ** draw the progress bar
+        padding_horizontal :f32= 16
+        pgb_length_total :f32= size.x - padding_horizontal
+        pgb_thickness :f32= 3
+        if pgb_length_total > 0 {
+            x := corner.x + 0.5 * padding_horizontal
+            y := corner.y + size.y - 5
+            progress := record.info.progress
+            done, open, closed := progress[1], progress[0], progress[2]
+
+            // ** progress bar background
+            imdraw.quad(&pass_main, {x,y}, {pgb_length_total, pgb_thickness+1}, {10,10,20, 255}, order=42002)
+
+            // ** progress bar
+            imdraw.quad(&pass_main, {x,y}, {pgb_length_total*done, pgb_thickness}, {20,180,20, 255}, order=42003)
+            x += pgb_length_total*done
+            imdraw.quad(&pass_main, {x,y}, {pgb_length_total*open, pgb_thickness}, {128,128,128, 255}, order=42003)
+            x += pgb_length_total*open
+            imdraw.quad(&pass_main, {x,y}, {pgb_length_total*closed, pgb_thickness}, {180,30,15, 255}, order=42003)
+        }
     }
     
     return result
