@@ -6,7 +6,6 @@ import "core:strings"
 import "core:strconv"
 import "core:math"
 
-import sdl "vendor:sdl2"
 import "../dude/dude"
 import dd "../dude/dude/core"
 import "../dude/dude/imdraw"
@@ -81,7 +80,7 @@ button :: proc(using ctx: ^VuiContext, id: ID, text: string, rect: dd.Rect) -> b
     return result
 }
 
-@private
+// @private
 _is_in_rect :: proc(p: Vec2, r: Rect) -> bool {
     return !(p.x<r.x || p.y<r.y || p.x>r.x+r.w || p.y>r.y+r.h)
 }
