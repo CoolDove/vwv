@@ -45,21 +45,64 @@ textedit_remove :: proc(using ed: ^TextEdit, offset: int) {// bytes
 	if offset < 0 do selection = {selection.x + offset, selection.x + offset}
 }
 
-textedit_find_previous_rune :: proc(using ed: ^TextEdit, cursor: int) -> int {
+textedit_find_previous_rune :: proc(using ed: ^TextEdit, cursor: int) -> (rune, int) {
 	cursor := cursor-1
 	r, size := gapbuffer_get_previous_rune(ed.buffer, cursor)
-	if size == 0 do return -1
-	return cursor+1-size
+	if size == 0 do return utf8.RUNE_ERROR, -1
+	return r, cursor+1-size
 }
-textedit_find_next_rune :: proc(using ed: ^TextEdit, cursor: int) -> int {
+textedit_find_next_rune :: proc(using ed: ^TextEdit, cursor: int) -> (rune, int) {
 	r, size := gapbuffer_get_current_rune(ed.buffer, cursor)
-	if size == 0 do return -1
-	return cursor+size
+	if size == 0 do return utf8.RUNE_ERROR, -1
+	return r, cursor+size
 }
-// textedit_find_previous_word :: proc(using ed: ^TextEdit, cursor: int) -> int {
-// }
-// textedit_find_next_word :: proc(using ed: ^TextEdit, cursor: int) -> int {
-// }
+textedit_find_previous_word_head :: proc(using ed: ^TextEdit, cursor: int) -> int {
+	cursor := cursor
+	mode := 0
+	for true {
+		if r, pos := textedit_find_previous_rune(ed, cursor); pos > 0 {
+			is_sp := strings.is_separator(r)
+			
+			if mode == 0 {
+				mode = -1 if is_sp else 1
+				cursor = pos
+			} else {
+				if (mode == -1 && !is_sp) || (mode == 1 && is_sp) {
+					return cursor
+				} 
+				cursor = pos
+			}
+		} else {
+			return 0
+		}
+	}
+	return 0
+}
+textedit_find_next_word_head :: proc(using ed: ^TextEdit, cursor: int) -> int {
+	cursor := cursor
+	is_splitter :: proc(r: rune) -> bool {
+		return r == ',' || r == '_' || r == ' ' || r == '\t' || r == '\n' || r == '\''
+	}
+	mode := 0
+	for true {
+		if r, pos := textedit_find_next_rune(ed, cursor); pos > 0 {
+			is_sp := strings.is_separator(r)
+			
+			if mode == 0 {
+				mode = -1 if is_sp else 1
+				cursor = pos
+			} else {
+				if (mode == -1 && !is_sp) || (mode == 1 && is_sp) {
+					return cursor
+				} 
+				cursor = pos
+			}
+		} else {
+			return gapbuffer_len(ed.buffer)
+		}
+	}
+	return gapbuffer_len(ed.buffer)
+}
 
 // ** gap buffer
 

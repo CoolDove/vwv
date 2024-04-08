@@ -121,18 +121,38 @@ vwv_update :: proc() {
         }
 
         if input.get_key_repeat(.LEFT) {
-            to := textedit_find_previous_rune(ed, ed.selection.x)
+            to :int= -1
+            if input.get_key(.LCTRL) || input.get_key(.RCTRL) {
+                to = textedit_find_previous_word_head(ed, ed.selection.x)
+            } else {
+                _, to = textedit_find_previous_rune(ed, ed.selection.x)
+            }
             if to > -1 do textedit_move_to(ed, to)
         } else if input.get_key_repeat(.RIGHT) {
-            to := textedit_find_next_rune(ed, ed.selection.x)
+            to :int= -1
+            if input.get_key(.LCTRL) || input.get_key(.RCTRL) {
+                to = textedit_find_next_word_head(ed, ed.selection.x)
+            } else {
+                _, to = textedit_find_next_rune(ed, ed.selection.x)
+            }
             if to > -1 do textedit_move_to(ed, to)
         }
         
         if input.get_key_repeat(.BACKSPACE) {
-            to := textedit_find_previous_rune(ed, ed.selection.x)
+            to :int= -1
+            if input.get_key(.LCTRL) || input.get_key(.RCTRL) {
+                to = textedit_find_previous_word_head(ed, ed.selection.x)
+            } else {
+                _, to = textedit_find_previous_rune(ed, ed.selection.x)
+            }
             if to > -1 do textedit_remove(ed, to-ed.selection.x)
         } else if input.get_key_repeat(.DELETE) {
-            to := textedit_find_next_rune(ed, ed.selection.x)
+            to :int= -1
+            if input.get_key(.LCTRL) || input.get_key(.RCTRL) {
+                to = textedit_find_next_word_head(ed, ed.selection.x)
+            } else {
+                _, to = textedit_find_next_rune(ed, ed.selection.x)
+            }
             if to > -1 do textedit_remove(ed, to-ed.selection.x)
         }
     }
