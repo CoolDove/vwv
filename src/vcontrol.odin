@@ -63,7 +63,6 @@ vcontrol_record_card :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord, rec
 
     editting_text := input.get_textinput_editting_text()
     if editting {
-        imdraw.quad(&pass_main, corner+{4,4}, size, {2,2,2,128}, order = 42000-1) // draw the shadow
         mesrline := dude.mesher_text_measure(font, record_line, font_size)
 
         edit := &vwv_app.text_edit

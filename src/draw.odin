@@ -30,10 +30,10 @@ theme : Theme = {
         text_active = {0,0,0, 255},
     },
     card_closed = {
-        normal = {160, 10, 10, 255},
-        active = {180, 20, 10, 255},
-        text_normal = {180,160,160, 255},
-        text_active = {190,160,160, 255},
+        normal = {80, 50, 55, 128},
+        active = {90, 55, 60, 128},
+        text_normal = {100, 95, 90, 200},
+        text_active = {110, 100,95, 200},
     },
 }
 
