@@ -61,6 +61,7 @@ main :: proc() {
     config.resizable = true
     config.custom_handler = vwv_window_handler
     config.event_driven = true
+    config.event_driven_tick_delay_time_ms = 16.67
     
     dd.dude_main(&config)
 }
