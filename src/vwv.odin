@@ -6,6 +6,7 @@ import "core:log"
 import sdl "vendor:sdl2"
 import dd "dude/dude/core"
 import "dude/dude/render"
+import "dude/dude/imdraw"
 import "dude/dude/input"
 import "dude/dude"
 import "vui"
@@ -18,9 +19,9 @@ VwvApp :: struct {
     view_offset_y : f32,
     state : AppState,
 
+    // ** edit
     editting_record : ^VwvRecord,
-
-    edit_point : dd.Vec2,
+    editting_point : dd.Vec2,
 }
 
 AppState :: enum {
@@ -28,17 +29,20 @@ AppState :: enum {
 }
 
 VwvRecord :: struct {
+    id : u64,
     line, detail : strings.Builder,
     info : VwvRecordInfo,
     children : [dynamic]VwvRecord,
+    parent : ^VwvRecord,
 }
 
 VwvRecordInfo :: struct {
     tag : u32,
     state : VwvRecordState,
+    progress : [3]f32, // Used by a parent node, indicates the portion of: open, done, closed.
 }
 VwvRecordState :: enum {
-    Open, Close, Done,
+    Open, Done, Closed,
 }
 
 vwv_record_release :: proc(r: ^VwvRecord) {
@@ -85,20 +89,6 @@ vwv_init :: proc() {
     vui.init(&vuictx, &pass_main, render.system().font_unifont)
 }
 
-record_add_child :: proc(parent: ^VwvRecord) -> ^VwvRecord {
-    append(&parent.children, VwvRecord{})
-    child := &(parent.children[len(parent.children)-1])
-    strings.builder_init(&child.line)
-    strings.builder_init(&child.detail)
-    child.children = make([dynamic]VwvRecord)
-    return child
-}
-
-record_set_line :: proc(record: ^VwvRecord, line: string) {
-    strings.builder_reset(&record.line)
-    strings.write_string(&record.line, line)
-}
-
 vwv_release :: proc() {
     vui.release(&vuictx)
     vwv_record_release(&root)
@@ -118,68 +108,89 @@ vwv_update :: proc() {
     if vwv_app.state == .Edit {
         if str, ok := input.get_textinput_charactors_temp(); ok {
             strings.write_string(&vwv_app.editting_record.line, str)
-            input.textinput_set_cursor_pos(vwv_app.edit_point)
             dd.dispatch_update()
         }
-        if input.get_key_down(.ESCAPE) || input.get_key_down(.RETURN) {
-            vwv_app.state = .Normal
-            vwv_app.editting_record = nil
-            input.textinput_set_cursor_pos(vwv_app.edit_point)
+        if input.get_key_down(.ESCAPE) {
+            vwv_state_exit_edit()
             dd.dispatch_update()
-        }
-        if input.get_key_repeat(.BACKSPACE) {
-            builder := &vwv_app.editting_record.line
-            buf := cast(^runtime.Raw_Dynamic_Array)(&builder.buf)
-            if buf.len > 0 {
-                buf.len -= 1
-                input.textinput_set_cursor_pos(vwv_app.edit_point)
-                dd.dispatch_update()
-            }
         }
     }
+
+    // ** debug draw
+    imdraw.quad(&pass_main, vwv_app.editting_point, {4,4}, {255,0,0,255}, order=99999999)
 }
 
 vwv_record_update :: proc(r: ^VwvRecord, rect: ^dd.Rect, depth :f32= 0) {
     using theme
     indent := indent_width*depth
-    corner :dd.Vec2= {rect.x+indent, rect.y}
-    size :dd.Vec2= {rect.w-indent, line_height}
+    corner := dd.Vec2{rect.x+indent, rect.y}// left-top
+    size := dd.Vec2{rect.w-indent, line_height}
+    corner_rb := corner+size// right-bottom
 
     str := strings.to_string(r.line)
     editting := vwv_app.state == .Edit && vwv_app.editting_record == r
 
     record_rect :dd.Rect= {corner.x, corner.y, size.x, size.y}
-    text_measure : dd.Vec2
-    if record_card(&vuictx, vui.get_id_string(str), r, record_rect, editting, &text_measure) {
+    measure : dd.Vec2
+    if result := vcontrol_record_card(&vuictx, r, record_rect, &measure); result != .None {
+        if vwv_app.state == .Edit {
+            if !editting {
+                vwv_state_exit_edit()
+                dd.dispatch_update()
+            }
+        }
         if vwv_app.state == .Normal {
-            vwv_app.edit_point = corner + {text_measure.x, size.y}
-            input.textinput_begin()
-            input.textinput_set_cursor_pos(vwv_app.edit_point)
-            input.get_textinput_charactors_temp() // clean the buffer
-            vwv_app.state = .Edit
-            vwv_app.editting_record = r
-            dd.dispatch_update()
+            if result == .Left {// left click to edit
+                if vwv_app.state == .Normal {
+                    input.textinput_begin()
+                    vwv_app.state = .Edit
+                    vwv_app.editting_record = r
+                    editting = true
+                    dd.dispatch_update()
+                }
+            } else if result == .Right {// right click to change state
+                record_set_state(r, dd.enum_step(VwvRecordState, r.info.state))
+                dd.dispatch_update()
+            }
         }
     }
-    if editting do vwv_app.edit_point = corner + {text_measure.x, size.y}
+    if editting {
+        vwv_app.editting_point = corner + {measure.x, size.y - 16}
+        input.textinput_set_imm_composition_pos(vwv_app.editting_point)
+    }
     
-    rect_grow_y(rect, line_height + line_padding)
+    height_step := line_height + line_padding
+    rect.y += height_step
+    rect.h -= height_step
+
+    if vwv_app.state == .Normal {
+        width, height :f32= 14, 14
+        padding :f32= 2
+        rect := dd.Rect{corner.x - width - padding, corner.y + size.y - height, width, height}
+        if result := vcontrol_button_add_record(&vuictx, r, rect); result != .None {
+            if result == .Left {
+                new_record := record_add_child(r)
+                vwv_state_enter_edit(new_record)
+            }
+        }
+    }
 
     for &c, i in r.children {
         vwv_record_update(&c, rect, depth + 1)
     }
 }
 
-rect_grow_y :: proc(rect: ^dd.Rect, y: f32) {
-    rect.y += y
-    rect.h -= y
+vwv_state_exit_edit :: proc() {
+    assert(vwv_app.state == .Edit, "Should call this when in Edit mode.")
+    vwv_app.state = .Normal
+    vwv_app.editting_record = nil
 }
-
-vwv_window_handler :: proc(using wnd: ^dd.Window, event:sdl.Event) {
-    if event.window.event == .RESIZED {
-        dd.dispatch_update()
-    }
-    if input.get_input_handle_result() != .None {
-        dd.dispatch_update()
-    }
+vwv_state_enter_edit :: proc(r: ^VwvRecord) {
+    // TODO: Handle the editting point
+    assert(vwv_app.state == .Normal, "Should call this when in Normal mode.")
+    input.textinput_set_imm_composition_pos(vwv_app.editting_point)
+    input.textinput_begin()
+    vwv_app.state = .Edit
+    vwv_app.editting_record = r
+    dd.dispatch_update()
 }
