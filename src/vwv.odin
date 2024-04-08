@@ -2,6 +2,7 @@ package main
 
 import "core:runtime"
 import "core:strings"
+import "core:unicode/utf8"
 import "core:log"
 import sdl "vendor:sdl2"
 import dd "dude/dude/core"
@@ -103,18 +104,25 @@ vwv_update :: proc() {
     rect :dd.Rect= {20,20, cast(f32)viewport.x-40, cast(f32)viewport.y-40}
     rect.y += vwv_app.view_offset_y
 
-    vwv_record_update(&root, &rect)
-
     if vwv_app.state == .Edit {
         if str, ok := input.get_textinput_charactors_temp(); ok {
             strings.write_string(&vwv_app.editting_record.line, str)
             dd.dispatch_update()
         }
-        if input.get_key_down(.ESCAPE) {
+        if input.get_key_down(.ESCAPE) || input.get_key_down(.RETURN) {
             vwv_state_exit_edit()
             dd.dispatch_update()
         }
+        if input.get_key_repeat(.BACKSPACE) {
+            line := &vwv_app.editting_record.line
+            lrune, lsize := utf8.decode_last_rune_in_string(strings.to_string(line^))
+            if lsize > 0 {
+                for _ in 0..<lsize do pop(&line.buf)
+            }
+        }
     }
+
+    vwv_record_update(&root, &rect)
 
     // ** debug draw
     imdraw.quad(&pass_main, vwv_app.editting_point, {4,4}, {255,0,0,255}, order=99999999)
