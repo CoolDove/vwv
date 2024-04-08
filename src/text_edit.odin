@@ -23,6 +23,10 @@ textedit_move :: proc(using ed: ^TextEdit, offset: int) {// bytes
 	to := clamp(selection.x + offset, 0, gapbuffer_len(buffer))
 	selection = {to, to}
 }
+textedit_move_to :: proc(using ed: ^TextEdit, to: int) {// bytes
+	if to < 0 || to > gapbuffer_len(ed.buffer) do return
+	selection = {to, to}
+}
 
 textedit_insert :: proc(using ed: ^TextEdit, str: string) {
 	gapbuffer_insert_string(ed.buffer, selection.x, str)
@@ -40,6 +44,22 @@ textedit_remove :: proc(using ed: ^TextEdit, offset: int) {// bytes
 	gapbuffer_remove_bytes(ed.buffer, selection.x, offset)
 	if offset < 0 do selection = {selection.x + offset, selection.x + offset}
 }
+
+textedit_find_previous_rune :: proc(using ed: ^TextEdit, cursor: int) -> int {
+	cursor := cursor-1
+	r, size := gapbuffer_get_previous_rune(ed.buffer, cursor)
+	if size == 0 do return -1
+	return cursor+1-size
+}
+textedit_find_next_rune :: proc(using ed: ^TextEdit, cursor: int) -> int {
+	r, size := gapbuffer_get_current_rune(ed.buffer, cursor)
+	if size == 0 do return -1
+	return cursor+size
+}
+// textedit_find_previous_word :: proc(using ed: ^TextEdit, cursor: int) -> int {
+// }
+// textedit_find_next_word :: proc(using ed: ^TextEdit, cursor: int) -> int {
+// }
 
 // ** gap buffer
 
@@ -86,6 +106,37 @@ gapbuffer_get_left :: #force_inline proc(b: ^GapBuffer) -> string {
 }
 gapbuffer_get_right :: #force_inline proc(b: ^GapBuffer) -> string {
 	return string(b.buf[b.gap_end:])
+}
+
+gapbuffer_get_byte :: proc(using b: ^GapBuffer, point: BufferPosition) -> (byte, bool) #optional_ok {
+	if point < 0 || point >= gapbuffer_len(b) do return 0,false
+	if point < gap_begin {
+		return buf[point], true
+	} else {
+		return buf[point+gapbuffer_len_gap(b)], true
+	}
+}
+
+// Look backwards to find a rune. Return the rune and its length in bytes. -1 indicates a bad rune at
+//	the point.
+gapbuffer_get_current_rune :: proc(b: ^GapBuffer, point: BufferPosition) -> (rune, int) {
+	if point < 0 || point >= gapbuffer_len(b) do return utf8.RUNE_ERROR, 0
+	bytes : [4]u8
+	length : int
+	for i in 0..<min(4, gapbuffer_len(b)-point) {
+		bytes[i] = gapbuffer_get_byte(b, point+i)
+		length = i+1
+	}
+	return utf8.decode_rune_in_bytes(bytes[:length])
+}
+gapbuffer_get_previous_rune :: proc(b: ^GapBuffer, point: BufferPosition) -> (rune, int) {
+	if point < 0 || point >= gapbuffer_len(b) do return utf8.RUNE_ERROR, 0
+	bytes : [4]u8
+	length :int= min(4, point)
+	for i in 0..<length {
+		bytes[3-i] = gapbuffer_get_byte(b, point-i)
+	}
+	return utf8.decode_last_rune_in_bytes(bytes[:])
 }
 
 // Cursors are clamped [0,n) where n is the filled count of the buffer.

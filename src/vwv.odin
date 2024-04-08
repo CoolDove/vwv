@@ -121,20 +121,19 @@ vwv_update :: proc() {
         }
 
         if input.get_key_repeat(.LEFT) {
-            textedit_move(ed, -1)
+            to := textedit_find_previous_rune(ed, ed.selection.x)
+            if to > -1 do textedit_move_to(ed, to)
         } else if input.get_key_repeat(.RIGHT) {
-            textedit_move(ed, 1)
+            to := textedit_find_next_rune(ed, ed.selection.x)
+            if to > -1 do textedit_move_to(ed, to)
         }
         
         if input.get_key_repeat(.BACKSPACE) {
-            textedit_remove(ed, -1)
-            // line := &vwv_app.editting_record.line
-            // lrune, lsize := utf8.decode_last_rune_in_string(strings.to_string(line^))
-            // if lsize > 0 {
-            //     for _ in 0..<lsize do pop(&line.buf)
-            // }
+            to := textedit_find_previous_rune(ed, ed.selection.x)
+            if to > -1 do textedit_remove(ed, to-ed.selection.x)
         } else if input.get_key_repeat(.DELETE) {
-            textedit_remove(ed, 1)
+            to := textedit_find_next_rune(ed, ed.selection.x)
+            if to > -1 do textedit_remove(ed, to-ed.selection.x)
         }
     }
 
