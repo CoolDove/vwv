@@ -87,7 +87,7 @@ vwv_init :: proc() {
     record_set_line(rc, "Zero")
     record_set_line(rd, "巴拉巴拉")
 
-    vui.init(&vuictx, &pass_main, render.system().font_unifont)
+    vui.init(&vuictx, &pass_main, render.system().default_font)
 }
 
 vwv_release :: proc() {

@@ -62,6 +62,7 @@ main :: proc() {
     config.custom_handler = vwv_window_handler
     config.event_driven = true
     config.event_driven_tick_delay_time_ms = 16.67
+    config.default_font_data = #load("res/deng.ttf")
     
     dd.dude_main(&config)
 }
@@ -80,7 +81,7 @@ update :: proc(game: ^dd.Game, delta: f32) {
     dmp : Vec2 // debug_msg_pos
     screen_debug_msg :: proc(dmp: ^dd.Vec2, msg: string, intent:i32=0) {
         fsize : f32 = 32
-        imdraw.text(&pass_main, render.system().font_unifont, msg, dmp^ + {0, fsize}, fsize, color={0,1,0,1}, order=999999)
+        imdraw.text(&pass_main, render.system().default_font, msg, dmp^ + {0, fsize}, fsize, color={0,1,0,1}, order=999999)
         dmp.y += fsize + 10
     }
 
