@@ -56,15 +56,14 @@ vcontrol_record_card :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord, rec
 
     imdraw.quad(&pass_main, corner, size, col_bg, order = LAYER_MAIN)
 
-    font_size :f32= 32
-    imdraw.text(&pass_main, font, strings.to_string(record.line), corner+{0,font_size}, font_size, dd.col_u2f(col_text), order = 42002)
+    imdraw.text(&pass_main, font, strings.to_string(record.line), corner+{0,font_size+line_margin}, font_size, dd.col_u2f(col_text), order = 42002)
 
     editting_text := input.get_textinput_editting_text()
     if editting {
         imdraw.quad(&pass_main, corner+{4,4}, size, {2,2,2,128}, order = 42000-1) // draw the shadow
         mesrline := dude.mesher_text_measure(font, strings.to_string(record.line), font_size)
         imdraw.quad(&pass_main, corner+{mesrline.x, 1}, {2,rect.h-2}, col_text, order = 42001) // draw the cursor
-        imdraw.text(&pass_main, font, editting_text, corner+{mesrline.x,font_size}, font_size, dd.col_u2f(col_text)*{1,1,1,0.5}, order = 42002) // draw the editting text
+        imdraw.text(&pass_main, font, editting_text, corner+{mesrline.x,font_size+line_margin}, font_size, dd.col_u2f(col_text)*{1,1,1,0.5}, order = 42002) // draw the editting text
 
         if measure_line != nil do measure_line^ = mesrline
         if measure_editting != nil && len(editting_text) != 0 do measure_editting^ = dude.mesher_text_measure(font, editting_text, font_size)

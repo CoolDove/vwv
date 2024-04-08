@@ -10,7 +10,9 @@ import "vui"
 // rect: xy: min, zw: size
 
 theme : Theme = {
-    line_height = 40,
+    font_size = 32,
+    line_height = 46,
+    line_margin = 4,
     line_padding = 8,
     indent_width = 12,
     border_width = 2,
@@ -36,7 +38,9 @@ theme : Theme = {
 }
 
 Theme :: struct {
+    font_size : f32,
     line_height : f32,
+    line_margin : f32,
     line_padding : f32,
     indent_width : f32,
     border_width : f32,
