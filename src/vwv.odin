@@ -163,7 +163,7 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^dd.Rect, depth :f32= 0) {
         }
     }
     if editting {
-        vwv_app.editting_point = corner + {measure.x, size.y - 16}
+        vwv_app.editting_point = corner + {measure.x, font_size+line_margin}
         input.textinput_set_imm_composition_pos(vwv_app.editting_point)
     }
     
