@@ -56,19 +56,27 @@ vcontrol_record_card :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord, rec
 
     imdraw.quad(&pass_main, corner, size, col_bg, order = LAYER_MAIN)
 
-    imdraw.text(&pass_main, font, strings.to_string(record.line), corner+{0,font_size+line_margin}, font_size, dd.col_u2f(col_text), order = 42002)
+    // @TEMPORARY:
+    record_line := fmt.tprintf("{}{}", gapbuffer_get_left(&record.line), gapbuffer_get_right(&record.line))
+
+    imdraw.text(&pass_main, font, record_line, corner+{0,font_size+line_margin}, font_size, dd.col_u2f(col_text), order = 42002)
 
     editting_text := input.get_textinput_editting_text()
     if editting {
         imdraw.quad(&pass_main, corner+{4,4}, size, {2,2,2,128}, order = 42000-1) // draw the shadow
-        mesrline := dude.mesher_text_measure(font, strings.to_string(record.line), font_size)
-        imdraw.quad(&pass_main, corner+{mesrline.x, 1}, {2,rect.h-2}, col_text, order = 42001) // draw the cursor
+        mesrline := dude.mesher_text_measure(font, record_line, font_size)
+
+        edit := &vwv_app.text_edit
+        editcursor_mesr_next : dd.Vec2
+        editcursor_mesr := dude.mesher_text_measure(font, record_line[:edit.selection.x], font_size, out_next_pos =&editcursor_mesr_next)
+        imdraw.quad(&pass_main, corner+{editcursor_mesr_next.x, 1}, {2,rect.h-2}, col_text, order = 42001) // draw the cursor
+
         imdraw.text(&pass_main, font, editting_text, corner+{mesrline.x,font_size+line_margin}, font_size, dd.col_u2f(col_text)*{1,1,1,0.5}, order = 42002) // draw the editting text
 
         if measure_line != nil do measure_line^ = mesrline
         if measure_editting != nil && len(editting_text) != 0 do measure_editting^ = dude.mesher_text_measure(font, editting_text, font_size)
     } else {
-        if measure_line != nil && len(measure_line) != 0 do measure_line^ = dude.mesher_text_measure(font, strings.to_string(record.line), font_size)
+        if measure_line != nil && len(measure_line) != 0 do measure_line^ = dude.mesher_text_measure(font, record_line, font_size)
         if measure_editting != nil && len(editting_text) != 0 do measure_editting^ = dude.mesher_text_measure(font, editting_text, font_size)
     }
 

@@ -10,6 +10,7 @@ import "dude/dude/render"
 import "dude/dude/imdraw"
 import "dude/dude/input"
 import "dude/dude"
+import "dude/dude/vendor/fontstash"
 import "vui"
 
 vwv_app : VwvApp
@@ -21,6 +22,7 @@ VwvApp :: struct {
     state : AppState,
 
     // ** edit
+    text_edit : TextEdit,
     editting_record : ^VwvRecord,
     editting_point : dd.Vec2,
 }
@@ -31,7 +33,7 @@ AppState :: enum {
 
 VwvRecord :: struct {
     id : u64,
-    line, detail : strings.Builder,
+    line, detail : GapBuffer,
     info : VwvRecordInfo,
     children : [dynamic]VwvRecord,
     parent : ^VwvRecord,
@@ -51,14 +53,16 @@ vwv_record_release :: proc(r: ^VwvRecord) {
         vwv_record_release(&c)
     }
     delete(r.children)
-    strings.builder_destroy(&r.line)
-    strings.builder_destroy(&r.detail)
+    gapbuffer_release(&r.line)
+    gapbuffer_release(&r.detail)
+    // strings.builder_destroy(&r.line)
+    // strings.builder_destroy(&r.detail)
 }
 
 vwv_init :: proc() {
     // manually init root node
-    strings.builder_init(&root.line)
-    strings.builder_init(&root.detail)
+    gapbuffer_init(&root.line, 32)
+    gapbuffer_init(&root.detail, 32)
     root.children = make([dynamic]VwvRecord)
     
     record_set_line(&root, "vwv")
@@ -80,7 +84,7 @@ vwv_init :: proc() {
     record_set_line(ra1, "Jet")
 
     record_set_line(rb, "Lily")
-    record_set_line(rb0, "Spike")
+    record_set_line(rb0, "Spike ")
     record_set_line(rb1, "Lilyyyy")
     record_set_line(rb2, "Spikyyy")
 
@@ -105,27 +109,44 @@ vwv_update :: proc() {
     rect.y += vwv_app.view_offset_y
 
     if vwv_app.state == .Edit {
+        ed := &vwv_app.text_edit
         if str, ok := input.get_textinput_charactors_temp(); ok {
-            strings.write_string(&vwv_app.editting_record.line, str)
+            // strings.write_string(&vwv_app.editting_record.line, str)
+            textedit_insert(ed, str)
             dd.dispatch_update()
         }
         if input.get_key_down(.ESCAPE) || input.get_key_down(.RETURN) {
             vwv_state_exit_edit()
             dd.dispatch_update()
         }
+
+        if input.get_key_repeat(.LEFT) {
+            textedit_move(ed, -1)
+        } else if input.get_key_repeat(.RIGHT) {
+            textedit_move(ed, 1)
+        }
+        
         if input.get_key_repeat(.BACKSPACE) {
-            line := &vwv_app.editting_record.line
-            lrune, lsize := utf8.decode_last_rune_in_string(strings.to_string(line^))
-            if lsize > 0 {
-                for _ in 0..<lsize do pop(&line.buf)
-            }
+            textedit_remove(ed, -1)
+            // line := &vwv_app.editting_record.line
+            // lrune, lsize := utf8.decode_last_rune_in_string(strings.to_string(line^))
+            // if lsize > 0 {
+            //     for _ in 0..<lsize do pop(&line.buf)
+            // }
+        } else if input.get_key_repeat(.DELETE) {
+            textedit_remove(ed, 1)
         }
     }
 
     vwv_record_update(&root, &rect)
 
     // ** debug draw
-    imdraw.quad(&pass_main, vwv_app.editting_point, {4,4}, {255,0,0,255}, order=99999999)
+    debug_point :: proc(point: dd.Vec2, col:=dd.Color32{255,0,0,255}, size:f32=2, order:i32=99999999) {
+        imdraw.quad(&pass_main, point, {size,size}, {255,0,0,255}, order=99999999)
+    }
+    
+    debug_point(vwv_app.editting_point)
+
 }
 
 vwv_record_update :: proc(r: ^VwvRecord, rect: ^dd.Rect, depth :f32= 0) {
@@ -135,7 +156,6 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^dd.Rect, depth :f32= 0) {
     size := dd.Vec2{rect.w-indent, line_height}
     corner_rb := corner+size// right-bottom
 
-    str := strings.to_string(r.line)
     editting := vwv_app.state == .Edit && vwv_app.editting_record == r
 
     record_rect :dd.Rect= {corner.x, corner.y, size.x, size.y}
@@ -150,9 +170,7 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^dd.Rect, depth :f32= 0) {
         if vwv_app.state == .Normal {
             if result == .Left {// left click to edit
                 if vwv_app.state == .Normal {
-                    input.textinput_begin()
-                    vwv_app.state = .Edit
-                    vwv_app.editting_record = r
+                    vwv_state_enter_edit(r)
                     editting = true
                     dd.dispatch_update()
                 }
@@ -199,6 +217,7 @@ vwv_state_enter_edit :: proc(r: ^VwvRecord) {
     input.textinput_set_imm_composition_pos(vwv_app.editting_point)
     input.textinput_begin()
     vwv_app.state = .Edit
+    textedit_begin(&vwv_app.text_edit, &r.line, gapbuffer_len(&r.line))
     vwv_app.editting_record = r
     dd.dispatch_update()
 }
