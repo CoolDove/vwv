@@ -41,6 +41,7 @@ VwvApp :: struct {
 
     // ** misc
     _frame_id : u64,
+    _save_dirty : bool,
 }
 
 AppState :: enum {
@@ -95,6 +96,7 @@ vwv_init :: proc() {
     vwv_app.record_operations = make([dynamic]RecordOperation)
 
     vui.init(&vuictx, &pass_main, render.system().default_font)
+    vwv_app._save_dirty = false
 }
 
 vwv_release :: proc() {
@@ -120,7 +122,6 @@ vwv_update :: proc() {
     } else if vwv_app.state == .Normal {
         if input.get_key_down(.S) && input.get_key(.LCTRL) {
             save()
-            bubble_msg("Saved", 0.8)
         }
     }
 
@@ -132,7 +133,7 @@ vwv_update :: proc() {
 
     {// ** status bar
         sbr := rect_split_top(app_rect, 42)
-        imdraw.quad(&pass_main, {sbr.x, sbr.y}, {sbr.w, sbr.h}, {90, 100, 75, 100})
+        imdraw.quad(&pass_main, {sbr.x, sbr.y}, {sbr.w, sbr.h}, {90, 100, 75, 255}, order=LAYER_STATUS_BAR_BASE)
         checkbutton_rect := rect_padding(rect_split_right(sbr, 42), 4,4,4,4)
         new_pin_value := vcontrol_checkbutton(&vuictx, VUID_BUTTON_PIN, checkbutton_rect, vwv_app.pin)
         if new_pin_value != vwv_app.pin {
@@ -156,6 +157,12 @@ vwv_update :: proc() {
     }
     
     flush_record_operations()
+
+    if vwv_app._save_dirty {
+        save()
+        vwv_app._save_dirty = false
+    }
+    
 
     if DEBUG_VWV {
         // ** debug draw
@@ -254,6 +261,7 @@ vwv_state_exit_edit :: proc() {
     assert(vwv_app.state == .Edit, "Should call this when in Edit mode.")
     vwv_app.state = .Normal
     vwv_app.editting_record = nil
+    vwv_mark_save_dirty()
 }
 vwv_state_enter_edit :: proc(r: ^VwvRecord) {
     // TODO: Handle the editting point
@@ -264,6 +272,10 @@ vwv_state_enter_edit :: proc(r: ^VwvRecord) {
     textedit_begin(&vwv_app.text_edit, &r.line, gapbuffer_len(&r.line))
     vwv_app.editting_record = r
     dd.dispatch_update()
+}
+
+vwv_mark_save_dirty :: proc() {
+    vwv_app._save_dirty = true
 }
 
 // ** record operations

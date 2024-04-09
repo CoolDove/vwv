@@ -6,6 +6,8 @@ import "core:fmt"
 import "core:path/filepath"
 import "core:encoding/json"
 
+import "dude/dude"
+
 VWV_PATH :: "vwv"
 PATH_RECORDS :: ".records"
 PATH_CONFIGS :: ".configs"
@@ -23,6 +25,7 @@ is_record_file_exist :: proc() -> bool {
 }
 
 save :: proc() {
+    dude.timer_check("Save begins")
     dumped := make([dynamic]RecordStorage)
     _dump(&dumped, &root)
     opt : json.Marshal_Options
@@ -35,11 +38,14 @@ save :: proc() {
     log.debugf("write path: {}", path)
     os.write_entire_file(path, data)
 
+    bubble_msg("Saved", 0.8)
+
     for r in dumped {
         delete(r.line)
         delete(r.detail)
     }
     delete(dumped)
+    dude.timer_check("Save ends")
 }
 load :: proc() {// The root record is initialized before this.
     path := _get_path_temp(PATH_RECORDS)

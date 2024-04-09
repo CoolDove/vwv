@@ -11,7 +11,7 @@ import "vui"
 
 theme : Theme = {
     font_size = 32,
-    line_height = 46,
+    line_height = 40,
     line_margin = 4,
     line_padding = 8,
     indent_width = 12,

@@ -54,11 +54,14 @@ vcontrol_record_card :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord, rec
     corner_rt :dd.Vec2= {rect.x-rect.w,rect.y}// corner right-top
     size :dd.Vec2= {rect.w, rect.h}
 
-    imdraw.quad(&pass_main, corner, size, col_bg, order = LAYER_MAIN)
+    imdraw.quad(&pass_main, corner, size, col_bg, order = LAYER_RECORD_BASE)
+
+    _LAYER_PROGRESS_BAR :: LAYER_RECORD_CONTENT - 60
+    _LAYER_OVERLAY :: LAYER_RECORD_CONTENT + 1000
 
     // ** draw the state or progress
     if record.info.state == .Closed {
-        imdraw.quad(&pass_main, corner+{2,0.5*size.y-1}, {size.x-4, 2}, {10,10,5,128}, order=42003)
+        imdraw.quad(&pass_main, corner+{2,0.5*size.y-1}, {size.x-4, 2}, {10,10,5,128}, order=_LAYER_OVERLAY)
     }
 
     if len(record.children) != 0 {// ** draw the progress bar
@@ -73,18 +76,18 @@ vcontrol_record_card :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord, rec
 
             progress_message := fmt.tprintf("%.2f%%", ((done / (1-closed)) * 100) if closed != 1 else 100)
             msg_measure := dude.mesher_text_measure(font, progress_message, font_size * 0.25)
-            imdraw.text(&pass_main, font, progress_message, {x + pgb_length_total - msg_measure.x, y + pgb_thickness-2}, font_size * 0.25, {0,0,0, 0.86}, order=42002)
+            imdraw.text(&pass_main, font, progress_message, {x + pgb_length_total - msg_measure.x, y + pgb_thickness-2}, font_size * 0.25, {0,0,0, 0.86}, order=_LAYER_PROGRESS_BAR+10)
 
             // ** progress bar background
-            imdraw.quad(&pass_main, {x,y+pgb_thickness}, {pgb_length_total, 1}, {10,10,20, 255}, order=42001)
+            imdraw.quad(&pass_main, {x,y+pgb_thickness}, {pgb_length_total, 1}, {10,10,20, 255}, order=_LAYER_PROGRESS_BAR)
 
             // ** progress bar
             alpha :u8= 128
-            imdraw.quad(&pass_main, {x,y}, {pgb_length_total*done, pgb_thickness}, {20,180,20, alpha}, order=42001)
+            imdraw.quad(&pass_main, {x,y}, {pgb_length_total*done, pgb_thickness}, {20,180,20, alpha}, order=_LAYER_PROGRESS_BAR)
             x += pgb_length_total*done
-            imdraw.quad(&pass_main, {x,y}, {pgb_length_total*open, pgb_thickness}, {128,128,128, alpha}, order=42001)
+            imdraw.quad(&pass_main, {x,y}, {pgb_length_total*open, pgb_thickness}, {128,128,128, alpha}, order=_LAYER_PROGRESS_BAR)
             x += pgb_length_total*open
-            imdraw.quad(&pass_main, {x,y}, {pgb_length_total*closed, pgb_thickness}, {180,30,15, alpha}, order=42001)
+            imdraw.quad(&pass_main, {x,y}, {pgb_length_total*closed, pgb_thickness}, {180,30,15, alpha}, order=_LAYER_PROGRESS_BAR)
         }
     }
     return result
@@ -100,8 +103,8 @@ vcontrol_button_add_record :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecor
     col :dd.Color32= {65,65,65, 255}
     if hot == id do col = {80,80,80, 255}
     if active == id do col = {95,95,95, 255}
-    imdraw.quad(&pass_main, {rect.x,rect.y+0.5*rect.h-2}, {rect.w,4}, col, order=LAYER_MAIN + 1)
-    imdraw.quad(&pass_main, {rect.x+0.5*rect.w-2,rect.y}, {4,rect.h}, col, order=LAYER_MAIN + 1)
+    imdraw.quad(&pass_main, {rect.x,rect.y+0.5*rect.h-2}, {rect.w,4}, col, order=LAYER_RECORD_BASE)
+    imdraw.quad(&pass_main, {rect.x+0.5*rect.w-2,rect.y}, {4,rect.h}, col, order=LAYER_RECORD_BASE)
     return result
 }
 
@@ -111,9 +114,9 @@ vcontrol_checkbutton :: proc(using ctx: ^vui.VuiContext, id: vui.ID, rect: dd.Re
     result := _event_handler_button(ctx, id, inrect)
 
     if value {
-        imdraw.quad(&pass_main, {rect.x,rect.y}, {rect.w,rect.h}, {0,255,0,255}, order=LAYER_MAIN + 1)
+        imdraw.quad(&pass_main, {rect.x,rect.y}, {rect.w,rect.h}, {0,255,0,255}, order=LAYER_STATUS_BAR_ITEM)
     } else {
-        imdraw.quad(&pass_main, {rect.x,rect.y}, {rect.w,rect.h}, {29,29,28, 255}, order=LAYER_MAIN + 1)
+        imdraw.quad(&pass_main, {rect.x,rect.y}, {rect.w,rect.h}, {29,29,28, 255}, order=LAYER_STATUS_BAR_ITEM)
     }
     return !value if result == .Left else value
 }
@@ -201,13 +204,13 @@ vcontrol_edittable_textline :: proc(using ctx: ^vui.VuiContext, id: vui.ID, rect
         rect : dd.Rect,
     }
 
-    dt := DrawText{ 0, font, font_size, font_size+line_margin, rect }
+    dt := DrawText{ 0, font, font_size, font_size-line_margin, rect }
 
     draw_text :: proc(d: ^DrawText, str: string, col: dd.Color32) {
         corner := rect_position(d.rect)
         next :dd.Vec2
         mesr := dude.mesher_text_measure(d.font, str, d.font_size, out_next_pos =&next)
-        imdraw.text(&pass_main, d.font, str, corner+{d.ptr, d.offset_y}, d.font_size, dd.col_u2f(col), order = 42002)
+        imdraw.text(&pass_main, d.font, str, corner+{d.ptr, d.offset_y}, d.font_size, dd.col_u2f(col), order = LAYER_RECORD_CONTENT)
         d.ptr += next.x
     }
 
@@ -215,7 +218,7 @@ vcontrol_edittable_textline :: proc(using ctx: ^vui.VuiContext, id: vui.ID, rect
     if editting {
         if input.get_textinput_editting_text() != "" {
             draw_text(&dt, text_line[:edit.selection.x], col_text)
-            imdraw.quad(&pass_main, rcorner+{dt.ptr, 1}, {2,rsize.y-2}, col_text, order = 42002) // draw the cursor
+            imdraw.quad(&pass_main, rcorner+{dt.ptr, 1}, {2,rsize.y-2}, col_text, order = LAYER_RECORD_CONTENT) // draw the cursor
             edit_point = rcorner+{dt.ptr, 1+dt.offset_y}
             col_text_dimmed := col_text; col_text_dimmed.a = 128
             draw_text(&dt, input.get_textinput_editting_text(), col_text_dimmed)
@@ -224,7 +227,7 @@ vcontrol_edittable_textline :: proc(using ctx: ^vui.VuiContext, id: vui.ID, rect
             next :dd.Vec2
             mesr := dude.mesher_text_measure(font, text_line[:edit.selection.x], font_size, out_next_pos =&next)
             draw_text(&dt, text_line, col_text)
-            imdraw.quad(&pass_main, rcorner+{next.x, 1}, {2,rsize.y-2}, col_text, order = 42002) // draw the cursor
+            imdraw.quad(&pass_main, rcorner+{next.x, 1}, {2,rsize.y-2}, col_text, order = LAYER_RECORD_CONTENT) // draw the cursor
             edit_point = rcorner+{next.x, 1+dt.offset_y}
         }
     } else {

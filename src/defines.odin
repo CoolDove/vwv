@@ -6,14 +6,20 @@ import "vui"
 
 
 // ** Layers
-LAYER_MAIN :i32: 42000
+LAYER_MAIN :i32: 420000
 
-LAYER_FLOATING_PANEL :i32: 68000
+LAYER_RECORD_BASE :: LAYER_MAIN + 100
+LAYER_RECORD_CONTENT :: LAYER_RECORD_BASE + 100
+
+LAYER_FLOATING_PANEL :i32: 680000
+
+LAYER_STATUS_BAR_BASE :: LAYER_FLOATING_PANEL + 1000
+LAYER_STATUS_BAR_ITEM :: LAYER_STATUS_BAR_BASE + 100
 
 
 // ** VUID
 
-VUID_RECORD_BASE :vui.ID: 42000
+VUID_RECORD_BASE :vui.ID: 420000
 // Each record has 256 id for its related vui items.
 VUID_BY_RECORD :: proc(r: ^VwvRecord, elem:u8= 0) -> vui.ID {
     return VUID_RECORD_BASE + cast(vui.ID)(r.id * 256) + cast(vui.ID)elem

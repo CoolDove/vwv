@@ -15,6 +15,7 @@ record_add_child :: proc(parent: ^VwvRecord) -> ^VwvRecord {
 	child := &(parent.children[len(parent.children)-1])
     record_init(child, parent)
 	_record_calculate_progress(parent)
+    vwv_mark_save_dirty()
 	return child
 }
 
@@ -27,17 +28,20 @@ record_remove_record :: proc(record: ^VwvRecord) {
             break
         }
     }
+    vwv_mark_save_dirty()
 }
 
 record_set_line :: proc(record: ^VwvRecord, line: string) {
     gapbuffer_clear(&record.line)
     gapbuffer_insert_string(&record.line, 0, line)
+    vwv_mark_save_dirty()
 }
 
 record_set_state :: proc(record: ^VwvRecord, state: VwvRecordState) -> bool {
 	if len(record.children) == 0 {
 		record.info.state = state
 		_record_calculate_progress(record.parent)
+        vwv_mark_save_dirty()
 		return true
 	} else {
 		return false
@@ -79,4 +83,5 @@ _record_calculate_progress :: proc(using record: ^VwvRecord) {
 		record.info.state = .Done if record.info.progress[0] == 0 else .Open
 	}
 	_record_calculate_progress(parent)
+    vwv_mark_save_dirty() // Because this changes state.
 }
