@@ -128,6 +128,21 @@ vcontrol_button_add_record :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecor
     return result
 }
 
+vcontrol_checkbutton :: proc(using ctx: ^vui.VuiContext, id: vui.ID, rect: dd.Rect, value: bool) -> bool {
+    using vui
+    inrect := _is_in_rect(input.get_mouse_position(), rect)
+    result := _event_handler_button(ctx, id, inrect)
+
+    if value {
+        imdraw.quad(&pass_main, {rect.x,rect.y}, {rect.w,rect.h}, {0,255,0,255}, order=LAYER_MAIN + 1)
+    } else {
+        imdraw.quad(&pass_main, {rect.x,rect.y}, {rect.w,rect.h}, {29,29,28, 255}, order=LAYER_MAIN + 1)
+    }
+    return !value if result == .Left else value
+}
+
+
+
 @(private="file")
 _event_handler_button :: proc(using ctx: ^vui.VuiContext, id: vui.ID, inrect: bool) -> ButtonResult {
     using vui

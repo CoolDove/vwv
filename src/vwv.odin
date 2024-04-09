@@ -23,6 +23,8 @@ VwvApp :: struct {
     view_offset_y : f32,
     state : AppState,
 
+    pin : bool,
+
     // ** operations
     record_operations : [dynamic]RecordOperation,
 
@@ -98,6 +100,9 @@ vwv_update :: proc() {
     }
 
     viewport := dd.app.window.size
+    app_rect :dd.Rect= {0,0, cast(f32)viewport.x, cast(f32)viewport.y}
+    
+    
     rect :dd.Rect= {20,20, cast(f32)viewport.x-40, cast(f32)viewport.y-40}
     rect.y += vwv_app.view_offset_y
 
@@ -160,6 +165,18 @@ vwv_update :: proc() {
 
     vwv_record_update(&root, &rect)
 
+    {// ** status bar
+        sbr := rect_split_top(app_rect, 42)
+        imdraw.quad(&pass_main, {sbr.x, sbr.y}, {sbr.w, sbr.h}, {90, 100, 75, 100})
+        checkbutton_rect := rect_padding(rect_split_right(sbr, 42), 4,4,4,4)
+        new_pin_value := vcontrol_checkbutton(&vuictx, VUID_BUTTON_PIN, checkbutton_rect, vwv_app.pin)
+        if new_pin_value != vwv_app.pin {
+            sdl.SetWindowAlwaysOnTop(dd.app.window.window, auto_cast new_pin_value)
+            vwv_app.pin = new_pin_value
+            dd.dispatch_update()
+        }
+    }
+    
     flush_record_operations()
 
     if DEBUG_VWV {
