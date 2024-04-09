@@ -28,6 +28,10 @@ VwvApp :: struct {
     // ** operations
     record_operations : [dynamic]RecordOperation,
 
+    // ** time
+    msgbubble : string,
+    msgbubble_time : f32,
+
     // ** edit
     text_edit : TextEdit,
     editting_record : ^VwvRecord,
@@ -156,6 +160,7 @@ vwv_update :: proc() {
     } else if vwv_app.state == .Normal {
         if input.get_key_down(.S) && input.get_key(.LCTRL) {
             save()
+            bubble_msg("Saved", 0.8)
         }
     }
 
@@ -176,6 +181,20 @@ vwv_update :: proc() {
             dd.dispatch_update()
         }
     }
+    if vwv_app.msgbubble_time > 0 {// ** msg bubble
+        using theme
+        bubblerect := rect_split_top(app_rect, 120)
+        bubblerect = rect_split_bottom(bubblerect, font_size+8)
+        bubblerect = rect_padding(bubblerect, 4,4,0,0)
+        imdraw.quad(&pass_main, {bubblerect.x, bubblerect.y}, {bubblerect.w, bubblerect.h}, {80,90,90, 168}, order=LAYER_FLOATING_PANEL)
+        imdraw.text(&pass_main, vuictx.font, vwv_app.msgbubble, {bubblerect.x,bubblerect.y+font_size}, font_size, {0.9,0.9,0.8,0.9}, order=LAYER_FLOATING_PANEL)
+        vwv_app.msgbubble_time -= cast(f32)dd.game.time_delta
+        if vwv_app.msgbubble_time <= 0 {
+            vwv_app.msgbubble_time = 0
+            vwv_app.msgbubble = ""
+        }
+        dd.dispatch_update()
+    }
     
     flush_record_operations()
 
@@ -187,6 +206,11 @@ vwv_update :: proc() {
 
         debug_point(vwv_app.editting_point)
     }
+}
+
+bubble_msg :: proc(msg: string, duration: f32) {
+    vwv_app.msgbubble = msg
+    vwv_app.msgbubble_time = duration
 }
 
 vwv_record_update :: proc(r: ^VwvRecord, rect: ^dd.Rect, depth :f32= 0) {
