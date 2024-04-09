@@ -215,6 +215,9 @@ vcontrol_edittable_textline :: proc(using ctx: ^vui.VuiContext, id: vui.ID, rect
         imdraw.text(&pass_main, d.font, str, corner+{d.ptr+d.offset_x, d.offset_y}, d.font_size, dd.col_u2f(col), region=region, order = LAYER_RECORD_CONTENT)
         d.ptr += next.x
     }
+    if DEBUG_VWV {
+        imdraw.quad(&pass_main, rcorner, rsize, {255, 120, 230, 40}, order = LAYER_RECORD_CONTENT) // draw the cursor
+    }
 
     text_line := gapbuffer_get_string(buffer); defer delete(text_line)
     if editting {
