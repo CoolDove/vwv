@@ -94,7 +94,7 @@ vcontrol_record_card :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord, rec
             progress := record.info.progress
             done, open, closed := progress[1], progress[0], progress[2]
 
-            progress_message := fmt.tprintf("%.2f%%", done * 100)
+            progress_message := fmt.tprintf("%.2f%%", (done / (1-closed)) * 100)
             msg_measure := dude.mesher_text_measure(font, progress_message, font_size * 0.25)
             imdraw.text(&pass_main, font, progress_message, {x + pgb_length_total - msg_measure.x, y + pgb_thickness-2}, font_size * 0.25, {0,0,0, 0.86}, order=42002)
 

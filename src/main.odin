@@ -51,7 +51,6 @@ main :: proc() {
     }
     defer reset_tracking_allocator(&tracking_allocator)
     
-    
     config : dd.DudeConfig
     config.callbacks = { update, init, release, on_mui }
     config.title = "vwv - simple tool for simple soul"
@@ -63,6 +62,7 @@ main :: proc() {
     config.event_driven = true
     config.event_driven_tick_delay_time_ms = 16.67
     config.default_font_data = #load("res/deng.ttf")
+    config.disable_audio = true
     
     dd.dude_main(&config)
 }
@@ -89,7 +89,6 @@ update :: proc(game: ^dd.Game, delta: f32) {
 }
 
 
-
 @(private="file")
 init :: proc(game: ^dude.Game) {
     using the_tool
@@ -105,15 +104,18 @@ init :: proc(game: ^dude.Game) {
     blend.enable = true
 
     vwv_init()
+    dude.timer_check("Vwv Fully Inited")
 }
 
 @(private="file")
 release :: proc(game: ^dd.Game) {
+    dude.timer_check("Vwv start release")
     vwv_release()
     using dd, the_tool
 	dgl.mesh_delete(&mesh_grid)
 
     render.pass_release(&pass_main)
+    dude.timer_check("Vwv released")
 }
 
 @(private="file")
