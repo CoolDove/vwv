@@ -187,11 +187,11 @@ gapbuffer_get_current_rune :: proc(b: ^GapBuffer, point: BufferPosition) -> (run
 gapbuffer_get_previous_rune :: proc(b: ^GapBuffer, point: BufferPosition) -> (rune, int) {
 	if point < 0 || point >= gapbuffer_len(b) do return utf8.RUNE_ERROR, 0
 	bytes : [4]u8
-	length :int= min(4, point)
+	length :int= min(4, point+1)
 	for i in 0..<length {
 		bytes[3-i] = gapbuffer_get_byte(b, point-i)
 	}
-	return utf8.decode_last_rune_in_bytes(bytes[:])
+	return utf8.decode_last_rune_in_bytes(bytes[4-length:])
 }
 
 // Cursors are clamped [0,n) where n is the filled count of the buffer.

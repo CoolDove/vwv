@@ -86,6 +86,13 @@ update :: proc(game: ^dd.Game, delta: f32) {
     }
 
     screen_debug_msg(&dmp, fmt.tprintf("FrameId: {}", the_tool._frame_id))
+    if vwv_app.state == .Edit {
+        ed := vwv_app.text_edit
+        gp := ed.buffer
+        screen_debug_msg(&dmp, fmt.tprintf("Edit: gpbuffer size: {}/{}, gap[{},{}], selection[{},{}]", 
+            gapbuffer_len(gp), gapbuffer_len_buffer(gp), 
+            gp.gap_begin, gp.gap_end, ed.selection.x, ed.selection.y))
+    }
 }
 
 
