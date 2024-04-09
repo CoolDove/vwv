@@ -210,7 +210,8 @@ vcontrol_edittable_textline :: proc(using ctx: ^vui.VuiContext, id: vui.ID, rect
         corner := rect_position(d.rect)
         next :dd.Vec2
         mesr := dude.mesher_text_measure(d.font, str, d.font_size, out_next_pos =&next)
-        imdraw.text(&pass_main, d.font, str, corner+{d.ptr, d.offset_y}, d.font_size, dd.col_u2f(col), order = LAYER_RECORD_CONTENT)
+        region :dd.Vec2= {d.rect.w-d.ptr,-1}
+        imdraw.text(&pass_main, d.font, str, corner+{d.ptr, d.offset_y}, d.font_size, dd.col_u2f(col), region=region, order = LAYER_RECORD_CONTENT)
         d.ptr += next.x
     }
 
