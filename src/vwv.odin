@@ -203,13 +203,13 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^dd.Rect, depth :f32= 0) {
 
     textbox_rect := rect_padding(rect_split_left(record_rect, record_rect.w-line_height), 4, 0,0,0)
     textbox_vid := VUID_BY_RECORD(r, RECORD_ITEM_LINE_TEXTBOX)
-    exit_text := vcontrol_edittable_textline(&vuictx, textbox_vid, textbox_rect, &r.line, &vwv_app.text_edit if editting else nil)
+    edit_point, exit_text := vcontrol_edittable_textline(&vuictx, textbox_vid, textbox_rect, &r.line, &vwv_app.text_edit if editting else nil)
     
     if exit_text {
         vwv_state_exit_edit()
         dd.dispatch_update()
     } else if editting {
-        vwv_app.editting_point = corner + {measure.x, line_margin + font_size}
+        vwv_app.editting_point = edit_point
         input.textinput_set_imm_composition_pos(vwv_app.editting_point)
     }
     

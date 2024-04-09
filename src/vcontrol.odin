@@ -121,7 +121,7 @@ vcontrol_checkbutton :: proc(using ctx: ^vui.VuiContext, id: vui.ID, rect: dd.Re
 // If `edit` is nil, this control will only display the text. You pass in a edit, the control will
 //  work.
 //  Return: If you pressed outside or press `ESC` or `RETURN` to exit the edit.
-vcontrol_edittable_textline :: proc(using ctx: ^vui.VuiContext, id: vui.ID, rect: dd.Rect, buffer: ^GapBuffer, edit:^TextEdit=nil) -> bool {
+vcontrol_edittable_textline :: proc(using ctx: ^vui.VuiContext, id: vui.ID, rect: dd.Rect, buffer: ^GapBuffer, edit:^TextEdit=nil) -> (edit_point: dd.Vec2, exit: bool) {
     using vui
 
     inrect := _is_in_rect(input.get_mouse_position(), rect)
@@ -211,6 +211,7 @@ vcontrol_edittable_textline :: proc(using ctx: ^vui.VuiContext, id: vui.ID, rect
         if input.get_textinput_editting_text() != "" {
             draw_text(&dt, text_line[:edit.selection.x], col_text)
             imdraw.quad(&pass_main, rcorner+{dt.ptr, 1}, {2,rsize.y-2}, col_text, order = 42002) // draw the cursor
+            edit_point = rcorner+{dt.ptr, 1+dt.offset_y}
             col_text_dimmed := col_text; col_text_dimmed.a = 128
             draw_text(&dt, input.get_textinput_editting_text(), col_text_dimmed)
             draw_text(&dt, text_line[edit.selection.x:], col_text)
@@ -219,12 +220,14 @@ vcontrol_edittable_textline :: proc(using ctx: ^vui.VuiContext, id: vui.ID, rect
             mesr := dude.mesher_text_measure(font, text_line[:edit.selection.x], font_size, out_next_pos =&next)
             draw_text(&dt, text_line, col_text)
             imdraw.quad(&pass_main, rcorner+{next.x, 1}, {2,rsize.y-2}, col_text, order = 42002) // draw the cursor
+            edit_point = rcorner+{next.x, 1+dt.offset_y}
         }
     } else {
         draw_text(&dt, text_line, col_text)
+        edit_point = {}
     }
-    
-    return result
+    exit = result
+    return 
 }
 
 
