@@ -1,5 +1,6 @@
 package main
 
+import "core:fmt"
 import "core:runtime"
 import "core:strings"
 import "core:unicode/utf8"
@@ -20,6 +21,7 @@ root : VwvRecord
 DEBUG_VWV : bool
 
 VwvApp :: struct {
+    // ** basic
     view_offset_y : f32,
     state : AppState,
 
@@ -36,6 +38,9 @@ VwvApp :: struct {
     text_edit : TextEdit,
     editting_record : ^VwvRecord,
     editting_point : dd.Vec2,
+
+    // ** misc
+    _frame_id : u64,
 }
 
 AppState :: enum {
@@ -111,52 +116,7 @@ vwv_update :: proc() {
     rect.y += vwv_app.view_offset_y
 
     if vwv_app.state == .Edit {
-        ed := &vwv_app.text_edit
-        if str, ok := input.get_textinput_charactors_temp(); ok {
-            textedit_insert(ed, str)
-            dd.dispatch_update()
-        }
-        if input.get_key_down(.ESCAPE) || input.get_key_down(.RETURN) {
-            vwv_state_exit_edit()
-            dd.dispatch_update()
-        }
-
-        if input.get_key_repeat(.LEFT) {
-            to :int= -1
-            if input.get_key(.LCTRL) || input.get_key(.RCTRL) {
-                to = textedit_find_previous_word_head(ed, ed.selection.x)
-            } else {
-                _, to = textedit_find_previous_rune(ed, ed.selection.x)
-            }
-            if to > -1 do textedit_move_to(ed, to)
-        } else if input.get_key_repeat(.RIGHT) {
-            to :int= -1
-            if input.get_key(.LCTRL) || input.get_key(.RCTRL) {
-                to = textedit_find_next_word_head(ed, ed.selection.x)
-            } else {
-                _, to = textedit_find_next_rune(ed, ed.selection.x)
-            }
-            if to > -1 do textedit_move_to(ed, to)
-        }
-        
-        if input.get_key_repeat(.BACKSPACE) {
-            to :int= -1
-            if input.get_key(.LCTRL) || input.get_key(.RCTRL) {
-                to = textedit_find_previous_word_head(ed, ed.selection.x)
-            } else {
-                _, to = textedit_find_previous_rune(ed, ed.selection.x)
-            }
-            if to > -1 do textedit_remove(ed, to-ed.selection.x)
-        } else if input.get_key_repeat(.DELETE) {
-            to :int= -1
-            if input.get_key(.LCTRL) || input.get_key(.RCTRL) {
-                to = textedit_find_next_word_head(ed, ed.selection.x)
-            } else {
-                _, to = textedit_find_next_rune(ed, ed.selection.x)
-            }
-            if to > -1 do textedit_remove(ed, to-ed.selection.x)
-        }
-
+        // ...
     } else if vwv_app.state == .Normal {
         if input.get_key_down(.S) && input.get_key(.LCTRL) {
             save()
@@ -203,6 +163,23 @@ vwv_update :: proc() {
             imdraw.quad(&pass_main, point, {size,size}, {255,0,0,255}, order=99999999)
         }
 
+        dmp : dd.Vec2 // debug_msg_pos
+        screen_debug_msg :: proc(dmp: ^dd.Vec2, msg: string, intent:i32=0) {
+            fsize : f32 = 32
+            imdraw.text(&pass_main, render.system().default_font, msg, dmp^ + {0, fsize}, fsize, color={0,1,0,1}, order=999999)
+            dmp.y += fsize + 10
+        }
+        screen_debug_msg(&dmp, fmt.tprintf("FrameId: {}", vwv_app._frame_id))
+        screen_debug_msg(&dmp, fmt.tprintf("Vui active: {}, hover: {}", vuictx.active, vuictx.hot))
+        if vwv_app.state == .Edit {
+            ed := vwv_app.text_edit
+            gp := ed.buffer
+            screen_debug_msg(&dmp, fmt.tprintf("Edit: gpbuffer size: {}/{}, gap[{},{}], selection[{},{}]", 
+                gapbuffer_len(gp), gapbuffer_len_buffer(gp), 
+                gp.gap_begin, gp.gap_end, ed.selection.x, ed.selection.y))
+        }
+
+
         debug_point(vwv_app.editting_point)
     }
 }
@@ -217,19 +194,26 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^dd.Rect, depth :f32= 0) {
     indent := indent_width*depth
     corner := dd.Vec2{rect.x+indent, rect.y}// left-top
     size := dd.Vec2{rect.w-indent, line_height}
+    record_rect :dd.Rect= {corner.x, corner.y, size.x, size.y}
     corner_rb := corner+size// right-bottom
 
     editting := vwv_app.state == .Edit && vwv_app.editting_record == r
 
-    record_rect :dd.Rect= {corner.x, corner.y, size.x, size.y}
     measure : dd.Vec2
+
+    textbox_rect := rect_padding(rect_split_left(record_rect, record_rect.w-line_height), 4, 0,0,0)
+    textbox_vid := VUID_BY_RECORD(r, RECORD_ITEM_LINE_TEXTBOX)
+    exit_text := vcontrol_edittable_textline(&vuictx, textbox_vid, textbox_rect, &r.line, &vwv_app.text_edit if editting else nil)
+    
+    if exit_text {
+        vwv_state_exit_edit()
+        dd.dispatch_update()
+    } else if editting {
+        vwv_app.editting_point = corner + {measure.x, line_margin + font_size}
+        input.textinput_set_imm_composition_pos(vwv_app.editting_point)
+    }
+    
     if result := vcontrol_record_card(&vuictx, r, record_rect, &measure); result != .None {
-        if vwv_app.state == .Edit {
-            if !editting {
-                vwv_state_exit_edit()
-                dd.dispatch_update()
-            }
-        }
         if vwv_app.state == .Normal {
             if result == .Left {// left click to edit
                 if input.get_key(.LCTRL) {
@@ -244,10 +228,6 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^dd.Rect, depth :f32= 0) {
                 dd.dispatch_update()
             }
         }
-    }
-    if editting {
-        vwv_app.editting_point = corner + {measure.x, line_margin + font_size}
-        input.textinput_set_imm_composition_pos(vwv_app.editting_point)
     }
     
     height_step := line_height + line_padding

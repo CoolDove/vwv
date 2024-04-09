@@ -27,13 +27,6 @@ REPAC_ASSETS :: false
 
 pass_main : dude.RenderPass
 
-TheTool :: struct {
-    mesh_grid : dgl.Mesh,
-    _frame_id : u64,
-}
-
-@(private="file")
-the_tool : TheTool
 
 main :: proc() {
     tracking_allocator : mem.Tracking_Allocator
@@ -69,38 +62,19 @@ main :: proc() {
 
 @(private="file")
 update :: proc(game: ^dd.Game, delta: f32) {
-    using dd, the_tool
-    _frame_id += 1
+    using dd, vwv_app
+    vwv_app._frame_id += 1
 
     viewport := app.window.size
     pass_main.viewport = Vec4i{0,0, viewport.x, viewport.y}
     pass_main.camera.viewport = vec_i2f(viewport)
 
     vwv_update()
-
-    dmp : Vec2 // debug_msg_pos
-    screen_debug_msg :: proc(dmp: ^dd.Vec2, msg: string, intent:i32=0) {
-        fsize : f32 = 32
-        imdraw.text(&pass_main, render.system().default_font, msg, dmp^ + {0, fsize}, fsize, color={0,1,0,1}, order=999999)
-        dmp.y += fsize + 10
-    }
-
-    if DEBUG_VWV {
-        screen_debug_msg(&dmp, fmt.tprintf("FrameId: {}", the_tool._frame_id))
-        if vwv_app.state == .Edit {
-            ed := vwv_app.text_edit
-            gp := ed.buffer
-            screen_debug_msg(&dmp, fmt.tprintf("Edit: gpbuffer size: {}/{}, gap[{},{}], selection[{},{}]", 
-                gapbuffer_len(gp), gapbuffer_len_buffer(gp), 
-                gp.gap_begin, gp.gap_end, ed.selection.x, ed.selection.y))
-        }
-    }
 }
 
 
 @(private="file")
 init :: proc(game: ^dude.Game) {
-    using the_tool
     append(&game.render_pass, &pass_main)
 
     using dd
@@ -120,8 +94,6 @@ init :: proc(game: ^dude.Game) {
 release :: proc(game: ^dd.Game) {
     dude.timer_check("Vwv start release")
     vwv_release()
-    using dd, the_tool
-	dgl.mesh_delete(&mesh_grid)
 
     render.pass_release(&pass_main)
     dude.timer_check("Vwv released")

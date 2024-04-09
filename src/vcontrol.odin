@@ -57,27 +57,27 @@ vcontrol_record_card :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord, rec
     imdraw.quad(&pass_main, corner, size, col_bg, order = LAYER_MAIN)
 
     // @TEMPORARY:
-    record_line := fmt.tprintf("{}{}", gapbuffer_get_left(&record.line), gapbuffer_get_right(&record.line))
+    // record_line := fmt.tprintf("{}{}", gapbuffer_get_left(&record.line), gapbuffer_get_right(&record.line))
 
-    imdraw.text(&pass_main, font, record_line, corner+{0,font_size+line_margin}, font_size, dd.col_u2f(col_text), order = 42002)
+    // imdraw.text(&pass_main, font, record_line, corner+{0,font_size+line_margin}, font_size, dd.col_u2f(col_text), order = 42002)
 
-    editting_text := input.get_textinput_editting_text()
-    if editting {
-        mesrline := dude.mesher_text_measure(font, record_line, font_size)
+    // editting_text := input.get_textinput_editting_text()
+    // if editting {
+    //     mesrline := dude.mesher_text_measure(font, record_line, font_size)
 
-        edit := &vwv_app.text_edit
-        editcursor_mesr_next : dd.Vec2
-        editcursor_mesr := dude.mesher_text_measure(font, record_line[:edit.selection.x], font_size, out_next_pos =&editcursor_mesr_next)
-        imdraw.quad(&pass_main, corner+{editcursor_mesr_next.x, 1}, {2,rect.h-2}, col_text, order = 42001) // draw the cursor
+    //     edit := &vwv_app.text_edit
+    //     editcursor_mesr_next : dd.Vec2
+    //     editcursor_mesr := dude.mesher_text_measure(font, record_line[:edit.selection.x], font_size, out_next_pos =&editcursor_mesr_next)
+    //     imdraw.quad(&pass_main, corner+{editcursor_mesr_next.x, 1}, {2,rect.h-2}, col_text, order = 42001) // draw the cursor
 
-        imdraw.text(&pass_main, font, editting_text, corner+{mesrline.x,font_size+line_margin}, font_size, dd.col_u2f(col_text)*{1,1,1,0.5}, order = 42002) // draw the editting text
+    //     imdraw.text(&pass_main, font, editting_text, corner+{mesrline.x,font_size+line_margin}, font_size, dd.col_u2f(col_text)*{1,1,1,0.5}, order = 42002) // draw the editting text
 
-        if measure_line != nil do measure_line^ = mesrline
-        if measure_editting != nil && len(editting_text) != 0 do measure_editting^ = dude.mesher_text_measure(font, editting_text, font_size)
-    } else {
-        if measure_line != nil && len(measure_line) != 0 do measure_line^ = dude.mesher_text_measure(font, record_line, font_size)
-        if measure_editting != nil && len(editting_text) != 0 do measure_editting^ = dude.mesher_text_measure(font, editting_text, font_size)
-    }
+    //     if measure_line != nil do measure_line^ = mesrline
+    //     if measure_editting != nil && len(editting_text) != 0 do measure_editting^ = dude.mesher_text_measure(font, editting_text, font_size)
+    // } else {
+    //     if measure_line != nil && len(measure_line) != 0 do measure_line^ = dude.mesher_text_measure(font, record_line, font_size)
+    //     if measure_editting != nil && len(editting_text) != 0 do measure_editting^ = dude.mesher_text_measure(font, editting_text, font_size)
+    // }
 
     // ** draw the state or progress
     if record.info.state == .Closed {
@@ -141,6 +141,114 @@ vcontrol_checkbutton :: proc(using ctx: ^vui.VuiContext, id: vui.ID, rect: dd.Re
     return !value if result == .Left else value
 }
 
+// If `edit` is nil, this control will only display the text. You pass in a edit, the control will
+//  work.
+//  Return: If you pressed outside or press `ESC` or `RETURN` to exit the edit.
+vcontrol_edittable_textline :: proc(using ctx: ^vui.VuiContext, id: vui.ID, rect: dd.Rect, buffer: ^GapBuffer, edit:^TextEdit=nil) -> bool {
+    using vui
+
+    inrect := _is_in_rect(input.get_mouse_position(), rect)
+    result := false
+    rcorner, rsize := rect_position(rect), rect_size(rect)
+    editting := edit != nil
+    if editting {// Manually enable the text editting.
+        if edit.buffer != buffer do textedit_begin(edit, buffer, gapbuffer_len(buffer))
+
+        active = id
+        hot = id if inrect else 0
+        
+        if  (!inrect && (input.get_mouse_button_up(.Left) || input.get_mouse_button_down(.Right))) || // Click outside
+            (input.get_key_down(.ESCAPE) || input.get_key_down(.RETURN)) // Press ESC or RETURN
+        {
+            result = true
+            active = 0
+        }
+
+        // ** text editting logic
+        ed := edit
+        if str, ok := input.get_textinput_charactors_temp(); ok {
+            textedit_insert(ed, str)
+            dd.dispatch_update()
+        }
+
+        if input.get_key_repeat(.LEFT) {
+            to :int= -1
+            if input.get_key(.LCTRL) || input.get_key(.RCTRL) {
+                to = textedit_find_previous_word_head(ed, ed.selection.x)
+            } else {
+                _, to = textedit_find_previous_rune(ed, ed.selection.x)
+            }
+            if to > -1 do textedit_move_to(ed, to)
+        } else if input.get_key_repeat(.RIGHT) {
+            to :int= -1
+            if input.get_key(.LCTRL) || input.get_key(.RCTRL) {
+                to = textedit_find_next_word_head(ed, ed.selection.x)
+            } else {
+                _, to = textedit_find_next_rune(ed, ed.selection.x)
+            }
+            if to > -1 do textedit_move_to(ed, to)
+        }
+        
+        if input.get_key_repeat(.BACKSPACE) {
+            to :int= -1
+            if input.get_key(.LCTRL) || input.get_key(.RCTRL) {
+                to = textedit_find_previous_word_head(ed, ed.selection.x)
+            } else {
+                _, to = textedit_find_previous_rune(ed, ed.selection.x)
+            }
+            if to > -1 do textedit_remove(ed, to-ed.selection.x)
+        } else if input.get_key_repeat(.DELETE) {
+            to :int= -1
+            if input.get_key(.LCTRL) || input.get_key(.RCTRL) {
+                to = textedit_find_next_word_head(ed, ed.selection.x)
+            } else {
+                _, to = textedit_find_next_rune(ed, ed.selection.x)
+            }
+            if to > -1 do textedit_remove(ed, to-ed.selection.x)
+        }
+    }
+    using theme
+    col_text := dd.Color32{10,10,10, 255}
+
+    draw_text_ptr : f32
+    DrawText :: struct {
+        ptr : f32,
+        font : dude.DynamicFont,
+        font_size : f32,
+        offset_y : f32,
+        rect : dd.Rect,
+    }
+
+    dt := DrawText{ 0, font, font_size, font_size+line_margin, rect }
+
+    draw_text :: proc(d: ^DrawText, str: string, col: dd.Color32) {
+        corner := rect_position(d.rect)
+        next :dd.Vec2
+        mesr := dude.mesher_text_measure(d.font, str, d.font_size, out_next_pos =&next)
+        imdraw.text(&pass_main, d.font, str, corner+{d.ptr, d.offset_y}, d.font_size, dd.col_u2f(col), order = 42002)
+        d.ptr += next.x
+    }
+
+    text_line := gapbuffer_get_string(buffer); defer delete(text_line)
+    if editting {
+        if input.get_textinput_editting_text() != "" {
+            draw_text(&dt, text_line[:edit.selection.x], col_text)
+            imdraw.quad(&pass_main, rcorner+{dt.ptr, 1}, {2,rsize.y-2}, col_text, order = 42002) // draw the cursor
+            col_text_dimmed := col_text; col_text_dimmed.a = 128
+            draw_text(&dt, input.get_textinput_editting_text(), col_text_dimmed)
+            draw_text(&dt, text_line[edit.selection.x:], col_text)
+        } else {
+            next :dd.Vec2
+            mesr := dude.mesher_text_measure(font, text_line[:edit.selection.x], font_size, out_next_pos =&next)
+            draw_text(&dt, text_line, col_text)
+            imdraw.quad(&pass_main, rcorner+{next.x, 1}, {2,rsize.y-2}, col_text, order = 42002) // draw the cursor
+        }
+    } else {
+        draw_text(&dt, text_line, col_text)
+    }
+    
+    return result
+}
 
 
 @(private="file")

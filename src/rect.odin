@@ -7,6 +7,13 @@ import "core:math"
 
 Rect :: dd.Rect
 
+rect_position :: #force_inline proc(r: Rect) -> dd.Vec2 {
+    return {r.x, r.y}
+}
+rect_size :: #force_inline proc(r: Rect) -> dd.Vec2 {
+    return {r.w, r.h}
+}
+
 rect_padding :: proc(r: Rect, left, right, top, bottom: f32) -> Rect {
     assert(left+right < r.w && top+bottom < r.h, "Invalid rect operation")
     return {r.x+left, r.y+top, r.w-right-left, r.h-top-bottom}
