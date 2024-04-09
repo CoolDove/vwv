@@ -183,6 +183,11 @@ vcontrol_edittable_textline :: proc(using ctx: ^vui.VuiContext, id: vui.ID, rect
             }
             if to > -1 do textedit_remove(ed, to-ed.selection.x)
         }
+        if input.get_key_down(.HOME) {
+            textedit_move_to(ed, 0)
+        } else if input.get_key_down(.END) {
+            textedit_move_to(ed, gapbuffer_len(ed.buffer))
+        }
     }
     using theme
     col_text := dd.Color32{10,10,10, 255}
