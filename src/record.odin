@@ -11,8 +11,10 @@ _record_next_id :u64= 1
 record_add_child :: proc(parent: ^VwvRecord) -> ^VwvRecord {
 	append(&parent.children, VwvRecord{})
 	child := &(parent.children[len(parent.children)-1])
-	strings.builder_init(&child.line)
-	strings.builder_init(&child.detail)
+    gapbuffer_init(&child.line, 32)
+    gapbuffer_init(&child.detail, 32)
+	// strings.builder_init(&child.line)
+	// strings.builder_init(&child.detail)
 	child.children = make([dynamic]VwvRecord)
 	child.parent = parent
 	child.id = _record_next_id
@@ -22,8 +24,8 @@ record_add_child :: proc(parent: ^VwvRecord) -> ^VwvRecord {
 }
 
 record_set_line :: proc(record: ^VwvRecord, line: string) {
-	strings.builder_reset(&record.line)
-	strings.write_string(&record.line, line)
+    gapbuffer_clear(&record.line)
+    gapbuffer_insert_string(&record.line, 0, line)
 }
 
 record_set_state :: proc(record: ^VwvRecord, state: VwvRecordState) -> bool {
