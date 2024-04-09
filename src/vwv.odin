@@ -51,7 +51,7 @@ AppState :: enum {
 VwvRecord :: struct {
     id : u64,
     line, detail : GapBuffer,
-    info : VwvRecordInfo,
+    using info : VwvRecordInfo,
     children : [dynamic]VwvRecord,
     parent : ^VwvRecord,
 }
@@ -59,6 +59,7 @@ VwvRecord :: struct {
 VwvRecordInfo :: struct {
     tag : u32,
     state : VwvRecordState,
+    fold : bool,
     progress : [3]f32, // Used by a parent node, indicates the portion of: open, done, closed.
 }
 VwvRecordState :: enum {

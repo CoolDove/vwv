@@ -18,6 +18,7 @@ RecordStorage :: struct {
     tag : u32,
     state : VwvRecordState,
     children_count : int,
+    fold : bool,
 }
 
 is_record_file_exist :: proc() -> bool {
