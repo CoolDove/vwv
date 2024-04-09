@@ -17,6 +17,8 @@ vwv_app : VwvApp
 vuictx : vui.VuiContext
 root : VwvRecord
 
+DEBUG_VWV : bool
+
 VwvApp :: struct {
     view_offset_y : f32,
     state : AppState,
@@ -52,6 +54,10 @@ VwvRecordState :: enum {
 }
 
 vwv_init :: proc() {
+    when ODIN_DEBUG {
+        DEBUG_VWV = true
+    }
+    
     // manually init root node
     record_init(&root)
     record_set_line(&root, "vwv")
@@ -148,16 +154,22 @@ vwv_update :: proc() {
         }
     }
 
+    if input.get_key_repeat(.F1) {
+        DEBUG_VWV = !DEBUG_VWV
+    }
+
     vwv_record_update(&root, &rect)
 
     flush_record_operations()
 
-    // ** debug draw
-    debug_point :: proc(point: dd.Vec2, col:=dd.Color32{255,0,0,255}, size:f32=2, order:i32=99999999) {
-        imdraw.quad(&pass_main, point, {size,size}, {255,0,0,255}, order=99999999)
-    }
+    if DEBUG_VWV {
+        // ** debug draw
+        debug_point :: proc(point: dd.Vec2, col:=dd.Color32{255,0,0,255}, size:f32=2, order:i32=99999999) {
+            imdraw.quad(&pass_main, point, {size,size}, {255,0,0,255}, order=99999999)
+        }
 
-    debug_point(vwv_app.editting_point)
+        debug_point(vwv_app.editting_point)
+    }
 }
 
 vwv_record_update :: proc(r: ^VwvRecord, rect: ^dd.Rect, depth :f32= 0) {
