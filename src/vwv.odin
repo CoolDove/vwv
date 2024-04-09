@@ -183,11 +183,10 @@ vwv_update :: proc() {
     }
     if vwv_app.msgbubble_time > 0 {// ** msg bubble
         using theme
-        bubblerect := rect_split_top(app_rect, 120)
-        bubblerect = rect_split_bottom(bubblerect, font_size+8)
-        bubblerect = rect_padding(bubblerect, 4,4,0,0)
+        bubblerect := rect_padding(rect_split_bottom(rect_split_top(app_rect, 120), font_size+8), 4,4,0,0)
         imdraw.quad(&pass_main, {bubblerect.x, bubblerect.y}, {bubblerect.w, bubblerect.h}, {80,90,90, 168}, order=LAYER_FLOATING_PANEL)
-        imdraw.text(&pass_main, vuictx.font, vwv_app.msgbubble, {bubblerect.x,bubblerect.y+font_size}, font_size, {0.9,0.9,0.8,0.9}, order=LAYER_FLOATING_PANEL)
+        msgrect := rect_padding(bubblerect, 6,6,0,0)
+        imdraw.text(&pass_main, vuictx.font, vwv_app.msgbubble, {msgrect.x,msgrect.y+font_size}, font_size, {0.9,0.9,0.8,0.9}, order=LAYER_FLOATING_PANEL)
         vwv_app.msgbubble_time -= cast(f32)dd.game.time_delta
         if vwv_app.msgbubble_time <= 0 {
             vwv_app.msgbubble_time = 0
