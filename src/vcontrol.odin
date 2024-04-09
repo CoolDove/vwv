@@ -64,12 +64,17 @@ vcontrol_record_card :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord, rec
         imdraw.quad(&pass_main, corner+{2,0.5*size.y-1}, {size.x-4, 2}, {10,10,5,128}, order=_LAYER_OVERLAY)
     }
 
+    if inrect {
+        optbtn_rect := rect_padding(rect_require(rect_split_left(rect_split_right(rect, 40), 35), -1, 6), 0,0, 2,2)
+        imdraw.quad(&pass_main, rect_position(optbtn_rect), rect_size(optbtn_rect), {0,0,255, 128}, order=_LAYER_PROGRESS_BAR+1)
+    }
+
     if len(record.children) != 0 {// ** draw the progress bar
-        padding_horizontal :f32= 16
-        pgb_length_total :f32= size.x - padding_horizontal
+        padding_horizontal :f32= 50
+        pgb_length_total :f32= size.x - padding_horizontal - 16
         pgb_thickness :f32= 9
         if pgb_length_total > 0 {
-            x := corner.x + 0.5 * padding_horizontal
+            x := corner.x + 16
             y := corner.y + size.y - 12
             progress := record.info.progress
             done, open, closed := progress[1], progress[0], progress[2]

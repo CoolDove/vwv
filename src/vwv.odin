@@ -86,7 +86,7 @@ vwv_init :: proc() {
 
         rb := record_add_child(&root)
 
-        record_set_line(ra, "Hello, welcome to use VWV.")
+        record_set_line(ra, "Hello, this is VWV, a simple todo tool.")
             record_set_line(ra0, "Press the '+' button to add a record.")
             record_set_line(ra1, "Press LCtrl+LMB to remove a record.")
             record_set_line(ra2, "Press RMB to change the state.")
