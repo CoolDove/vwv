@@ -200,36 +200,39 @@ vcontrol_edittable_textline :: proc(using ctx: ^vui.VuiContext, id: vui.ID, rect
         ptr : f32,
         font : dude.DynamicFont,
         font_size : f32,
+        offset_x : f32,
         offset_y : f32,
         rect : dd.Rect,
     }
 
-    dt := DrawText{ 0, font, font_size, font_size-line_margin, rect }
+    dt := DrawText{ 0, font, font_size, 0, font_size-line_margin, rect }
 
     draw_text :: proc(d: ^DrawText, str: string, col: dd.Color32) {
         corner := rect_position(d.rect)
         next :dd.Vec2
         mesr := dude.mesher_text_measure(d.font, str, d.font_size, out_next_pos =&next)
-        region :dd.Vec2= {d.rect.w-d.ptr,-1}
-        imdraw.text(&pass_main, d.font, str, corner+{d.ptr, d.offset_y}, d.font_size, dd.col_u2f(col), region=region, order = LAYER_RECORD_CONTENT)
+        region :dd.Vec2= {d.rect.w-d.ptr-d.offset_x,-1}
+        imdraw.text(&pass_main, d.font, str, corner+{d.ptr+d.offset_x, d.offset_y}, d.font_size, dd.col_u2f(col), region=region, order = LAYER_RECORD_CONTENT)
         d.ptr += next.x
     }
 
     text_line := gapbuffer_get_string(buffer); defer delete(text_line)
     if editting {
+        cursor :dd.Vec2
+        mesr := dude.mesher_text_measure(font, text_line[:edit.selection.x], font_size, out_next_pos =&cursor)
+        
+        dt.offset_x = -max(cursor.x - 0.75 * rsize.x, 0)
+
+        imdraw.quad(&pass_main, rcorner+{cursor.x+dt.offset_x, 1}, {2,rsize.y-2}, col_text, order = LAYER_RECORD_CONTENT) // draw the cursor
+        edit_point = rcorner+{cursor.x+dt.offset_x, 1+dt.offset_y}
+
         if input.get_textinput_editting_text() != "" {
             draw_text(&dt, text_line[:edit.selection.x], col_text)
-            imdraw.quad(&pass_main, rcorner+{dt.ptr, 1}, {2,rsize.y-2}, col_text, order = LAYER_RECORD_CONTENT) // draw the cursor
-            edit_point = rcorner+{dt.ptr, 1+dt.offset_y}
             col_text_dimmed := col_text; col_text_dimmed.a = 128
             draw_text(&dt, input.get_textinput_editting_text(), col_text_dimmed)
             draw_text(&dt, text_line[edit.selection.x:], col_text)
         } else {
-            next :dd.Vec2
-            mesr := dude.mesher_text_measure(font, text_line[:edit.selection.x], font_size, out_next_pos =&next)
             draw_text(&dt, text_line, col_text)
-            imdraw.quad(&pass_main, rcorner+{next.x, 1}, {2,rsize.y-2}, col_text, order = LAYER_RECORD_CONTENT) // draw the cursor
-            edit_point = rcorner+{next.x, 1+dt.offset_y}
         }
     } else {
         draw_text(&dt, text_line, col_text)
