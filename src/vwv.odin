@@ -208,8 +208,7 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^dd.Rect, depth :f32= 0) {
         rect := dd.Rect{corner.x - width - padding, corner.y + size.y - height, width, height}
         if result := vcontrol_button_add_record(&vuictx, r, rect); result != .None {
             if result == .Left {
-                new_record := record_add_child(r)
-                vwv_state_enter_edit(new_record)
+                push_record_operations(RecordOp_AddChild{r, true})
             }
         }
     }
