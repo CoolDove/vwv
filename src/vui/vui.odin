@@ -14,7 +14,9 @@ import "../dude/dude/render"
 
 
 ID :: distinct i64
+@private
 Vec2 :: dd.Vec2
+@private
 Rect :: dd.Rect
 
 VuiContext :: struct {

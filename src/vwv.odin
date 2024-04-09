@@ -201,7 +201,7 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^dd.Rect, depth :f32= 0) {
 
     measure : dd.Vec2
 
-    textbox_rect := rect_padding(rect_split_left(record_rect, record_rect.w-line_height), 4, 0,0,0)
+    textbox_rect := rect_padding(rect_require(rect_split_left(record_rect, record_rect.w-line_height), 12, 0), 4, 0,0,0)
     textbox_vid := VUID_BY_RECORD(r, RECORD_ITEM_LINE_TEXTBOX)
     edit_point, exit_text := vcontrol_edittable_textline(&vuictx, textbox_vid, textbox_rect, &r.line, &vwv_app.text_edit if editting else nil)
     
