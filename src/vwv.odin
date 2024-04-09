@@ -64,32 +64,38 @@ vwv_init :: proc() {
     gapbuffer_init(&root.line, 32)
     gapbuffer_init(&root.detail, 32)
     root.children = make([dynamic]VwvRecord)
-    
     record_set_line(&root, "vwv")
 
-    ra := record_add_child(&root)
-    ra0 := record_add_child(ra)
-    ra1 := record_add_child(ra)
 
-    rb := record_add_child(&root)
-    rb0 := record_add_child(rb)
-    rb1 := record_add_child(rb)
-    rb2 := record_add_child(rb)
+    // ** load
 
-    rc := record_add_child(&root)
-    rd := record_add_child(&root)
+    if is_record_file_exist() {
+        load()
+    } else {
+        // ra := record_add_child(&root)
+        // ra0 := record_add_child(ra)
+        // ra1 := record_add_child(ra)
 
-    record_set_line(ra, "Hello, world.")
-    record_set_line(ra0, "Dove")
-    record_set_line(ra1, "Jet")
+        // rb := record_add_child(&root)
+        // rb0 := record_add_child(rb)
+        // rb1 := record_add_child(rb)
+        // rb2 := record_add_child(rb)
 
-    record_set_line(rb, "Lily")
-    record_set_line(rb0, "Spike ")
-    record_set_line(rb1, "Lilyyyy")
-    record_set_line(rb2, "Spikyyy")
+        // rc := record_add_child(&root)
+        // rd := record_add_child(&root)
 
-    record_set_line(rc, "Zero")
-    record_set_line(rd, "巴拉巴拉")
+        // record_set_line(ra, "Hello, world.")
+        // record_set_line(ra0, "Dove")
+        // record_set_line(ra1, "Jet")
+
+        // record_set_line(rb, "Lily")
+        // record_set_line(rb0, "Spike ")
+        // record_set_line(rb1, "Lilyyyy")
+        // record_set_line(rb2, "Spikyyy")
+
+        // record_set_line(rc, "Zero")
+        // record_set_line(rd, "巴拉巴拉")
+    }
 
     vui.init(&vuictx, &pass_main, render.system().default_font)
 }
@@ -154,6 +160,11 @@ vwv_update :: proc() {
                 _, to = textedit_find_next_rune(ed, ed.selection.x)
             }
             if to > -1 do textedit_remove(ed, to-ed.selection.x)
+        }
+
+    } else if vwv_app.state == .Normal {
+        if input.get_key_down(.S) && input.get_key(.LCTRL) {
+            save()
         }
     }
 

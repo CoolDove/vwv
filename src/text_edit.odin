@@ -145,10 +145,22 @@ gapbuffer_get_strings :: proc(b: ^GapBuffer) -> (left: string, right: string) {
 	return
 }
 gapbuffer_get_left :: #force_inline proc(b: ^GapBuffer) -> string {
+    if b.gap_begin == 0 do return ""
 	return string(b.buf[:b.gap_begin])
 }
 gapbuffer_get_right :: #force_inline proc(b: ^GapBuffer) -> string {
+    if b.gap_end > gapbuffer_len_buffer(b)-1 do return ""
 	return string(b.buf[b.gap_end:])
+}
+gapbuffer_get_string :: proc(b: ^GapBuffer, allocator:= context.allocator) -> string {
+    context.allocator = allocator
+    left, right := gapbuffer_get_strings(b)
+    using strings
+    sb : Builder
+    builder_init_len_cap(&sb, 0, len(left)+len(right))
+    write_string(&sb, left)
+    write_string(&sb, right)
+    return to_string(sb)
 }
 
 gapbuffer_get_byte :: proc(using b: ^GapBuffer, point: BufferPosition) -> (byte, bool) #optional_ok {
