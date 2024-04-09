@@ -41,7 +41,7 @@ save :: proc() {
     }
     delete(dumped)
 }
-load :: proc() {
+load :: proc() {// The root record is initialized before this.
     path := _get_path_temp(PATH_RECORDS)
     log.debugf("read path: {}", path)
     data, _ := os.read_entire_file(path); defer delete(data)

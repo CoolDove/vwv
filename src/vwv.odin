@@ -21,6 +21,9 @@ VwvApp :: struct {
     view_offset_y : f32,
     state : AppState,
 
+    // ** operations
+    record_operations : [dynamic]RecordOperation,
+
     // ** edit
     text_edit : TextEdit,
     editting_record : ^VwvRecord,
@@ -48,61 +51,39 @@ VwvRecordState :: enum {
     Open, Done, Closed,
 }
 
-vwv_record_release :: proc(r: ^VwvRecord) {
-    for &c in r.children {
-        vwv_record_release(&c)
-    }
-    delete(r.children)
-    gapbuffer_release(&r.line)
-    gapbuffer_release(&r.detail)
-    // strings.builder_destroy(&r.line)
-    // strings.builder_destroy(&r.detail)
-}
-
 vwv_init :: proc() {
     // manually init root node
-    gapbuffer_init(&root.line, 32)
-    gapbuffer_init(&root.detail, 32)
-    root.children = make([dynamic]VwvRecord)
+    record_init(&root)
     record_set_line(&root, "vwv")
 
-
     // ** load
-
     if is_record_file_exist() {
         load()
     } else {
-        // ra := record_add_child(&root)
-        // ra0 := record_add_child(ra)
-        // ra1 := record_add_child(ra)
+        ra := record_add_child(&root)
+            ra0 := record_add_child(ra)
+            ra1 := record_add_child(ra)
+            ra2 := record_add_child(ra)
 
-        // rb := record_add_child(&root)
-        // rb0 := record_add_child(rb)
-        // rb1 := record_add_child(rb)
-        // rb2 := record_add_child(rb)
+        rb := record_add_child(&root)
 
-        // rc := record_add_child(&root)
-        // rd := record_add_child(&root)
-
-        // record_set_line(ra, "Hello, world.")
-        // record_set_line(ra0, "Dove")
-        // record_set_line(ra1, "Jet")
-
-        // record_set_line(rb, "Lily")
-        // record_set_line(rb0, "Spike ")
-        // record_set_line(rb1, "Lilyyyy")
-        // record_set_line(rb2, "Spikyyy")
-
-        // record_set_line(rc, "Zero")
-        // record_set_line(rd, "巴拉巴拉")
+        record_set_line(ra, "Hello, welcome to use VWV.")
+            record_set_line(ra0, "Press the '+' button to add a record.")
+            record_set_line(ra1, "Press LCtrl+LMB to remove a record.")
+            record_set_line(ra2, "Press RMB to change the state.")
+        record_set_line(rb, "Enjoy yourself.")
+        record_set_state(rb, .Done)
     }
+    
+    vwv_app.record_operations = make([dynamic]RecordOperation)
 
     vui.init(&vuictx, &pass_main, render.system().default_font)
 }
 
 vwv_release :: proc() {
     vui.release(&vuictx)
-    vwv_record_release(&root)
+    delete(vwv_app.record_operations)
+    record_release_recursively(&root)
 }
 
 vwv_update :: proc() {
@@ -117,7 +98,6 @@ vwv_update :: proc() {
     if vwv_app.state == .Edit {
         ed := &vwv_app.text_edit
         if str, ok := input.get_textinput_charactors_temp(); ok {
-            // strings.write_string(&vwv_app.editting_record.line, str)
             textedit_insert(ed, str)
             dd.dispatch_update()
         }
@@ -170,13 +150,14 @@ vwv_update :: proc() {
 
     vwv_record_update(&root, &rect)
 
+    flush_record_operations()
+
     // ** debug draw
     debug_point :: proc(point: dd.Vec2, col:=dd.Color32{255,0,0,255}, size:f32=2, order:i32=99999999) {
         imdraw.quad(&pass_main, point, {size,size}, {255,0,0,255}, order=99999999)
     }
-    
-    debug_point(vwv_app.editting_point)
 
+    debug_point(vwv_app.editting_point)
 }
 
 vwv_record_update :: proc(r: ^VwvRecord, rect: ^dd.Rect, depth :f32= 0) {
@@ -199,7 +180,9 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^dd.Rect, depth :f32= 0) {
         }
         if vwv_app.state == .Normal {
             if result == .Left {// left click to edit
-                if vwv_app.state == .Normal {
+                if input.get_key(.LCTRL) {
+                    push_record_operations(RecordOp_RemoveChild{r})
+                } else {
                     vwv_state_enter_edit(r)
                     editting = true
                     dd.dispatch_update()
@@ -250,4 +233,43 @@ vwv_state_enter_edit :: proc(r: ^VwvRecord) {
     textedit_begin(&vwv_app.text_edit, &r.line, gapbuffer_len(&r.line))
     vwv_app.editting_record = r
     dd.dispatch_update()
+}
+
+// ** record operations
+
+RecordOperation :: union {
+    RecordOp_AddChild,
+    RecordOp_RemoveChild,
+}
+
+RecordOp_AddChild :: struct {
+    parent : ^VwvRecord,
+    edit : bool,
+}
+RecordOp_RemoveChild :: struct {
+    record : ^VwvRecord,
+}
+
+push_record_operations :: proc(op: RecordOperation) {
+    append(&vwv_app.record_operations, op)
+}
+clear_record_operations :: proc() {
+    clear(&vwv_app.record_operations)
+}
+
+flush_record_operations :: proc() {
+    operations := vwv_app.record_operations[:]
+    for o in operations {
+        if vwv_app.state == .Edit {
+            vwv_state_exit_edit()
+        }
+        switch op in o {
+        case RecordOp_AddChild:
+            new_record := record_add_child(op.parent)
+            vwv_state_enter_edit(new_record)
+        case RecordOp_RemoveChild:
+            if op.record.parent != nil do record_remove_record(op.record)
+        }
+    }
+    clear_record_operations()
 }
