@@ -150,7 +150,7 @@ vwv_update :: proc() {
         bubblerect := rect_padding(rect_split_bottom(rect_split_top(app_rect, 120), font_size+8), 4,4,0,0)
         imdraw.quad(&pass_main, {bubblerect.x, bubblerect.y}, {bubblerect.w, bubblerect.h}, {80,90,90, 168}, order=LAYER_FLOATING_PANEL)
         msgrect := rect_padding(bubblerect, 6,6,0,0)
-        imdraw.text(&pass_main, vuictx.font, vwv_app.msgbubble, {msgrect.x,msgrect.y+font_size}, font_size, {0.9,0.9,0.8,0.9}, order=LAYER_FLOATING_PANEL)
+        imdraw.text(&pass_main, vuictx.font, vwv_app.msgbubble, {msgrect.x,msgrect.y+font_size}, font_size, {0.9,0.9,0.8,0.9}, order=LAYER_FLOATING_PANEL+1)
         vwv_app.msgbubble_time -= cast(f32)dd.game.time_delta
         if vwv_app.msgbubble_time <= 0 {
             vwv_app.msgbubble_time = 0
@@ -211,7 +211,7 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^dd.Rect, depth :f32= 0) {
 
     measure : dd.Vec2
 
-    textbox_rect := rect_padding(rect_require(record_rect, 70), 10, 55, 0,0)
+    textbox_rect := rect_padding(rect_require(record_rect, 60+line_height), line_height, 55, 0,0)
     textbox_vid := VUID_BY_RECORD(r, RECORD_ITEM_LINE_TEXTBOX)
     edit_point, exit_text := vcontrol_edittable_textline(&vuictx, textbox_vid, textbox_rect, &r.line, &vwv_app.text_edit if editting else nil)
     
@@ -251,24 +251,27 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^dd.Rect, depth :f32= 0) {
 
 	grow(rect, line_height + line_padding)
 
-    if vwv_app.state == .Normal {
-        width, height :f32= 14, 14
-        padding :f32= 2
-        btn_rect := dd.Rect{corner.x - width - padding, corner.y + size.y - height, width, height}
-        if result := vcontrol_button_add_record(&vuictx, r, btn_rect); result != .None {
-            if result == .Left {
-                push_record_operations(RecordOp_AddChild{r, true})
-            }
-        }
-    }
 
 	if r.fold && len(r.children) > 0 {
 		folded_rect := rect_split_top(record_rect, -(theme.line_padding+8))
 		idt := indent_width
 		folded_rect = rect_padding(rect_require(folded_rect, idt+6, 6, anchor={1,0.5}), idt, 2,2,2)
-		imdraw.quad(&pass_main, rect_position(folded_rect), rect_size(folded_rect), color={215,220,210, 180}, order=LAYER_RECORD_CONTENT+100)
-		grow(rect, 8)
+		bg_rect := rect_padding(record_rect, -2,-2,-2, -(theme.line_padding+8))
+		imdraw.quad(&pass_main, rect_position(bg_rect), rect_size(bg_rect), {0,0,0,128}, order = LAYER_RECORD_BASE-1)
+		imdraw.quad(&pass_main, rect_position(folded_rect), rect_size(folded_rect), color={215,220,210, 50}, order=LAYER_RECORD_CONTENT+100)
+		grow(rect, 8+4)
 	} else {
+		if vwv_app.state == .Normal {
+			width, height :f32= 14, 14
+			padding :f32= 2
+			btn_rect := dd.Rect{corner.x - width - padding, corner.y + size.y - height, width, height}
+			if result := vcontrol_button_add_record(&vuictx, r, btn_rect); result != .None {
+				if result == .Left {
+					push_record_operations(RecordOp_AddChild{r, true})
+				}
+			}
+		}
+		
 		for &c, i in r.children {
 			vwv_record_update(&c, rect, depth + 1)
 		}

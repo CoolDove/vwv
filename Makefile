@@ -7,4 +7,4 @@ clean:
 	rm vwv.exe vwv.pdb
 
 cody:
-	@cody -direxclude ./src/dude/vendor -q
+	@cody -direxclude ./src/dude
