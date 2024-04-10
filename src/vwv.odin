@@ -199,17 +199,15 @@ bubble_msg :: proc(msg: string, duration: f32) {
     vwv_app.msgbubble_time = duration
 }
 
-vwv_record_update :: proc(r: ^VwvRecord, rect: ^dd.Rect, depth :f32= 0) {
+vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0) {
     using theme
     indent := indent_width*depth
-    corner := dd.Vec2{rect.x+indent, rect.y}// left-top
-    size := dd.Vec2{rect.w-indent, line_height}
-    record_rect :dd.Rect= {corner.x, corner.y, size.x, size.y}
+	record_rect := rect_padding(rect_require(rect_split_bottom(rect^, line_height), indent+4), indent, 0,0,0)
+	corner := rect_position(record_rect)
+	size := rect_size(record_rect)
     corner_rb := corner+size// right-bottom
 
     editting := vwv_app.state == .Edit && vwv_app.editting_record == r
-
-    measure : dd.Vec2
 
     textbox_rect := rect_padding(rect_require(record_rect, 60+line_height), line_height, 55, 0,0)
     textbox_vid := VUID_BY_RECORD(r, RECORD_ITEM_LINE_TEXTBOX)
@@ -223,7 +221,7 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^dd.Rect, depth :f32= 0) {
         input.textinput_set_imm_composition_pos(vwv_app.editting_point)
     }
     
-    if result := vcontrol_record_card(&vuictx, r, record_rect, &measure); result != .None {
+    if result := vcontrol_record_card(&vuictx, r, record_rect); result != .None {
         if vwv_app.state == .Normal {
             if result == .Left {// left click to edit
                 if input.get_key(.LCTRL) {
@@ -243,14 +241,7 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^dd.Rect, depth :f32= 0) {
             }
         }
     }
-
-	grow :: proc(r: ^dd.Rect, h: f32) {
-		r.y += h
-		r.h -= h
-	}
-
 	grow(rect, line_height + line_padding)
-
 
 	if r.fold && len(r.children) > 0 {
 		folded_rect := rect_split_top(record_rect, -(theme.line_padding+8))
@@ -275,6 +266,11 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^dd.Rect, depth :f32= 0) {
 		for &c, i in r.children {
 			vwv_record_update(&c, rect, depth + 1)
 		}
+	}
+
+	grow :: proc(r: ^dd.Rect, h: f32) {
+		r.y += h
+		r.h -= h
 	}
 }
 

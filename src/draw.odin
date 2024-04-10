@@ -14,7 +14,7 @@ theme : Theme = {
     line_height = 40,
     line_margin = 4,
     line_padding = 8,
-    indent_width = 12,
+    indent_width = 18,
     border_width = 2,
 
     card_open = {

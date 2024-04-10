@@ -16,8 +16,7 @@ ButtonResult :: enum {
 	None, Left, Right,
 }
 
-vcontrol_record_card :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord, rect: dd.Rect, 
-                             measure_line:^dd.Vec2=nil/*output*/, measure_editting:^dd.Vec2=nil/*output*/) -> ButtonResult
+vcontrol_record_card :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord, rect: dd.Rect) -> ButtonResult
 {
 	using vui
 	id := VUID_BY_RECORD(record)

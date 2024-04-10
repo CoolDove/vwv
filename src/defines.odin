@@ -1,6 +1,7 @@
 package main
 
 
+import dd "dude/dude/core"
 import "vui"
 
 
@@ -29,3 +30,19 @@ RECORD_ITEM_LINE_TEXTBOX :u8: 8
 
 
 VUID_BUTTON_PIN :vui.ID: 48000+1
+
+
+// ** Basic Types
+
+Vec2 :: dd.Vec2
+Vec3 :: dd.Vec3
+Vec4 :: dd.Vec4
+
+Vec2i :: dd.Vec2i
+Vec3i :: dd.Vec3i
+Vec4i :: dd.Vec4i
+
+Rect :: dd.Rect
+
+Color :: dd.Color
+Color32 :: dd.Color32
