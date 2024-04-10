@@ -2,9 +2,12 @@ package main
 
 import "core:os"
 import "core:log"
+import "core:strings"
 import "core:fmt"
 import "core:path/filepath"
 import "core:encoding/json"
+import "core:unicode/utf8"
+import sdl "vendor:sdl2"
 
 import "dude/dude"
 
@@ -25,35 +28,40 @@ is_record_file_exist :: proc() -> bool {
     return os.exists(_get_path_temp(PATH_RECORDS))
 }
 
-save :: proc() {
+save :: proc(to_clipboard:= false) {
     dude.timer_check("Save begins")
     dumped := make([dynamic]RecordStorage)
     _dump(&dumped, &root)
     opt : json.Marshal_Options
-    opt.spec = .JSON5
-    data, _ := json.marshal(dumped); defer delete(data)
+	opt.pretty = true
+    opt.spec = .Bitsquid
+    data, _ := json.marshal(dumped, opt); defer delete(data)
 
-    os.make_directory(_get_vwv_path_temp())
+	if !to_clipboard {
+		os.make_directory(_get_vwv_path_temp())
 
-    path := _get_path_temp(PATH_RECORDS)
-    log.debugf("write path: {}", path)
-    os.write_entire_file(path, data)
+		path := _get_path_temp(PATH_RECORDS)
+		log.debugf("write path: {}", path)
+		os.write_entire_file(path, data)
+		bubble_msg("Saved", 0.8)
+	} else {
+		sdl.SetClipboardText(strings.clone_to_cstring(cast(string)data, context.temp_allocator))
+		bubble_msg("Saved to clipboard", 0.8)
+	}
 
-    bubble_msg("Saved", 0.8)
-
-    for r in dumped {
-        delete(r.line)
-        delete(r.detail)
-    }
-    delete(dumped)
-    dude.timer_check("Save ends")
+	for r in dumped {
+		delete(r.line)
+		delete(r.detail)
+	}
+	delete(dumped)
+	dude.timer_check("Save ends")
 }
 load :: proc() {// The root record is initialized before this.
     path := _get_path_temp(PATH_RECORDS)
     log.debugf("read path: {}", path)
     data, _ := os.read_entire_file(path); defer delete(data)
     buffer : []RecordStorage
-    json.unmarshal(data, &buffer)
+    json.unmarshal(data, &buffer, .Bitsquid)
     ptr := 0
     _apply(buffer, &ptr, &root)
 

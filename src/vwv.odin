@@ -126,6 +126,9 @@ vwv_update :: proc() {
         if input.get_key_down(.S) && input.get_key(.LCTRL) {
             save()
         }
+        if input.get_key_down(.C) && input.get_key(.LCTRL) && input.get_key(.LSHIFT) {
+            save(true)
+        }
     }
 
     if input.get_key_repeat(.F1) {
