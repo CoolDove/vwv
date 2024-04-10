@@ -21,7 +21,7 @@ vcontrol_record_card :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord, rec
 {
     using vui
     id := VUID_BY_RECORD(record)
-    inrect := _is_in_rect(input.get_mouse_position(), rect)
+    inrect := rect_in(rect, input.get_mouse_position())
     result := _event_handler_button(ctx, id, inrect)
 
     using theme
@@ -101,7 +101,7 @@ vcontrol_record_card :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord, rec
 vcontrol_button_add_record :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord, rect: dd.Rect) -> ButtonResult {
     using vui
     id := VUID_BY_RECORD(record, RECORD_ITEM_BUTTON_ADD_RECORD)
-    inrect := _is_in_rect(input.get_mouse_position(), rect)
+    inrect := rect_in(rect, input.get_mouse_position())
     result := _event_handler_button(ctx, id, inrect)
 
     using theme
@@ -115,7 +115,7 @@ vcontrol_button_add_record :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecor
 
 vcontrol_checkbutton :: proc(using ctx: ^vui.VuiContext, id: vui.ID, rect: dd.Rect, value: bool) -> bool {
     using vui
-    inrect := _is_in_rect(input.get_mouse_position(), rect)
+    inrect := rect_in(rect, input.get_mouse_position())
     result := _event_handler_button(ctx, id, inrect)
 
     if value {
@@ -132,7 +132,7 @@ vcontrol_checkbutton :: proc(using ctx: ^vui.VuiContext, id: vui.ID, rect: dd.Re
 vcontrol_edittable_textline :: proc(using ctx: ^vui.VuiContext, id: vui.ID, rect: dd.Rect, buffer: ^GapBuffer, edit:^TextEdit=nil) -> (edit_point: dd.Vec2, exit: bool) {
     using vui
 
-    inrect := _is_in_rect(input.get_mouse_position(), rect)
+    inrect := rect_in(rect, input.get_mouse_position())
     result := false
     rcorner, rsize := rect_position(rect), rect_size(rect)
     editting := edit != nil
