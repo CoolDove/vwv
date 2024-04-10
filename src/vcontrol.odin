@@ -128,7 +128,7 @@ vcontrol_checkbutton :: proc(using ctx: ^vui.VuiContext, id: vui.ID, rect: dd.Re
 // If `edit` is nil, this control will only display the text. You pass in a edit, the control will
 //  work.
 //  Return: If you pressed outside or press `ESC` or `RETURN` to exit the edit.
-vcontrol_edittable_textline :: proc(using ctx: ^vui.VuiContext, id: vui.ID, rect: dd.Rect, buffer: ^GapBuffer, edit:^TextEdit=nil) -> (edit_point: dd.Vec2, exit: bool) {
+vcontrol_edittable_textline :: proc(using ctx: ^vui.VuiContext, id: vui.ID, rect: dd.Rect, buffer: ^GapBuffer, edit:^TextEdit=nil, ttheme:=_text_theme_default) -> (edit_point: dd.Vec2, exit: bool) {
 	using vui
 
 	inrect := rect_in(rect, input.get_mouse_position())
@@ -196,8 +196,6 @@ vcontrol_edittable_textline :: proc(using ctx: ^vui.VuiContext, id: vui.ID, rect
 			textedit_move_to(ed, gapbuffer_len(ed.buffer))
 		}
 	}
-	using theme
-	col_text := dd.Color32{10,10,10, 255}
 
 	draw_text_ptr : f32
 	DrawText :: struct {
@@ -208,6 +206,7 @@ vcontrol_edittable_textline :: proc(using ctx: ^vui.VuiContext, id: vui.ID, rect
 		offset_y : f32,
 		rect : dd.Rect,
 	}
+	using theme
 
 	dt := DrawText{ 0, font, font_size, 0, font_size-line_margin, rect }
 
@@ -230,19 +229,18 @@ vcontrol_edittable_textline :: proc(using ctx: ^vui.VuiContext, id: vui.ID, rect
 		
 		dt.offset_x = -max(cursor.x - 0.75 * rsize.x, 0)
 
-		imdraw.quad(&pass_main, rcorner+{cursor.x+dt.offset_x, 1}, {2,rsize.y-2}, col_text, order = LAYER_RECORD_CONTENT) // draw the cursor
+		imdraw.quad(&pass_main, rcorner+{cursor.x+dt.offset_x, 1}, {2,rsize.y-2}, ttheme.normal, order = LAYER_RECORD_CONTENT) // draw the cursor
 		edit_point = rcorner+{cursor.x+dt.offset_x, 1+dt.offset_y}
 
 		if input.get_textinput_editting_text() != "" {
-			draw_text(&dt, text_line[:edit.selection.x], col_text)
-			col_text_dimmed := col_text; col_text_dimmed.a = 128
-			draw_text(&dt, input.get_textinput_editting_text(), col_text_dimmed)
-			draw_text(&dt, text_line[edit.selection.x:], col_text)
+			draw_text(&dt, text_line[:edit.selection.x], ttheme.normal)
+			draw_text(&dt, input.get_textinput_editting_text(), ttheme.dimmed)
+			draw_text(&dt, text_line[edit.selection.x:], ttheme.normal)
 		} else {
-			draw_text(&dt, text_line, col_text)
+			draw_text(&dt, text_line, ttheme.normal)
 		}
 	} else {
-		draw_text(&dt, text_line, col_text)
+		draw_text(&dt, text_line, ttheme.normal)
 		edit_point = {}
 	}
 	exit = result
