@@ -177,6 +177,7 @@ vwv_update :: proc() {
         screen_debug_msg :: proc(dmp: ^dd.Vec2, msg: string, intent:i32=0) {
             fsize : f32 = 32
             imdraw.text(&pass_main, render.system().default_font, msg, dmp^ + {0, fsize}, fsize, color={0,1,0,1}, order=999999)
+            imdraw.text(&pass_main, render.system().default_font, msg, dmp^ + {0, fsize} + {2,2}, fsize, color={0,0,0,.5}, order=999998)
             dmp.y += fsize + 10
         }
         screen_debug_msg(&dmp, fmt.tprintf("FrameId: {}", vwv_app._frame_id))
