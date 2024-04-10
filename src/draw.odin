@@ -17,23 +17,17 @@ theme : Theme = {
     indent_width = 18,
     border_width = 2,
 
-    card_open = {
+    record_open = {
         normal = {200, 200, 200, 255},
         active = {255, 255, 255, 255},
-        text_normal = {20,20,20, 255},
-        text_active = {0,0,0, 255},
     },
-    card_done = {
-        normal = {180, 200, 140, 255},
-        active = {20, 255, 20, 255},
-        text_normal = {20,20,20, 255},
-        text_active = {0,0,0, 255},
+    record_done = {
+        normal = {80, 200, 40, 255},
+        active = {65, 212, 60, 255},
     },
-    card_closed = {
+    record_closed = {
         normal = {80, 50, 55, 128},
         active = {90, 55, 60, 128},
-        text_normal = {100, 95, 90, 200},
-        text_active = {110, 100,95, 200},
     },
 	text_record_open = {
 		normal = {10,10,10, 255},
@@ -61,12 +55,12 @@ Theme :: struct {
     border_width : f32,
 
     // ** colors
-    card_open, card_closed, card_done : ThemeCardColor,
+    record_open, record_closed, record_done : RecordTheme,
 	text_record_open, text_record_closed, text_record_done : TextTheme,
 }
 
-ThemeCardColor :: struct {
-    normal, active, text_normal, text_active : dd.Color32
+RecordTheme :: struct {
+	normal, active : Color32
 }
 
 TextTheme :: struct {

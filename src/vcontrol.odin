@@ -24,34 +24,27 @@ vcontrol_record_card :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord, rec
 	result := _event_handler_button(ctx, id, inrect)
 
 	using theme
-	colors : ^ThemeCardColor
+	colors : ^RecordTheme
 
 	switch record.info.state {
 	case .Open:
-		colors = &theme.card_open
+		colors = &theme.record_open
 	case .Closed:
-		colors = &theme.card_closed
+		colors = &theme.record_closed
 	case .Done:
-		colors = &theme.card_done
+		colors = &theme.record_done
 	}
 	
-	col_bg := colors.normal
-	col_text := colors.text_normal
-	if active == id {
-		col_bg = colors.active
-		col_text = colors.text_active
-	}
-
 	editting := vwv_app.state == .Edit && vwv_app.editting_record == record
-	
-	if editting {
+
+	col_bg := colors.normal
+	if active == id || editting {
 		col_bg = colors.active
-		col_text = colors.text_active
 	}
 
-	corner :dd.Vec2= {rect.x,rect.y}// corner left-top
-	corner_rt :dd.Vec2= {rect.x-rect.w,rect.y}// corner right-top
-	size :dd.Vec2= {rect.w, rect.h}
+	corner :Vec2= {rect.x,rect.y}// corner left-top
+	corner_rt :Vec2= {rect.x-rect.w,rect.y}// corner right-top
+	size :Vec2= {rect.w, rect.h}
 
 	imdraw.quad(&pass_main, corner, size, col_bg, order = LAYER_RECORD_BASE)
 
@@ -97,7 +90,7 @@ vcontrol_record_card :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord, rec
 	return result
 }
 
-vcontrol_button_add_record :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord, rect: dd.Rect) -> ButtonResult {
+vcontrol_button_add_record :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord, rect: Rect) -> ButtonResult {
 	using vui
 	id := VUID_BY_RECORD(record, RECORD_ITEM_BUTTON_ADD_RECORD)
 	inrect := rect_in(rect, input.get_mouse_position())
@@ -112,7 +105,7 @@ vcontrol_button_add_record :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecor
 	return result
 }
 
-vcontrol_checkbutton :: proc(using ctx: ^vui.VuiContext, id: vui.ID, rect: dd.Rect, value: bool) -> bool {
+vcontrol_checkbutton :: proc(using ctx: ^vui.VuiContext, id: vui.ID, rect: Rect, value: bool) -> bool {
 	using vui
 	inrect := rect_in(rect, input.get_mouse_position())
 	result := _event_handler_button(ctx, id, inrect)
@@ -128,7 +121,7 @@ vcontrol_checkbutton :: proc(using ctx: ^vui.VuiContext, id: vui.ID, rect: dd.Re
 // If `edit` is nil, this control will only display the text. You pass in a edit, the control will
 //  work.
 //  Return: If you pressed outside or press `ESC` or `RETURN` to exit the edit.
-vcontrol_edittable_textline :: proc(using ctx: ^vui.VuiContext, id: vui.ID, rect: dd.Rect, buffer: ^GapBuffer, edit:^TextEdit=nil, ttheme:=_text_theme_default) -> (edit_point: dd.Vec2, exit: bool) {
+vcontrol_edittable_textline :: proc(using ctx: ^vui.VuiContext, id: vui.ID, rect: Rect, buffer: ^GapBuffer, edit:^TextEdit=nil, ttheme:=_text_theme_default) -> (edit_point: Vec2, exit: bool) {
 	using vui
 
 	inrect := rect_in(rect, input.get_mouse_position())
@@ -210,11 +203,11 @@ vcontrol_edittable_textline :: proc(using ctx: ^vui.VuiContext, id: vui.ID, rect
 
 	dt := DrawText{ 0, font, font_size, 0, font_size-line_margin, rect }
 
-	draw_text :: proc(d: ^DrawText, str: string, col: dd.Color32) {
+	draw_text :: proc(d: ^DrawText, str: string, col: Color32) {
 		corner := rect_position(d.rect)
-		next :dd.Vec2
+		next : Vec2
 		mesr := dude.mesher_text_measure(d.font, str, d.font_size, out_next_pos =&next)
-		region :dd.Vec2= {d.rect.w-d.ptr-d.offset_x,-1}
+		region :Vec2= {d.rect.w-d.ptr-d.offset_x,-1}
 		imdraw.text(&pass_main, d.font, str, corner+{d.ptr+d.offset_x, d.offset_y}, d.font_size, dd.col_u2f(col), region=region, order = LAYER_RECORD_CONTENT)
 		d.ptr += next.x
 	}
@@ -224,7 +217,7 @@ vcontrol_edittable_textline :: proc(using ctx: ^vui.VuiContext, id: vui.ID, rect
 
 	text_line := gapbuffer_get_string(buffer); defer delete(text_line)
 	if editting {
-		cursor :dd.Vec2
+		cursor : Vec2
 		mesr := dude.mesher_text_measure(font, text_line[:edit.selection.x], font_size, out_next_pos =&cursor)
 		
 		dt.offset_x = -max(cursor.x - 0.75 * rsize.x, 0)
