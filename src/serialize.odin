@@ -73,6 +73,7 @@ _dump :: proc(buffer: ^[dynamic]RecordStorage, record: ^VwvRecord) {
         detail = detail,
         tag = record.info.tag,
         state = record.info.state,
+		fold = record.info.fold,
         children_count = len(record.children),
     })
     for &c in record.children {
@@ -85,6 +86,7 @@ _apply :: proc(buffer: []RecordStorage, ptr: ^int, record: ^VwvRecord) {
     rs := buffer[ptr^]
     record_set_line(record, rs.line)
     record_set_state(record, rs.state)
+	record_toggle_fold(record, rs.fold)
     children_count := rs.children_count
     ptr^ += 1
 

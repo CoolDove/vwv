@@ -83,13 +83,15 @@ vwv_init :: proc() {
             ra0 := record_add_child(ra)
             ra1 := record_add_child(ra)
             ra2 := record_add_child(ra)
+            ra3 := record_add_child(ra)
 
         rb := record_add_child(&root)
 
         record_set_line(ra, "Hello, this is VWV, a simple todo tool.")
             record_set_line(ra0, "Press the '+' button to add a record.")
-            record_set_line(ra1, "Press LCtrl+LMB to remove a record.")
-            record_set_line(ra2, "Press RMB to change the state.")
+            record_set_line(ra1, "Press LCtrl+LMB to fold/unfold a record.")
+            record_set_line(ra2, "Press LCtrl+RMB to delete a record.")
+            record_set_line(ra3, "Press RMB to change the state.")
         record_set_line(rb, "Enjoy yourself.")
         record_set_state(rb, .Done)
     }
@@ -225,37 +227,52 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^dd.Rect, depth :f32= 0) {
         if vwv_app.state == .Normal {
             if result == .Left {// left click to edit
                 if input.get_key(.LCTRL) {
-                    push_record_operations(RecordOp_RemoveChild{r})
+					record_toggle_fold(r, !r.fold)
                 } else {
                     vwv_state_enter_edit(r)
                     editting = true
                     dd.dispatch_update()
                 }
             } else if result == .Right {// right click to change state
-                record_set_state(r, dd.enum_step(VwvRecordState, r.info.state))
-                dd.dispatch_update()
+				if input.get_key(.LCTRL) {// fold the record
+                    push_record_operations(RecordOp_RemoveChild{r})
+				} else {// change record state
+					record_set_state(r, dd.enum_step(VwvRecordState, r.info.state))
+					dd.dispatch_update()
+				}
             }
         }
     }
-    
-    height_step := line_height + line_padding
-    rect.y += height_step
-    rect.h -= height_step
+
+	grow :: proc(r: ^dd.Rect, h: f32) {
+		r.y += h
+		r.h -= h
+	}
+
+	grow(rect, line_height + line_padding)
 
     if vwv_app.state == .Normal {
         width, height :f32= 14, 14
         padding :f32= 2
-        rect := dd.Rect{corner.x - width - padding, corner.y + size.y - height, width, height}
-        if result := vcontrol_button_add_record(&vuictx, r, rect); result != .None {
+        btn_rect := dd.Rect{corner.x - width - padding, corner.y + size.y - height, width, height}
+        if result := vcontrol_button_add_record(&vuictx, r, btn_rect); result != .None {
             if result == .Left {
                 push_record_operations(RecordOp_AddChild{r, true})
             }
         }
     }
 
-    for &c, i in r.children {
-        vwv_record_update(&c, rect, depth + 1)
-    }
+	if r.fold && len(r.children) > 0 {
+		folded_rect := rect_split_top(record_rect, -(theme.line_padding+8))
+		idt := indent_width
+		folded_rect = rect_padding(rect_require(folded_rect, idt+6, 6, anchor={1,0.5}), idt, 2,2,2)
+		imdraw.quad(&pass_main, rect_position(folded_rect), rect_size(folded_rect), color={215,220,210, 180}, order=LAYER_RECORD_CONTENT+100)
+		grow(rect, 8)
+	} else {
+		for &c, i in r.children {
+			vwv_record_update(&c, rect, depth + 1)
+		}
+	}
 }
 
 vwv_state_exit_edit :: proc() {
