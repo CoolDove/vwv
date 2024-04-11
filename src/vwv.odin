@@ -215,6 +215,7 @@ vwv_update :: proc() {
         }
         screen_debug_msg(&dmp, fmt.tprintf("FrameId: {}", vwv_app._frame_id))
         screen_debug_msg(&dmp, fmt.tprintf("Vwv state: {}", vwv_app.state))
+        screen_debug_msg(&dmp, fmt.tprintf("Scroll offset: {}", vwv_app.view_offset_y))
         screen_debug_msg(&dmp, fmt.tprintf("Vui active: {}, hover: {}", vuictx.active, vuictx.hot))
         screen_debug_msg(&dmp, fmt.tprintf("Focus record: {}", "nil" if vwv_app.focusing_record == nil else gapbuffer_get_string(&vwv_app.focusing_record.line, context.temp_allocator)))
 
@@ -234,27 +235,41 @@ bubble_msg :: proc(msg: string, duration: f32) {
     vwv_app.msgbubble_time = duration
 }
 
-vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0) {
+vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, parent_dragged:=false) {
     using theme
     indent := indent_width*depth
     
     is_folded_header := r.fold && len(r.children) > 0
+
+    editting := vwv_app.state == .Edit && vwv_app.editting_record == r
+	dragging := vwv_app.dragging_record == r
+
+	drag_context_rect : Rect
+
     card_height := line_height
     if is_folded_header do card_height += record_progress_bar_height
     
 	record_rect := rect_padding(rect_require(rect_split_bottom(rect^, card_height), indent+4), indent, 0,0,0)
 	corner := rect_position(record_rect)
 	size := rect_size(record_rect)
-    corner_rb := corner+size// right-bottom
-    
-    grow(rect, card_height + line_padding)
+	render_layer_offset :i32= 10000 if (dragging || parent_dragged) else 0
 
-    editting := vwv_app.state == .Edit && vwv_app.editting_record == r
+	if dragging {
+		drag_height := input.get_mouse_position().y - record_rect.h*0.5
+		drag_context_rect = {rect.x, drag_height, rect.w, rect.h - drag_height}
+		record_rect.y = drag_height
+	}
+
+	container_rect := rect
+	if dragging {
+		container_rect = &drag_context_rect
+	}
+	grow(container_rect, card_height + line_padding)
 
     textbox_rect := rect_split_bottom(rect_padding(rect_require(record_rect, 60), 20, 30, 0,0), line_height)
     textbox_vid := VUID_BY_RECORD(r, RECORD_ITEM_LINE_TEXTBOX)
 	text_theme := theme.text_record_done if r.state == .Done else (theme.text_record_closed if r.state == .Closed else theme.text_record_open)
-    edit_point, exit_text := vcontrol_edittable_textline(&vuictx, textbox_vid, textbox_rect, &r.line, &vwv_app.text_edit if editting else nil, text_theme)
+    edit_point, exit_text := vcontrol_edittable_textline(&vuictx, textbox_vid, textbox_rect, &r.line, &vwv_app.text_edit if editting else nil, text_theme, render_layer_offset)
 
 	if exit_text {
 		vwv_state_exit_edit()
@@ -264,8 +279,7 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0) {
 		input.textinput_set_imm_composition_pos(vwv_app.editting_point)
 	}
 
-
-	card_handle_events := vwv_app.state != .DragRecord || vwv_app.dragging_record == r
+	card_handle_events := vwv_app.state != .DragRecord || dragging
 
 	vbegin_record_card(&vuictx)
 
@@ -280,7 +294,8 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0) {
 		}
 	}
 
-    if result := vend_record_card(&vuictx, r, record_rect, card_handle_events); result != .None {
+	dragged_record_rect := rect_padding(record_rect, -2,-2,-1,-1)
+    if result := vend_record_card(&vuictx, r, record_rect if !dragging else dragged_record_rect , card_handle_events, render_layer_offset); result != .None {
         if vwv_app.state == .Normal {
             if result == .Left {// left click to edit
                 if input.get_key(.LCTRL) {
@@ -328,7 +343,7 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0) {
 		}
 		
 		for &c, i in r.children {
-			vwv_record_update(&c, rect, depth + 1)
+			vwv_record_update(&c, container_rect, depth + 1, dragging)
 		}
 	}
 

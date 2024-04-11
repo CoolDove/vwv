@@ -94,7 +94,7 @@ peek_stack_with :: proc(ctx: ^VuiContext, $T: typeid) -> (^VuiStack, ^T) {
 pop_stack :: proc(ctx: ^VuiContext, forget_the_memories:=false/*If you allcated the stack on a temporary allocator*/) {
 	assert(len(ctx.stacks) > 0, "VUI: There's no stack for you to pop.")
 	stack := peek_stack(ctx)
-	if !forget_the_memories && len(stack.rects) == 0 do delete(stack.rects)
+	if !forget_the_memories do delete(stack.rects)
 	pop(&ctx.stacks)
 }
 

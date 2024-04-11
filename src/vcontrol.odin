@@ -31,7 +31,7 @@ vbegin_record_card :: proc(using ctx: ^vui.VuiContext) {
 	vui.push_stack(ctx)
 }
 
-vend_record_card :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord, rect: dd.Rect, handle_event:=true) -> ButtonResult
+vend_record_card :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord, rect: dd.Rect, handle_event:=true, render_layer_offset:i32=0) -> ButtonResult
 {
 	using vui
 	stack := vui.peek_stack(ctx); defer vui.pop_stack(ctx)
@@ -111,11 +111,12 @@ vend_record_card :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord, rect: d
 	corner_rt :Vec2= {rect.x-rect.w,rect.y}// corner right-top
 	size :Vec2= {rect.w, rect.h}
 
-	// ** draw the card background
-	imdraw.quad(pass, corner, size, col_bg, order = LAYER_RECORD_BASE)
+	_LAYER_RECORD_BASE := LAYER_RECORD_BASE + render_layer_offset
+	_LAYER_PROGRESS_BAR := LAYER_RECORD_CONTENT - 60 + render_layer_offset
+	_LAYER_OVERLAY := LAYER_RECORD_CONTENT + 100 + render_layer_offset
 
-	_LAYER_PROGRESS_BAR :: LAYER_RECORD_CONTENT - 60
-	_LAYER_OVERLAY :: LAYER_RECORD_CONTENT + 1000
+	// ** draw the card background
+	imdraw.quad(pass, corner, size, col_bg, order = _LAYER_RECORD_BASE)
 
 	// ** draw the closed slash line
 	if record.info.state == .Closed {
@@ -228,7 +229,7 @@ vcontrol_button :: proc(using ctx: ^vui.VuiContext, id: VID, rect: Rect, order:=
 // If `edit` is nil, this control will only display the text. You pass in a edit, the control will
 //  work.
 //  Return: If you pressed outside or press `ESC` or `RETURN` to exit the edit.
-vcontrol_edittable_textline :: proc(using ctx: ^vui.VuiContext, id: VID, rect: Rect, buffer: ^GapBuffer, edit:^TextEdit=nil, ttheme:=theme.text_default) -> (edit_point: Vec2, exit: bool) {
+vcontrol_edittable_textline :: proc(using ctx: ^vui.VuiContext, id: VID, rect: Rect, buffer: ^GapBuffer, edit:^TextEdit=nil, ttheme:=theme.text_default, render_layer_offset:i32=0) -> (edit_point: Vec2, exit: bool) {
 	using vui
 
 	inrect := rect_in(rect, input.get_mouse_position())
@@ -311,12 +312,12 @@ vcontrol_edittable_textline :: proc(using ctx: ^vui.VuiContext, id: VID, rect: R
 	internal_font := dude.get_font(font)
 	dt := DrawText{ 0, font, font_size, 0, rect.h - internal_font.lineHeight-line_margin, rect }
 
-	draw_text :: proc(using ctx: ^vui.VuiContext, d: ^DrawText, str: string, col: Color32) {
+	draw_text :: proc(using ctx: ^vui.VuiContext, d: ^DrawText, str: string, col: Color32, render_layer_offset:i32=0) {
 		corner := rect_position(d.rect)
 		next : Vec2
 		mesr := dude.mesher_text_measure(d.font, str, d.font_size, out_next_pos =&next)
 		region :Vec2= {d.rect.w-d.ptr-d.offset_x,-1}
-		imdraw.text(pass, d.font, str, corner+{d.ptr+d.offset_x, d.offset_y}, d.font_size, dd.col_u2f(col), region=region, order = LAYER_RECORD_CONTENT)
+		imdraw.text(pass, d.font, str, corner+{d.ptr+d.offset_x, d.offset_y}, d.font_size, dd.col_u2f(col), region=region, order = LAYER_RECORD_CONTENT+render_layer_offset)
 		d.ptr += next.x
 	}
 	if DEBUG_VWV {
@@ -330,18 +331,18 @@ vcontrol_edittable_textline :: proc(using ctx: ^vui.VuiContext, id: VID, rect: R
 		
 		dt.offset_x = -max(cursor.x - 0.75 * rsize.x, 0)
 
-		imdraw.quad(pass, rcorner+{cursor.x+dt.offset_x, 1}, {2,rsize.y-2}, ttheme.normal, order = LAYER_RECORD_CONTENT) // draw the cursor
+		imdraw.quad(pass, rcorner+{cursor.x+dt.offset_x, 1}, {2,rsize.y-2}, ttheme.normal, order = LAYER_RECORD_CONTENT+render_layer_offset) // draw the cursor
 		edit_point = rcorner+{cursor.x+dt.offset_x, 1+dt.offset_y}
 
 		if input.get_textinput_editting_text() != "" {
-			draw_text(ctx, &dt, text_line[:edit.selection.x], ttheme.normal)
-			draw_text(ctx, &dt, input.get_textinput_editting_text(), ttheme.dimmed)
-			draw_text(ctx, &dt, text_line[edit.selection.x:], ttheme.normal)
+			draw_text(ctx, &dt, text_line[:edit.selection.x], ttheme.normal, render_layer_offset)
+			draw_text(ctx, &dt, input.get_textinput_editting_text(), ttheme.dimmed, render_layer_offset)
+			draw_text(ctx, &dt, text_line[edit.selection.x:], ttheme.normal, render_layer_offset)
 		} else {
-			draw_text(ctx, &dt, text_line, ttheme.normal)
+			draw_text(ctx, &dt, text_line, ttheme.normal, render_layer_offset)
 		}
 	} else {
-		draw_text(ctx, &dt, text_line, ttheme.normal)
+		draw_text(ctx, &dt, text_line, ttheme.normal, render_layer_offset)
 		edit_point = {}
 	}
 	exit = result

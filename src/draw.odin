@@ -27,8 +27,8 @@ theme : Theme = {
         active = {65, 212, 60, 255},
     },
     record_closed = {
-        normal = {100, 60, 65, 200},
-        active = {120, 75, 70, 200},
+        normal = {90, 60, 65, 255},
+        active = {100, 75, 70, 255},
     },
 
 	text_default = {
