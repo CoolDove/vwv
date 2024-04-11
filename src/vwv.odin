@@ -206,12 +206,12 @@ vwv_update :: proc() {
             imdraw.quad(&pass_main, point, {size,size}, {255,0,0,255}, order=99999999)
         }
 
-        dmp : dd.Vec2 // debug_msg_pos
+        dmp : dd.Vec2= {16, 16} // debug_msg_pos
         screen_debug_msg :: proc(dmp: ^dd.Vec2, msg: string, intent:i32=0) {
-            fsize : f32 = 32
+            fsize : f32 = 18
             imdraw.text(&pass_main, render.system().default_font, msg, dmp^ + {0, fsize}, fsize, color={0,1,0,1}, order=999999)
             imdraw.text(&pass_main, render.system().default_font, msg, dmp^ + {0, fsize} + {2,2}, fsize, color={0,0,0,.5}, order=999998)
-            dmp.y += fsize + 10
+            dmp.y += fsize + 4
         }
         screen_debug_msg(&dmp, fmt.tprintf("FrameId: {}", vwv_app._frame_id))
         screen_debug_msg(&dmp, fmt.tprintf("Vwv state: {}", vwv_app.state))
@@ -238,9 +238,9 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0) {
     using theme
     indent := indent_width*depth
     
-    is_folded_header_style := r.fold && len(r.children) > 0
+    is_folded_header := r.fold && len(r.children) > 0
     card_height := line_height
-    if is_folded_header_style do card_height += record_progress_bar_height
+    if is_folded_header do card_height += record_progress_bar_height
     
 	record_rect := rect_padding(rect_require(rect_split_bottom(rect^, card_height), indent+4), indent, 0,0,0)
 	corner := rect_position(record_rect)
@@ -255,17 +255,32 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0) {
     textbox_vid := VUID_BY_RECORD(r, RECORD_ITEM_LINE_TEXTBOX)
 	text_theme := theme.text_record_done if r.state == .Done else (theme.text_record_closed if r.state == .Closed else theme.text_record_open)
     edit_point, exit_text := vcontrol_edittable_textline(&vuictx, textbox_vid, textbox_rect, &r.line, &vwv_app.text_edit if editting else nil, text_theme)
-    
-    if exit_text {
-        vwv_state_exit_edit()
-        dd.dispatch_update()
-    } else if editting {
-        vwv_app.editting_point = edit_point
-        input.textinput_set_imm_composition_pos(vwv_app.editting_point)
-    }
-    
+
+	if exit_text {
+		vwv_state_exit_edit()
+		dd.dispatch_update()
+	} else if editting {
+		vwv_app.editting_point = edit_point
+		input.textinput_set_imm_composition_pos(vwv_app.editting_point)
+	}
+
+
 	card_handle_events := vwv_app.state != .DragRecord || vwv_app.dragging_record == r
-    if result := vcontrol_record_card(&vuictx, r, record_rect, card_handle_events); result != .None {
+
+	vbegin_record_card(&vuictx)
+
+	// ** focus button
+	if card_handle_events && rect_in(record_rect, input.get_mouse_position()) && len(r.children) != 0 {
+		focus_btn_rect := rect_padding(rect_split_right(record_rect, line_height-2), 0,2,2,2+(record_rect.h-line_height))
+		focus_btn_vid := VUID_BY_RECORD(r, RECORD_ITEM_BUTTON_FOCUS)
+		if vcontrol_button(&vuictx, focus_btn_vid, focus_btn_rect, order=LAYER_RECORD_CONTENT+100) {
+			vwv_app.focusing_record = r
+			dd.dispatch_update()
+			bubble_msg("Enter focus mode, press [ESC] to exit.", 2.0)
+		}
+	}
+
+    if result := vend_record_card(&vuictx, r, record_rect, card_handle_events); result != .None {
         if vwv_app.state == .Normal {
             if result == .Left {// left click to edit
                 if input.get_key(.LCTRL) {
@@ -299,28 +314,8 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0) {
 			}
 		}
 	}
-    
-    // ** focus button
-	if card_handle_events && rect_in(record_rect, input.get_mouse_position()) && len(r.children) != 0 {
-		focus_btn_rect := rect_padding(rect_split_right(record_rect, line_height-2), 0,2,2,2+(record_rect.h-line_height))
-		focus_btn_vid := VUID_BY_RECORD(r, RECORD_ITEM_BUTTON_FOCUS)
-		if vcontrol_button(&vuictx, focus_btn_vid, focus_btn_rect, order=LAYER_RECORD_CONTENT+100) {
-			vwv_app.focusing_record = r
-			dd.dispatch_update()
-			bubble_msg("Enter focus mode, press [ESC] to exit.", 2.0)
-			log.debugf("clicked focus")
-		}
-	}
 
-	if r.fold && len(r.children) > 0 {
-        // folded_rect := rect_split_top(record_rect, -(theme.line_padding+8))
-        // idt := indent_width
-        // folded_rect = rect_padding(rect_require(folded_rect, idt+6, 6, anchor={1,0.5}), idt, 2,2,2)
-        // bg_rect := rect_padding(record_rect, -2,-2,-2, -(theme.line_padding+8))
-        // imdraw.quad(&pass_main, rect_position(bg_rect), rect_size(bg_rect), {0,0,0,128}, order = LAYER_RECORD_BASE-1)
-        // imdraw.quad(&pass_main, rect_position(folded_rect), rect_size(folded_rect), color={215,220,210, 50}, order=LAYER_RECORD_CONTENT+100)
-        // grow(rect, 8+4)
-	} else {
+	if !is_folded_header {
 		if vwv_app.state == .Normal {
 			width, height :f32= 14, 14
 			padding :f32= 2

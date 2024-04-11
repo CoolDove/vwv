@@ -27,16 +27,29 @@ RecordCardController :: struct {
 	clicked_position : dd.Vec2, // Where you pressed down, used to identify a drag.
 }
 
-vcontrol_record_card :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord, rect: dd.Rect, handle_event:=true) -> ButtonResult
+vbegin_record_card :: proc(using ctx: ^vui.VuiContext) {
+	vui.push_stack(ctx)
+}
+
+vend_record_card :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord, rect: dd.Rect, handle_event:=true) -> ButtonResult
 {
 	using vui
+	stack := vui.peek_stack(ctx); defer vui.pop_stack(ctx)
 	id := VUID_BY_RECORD(record)
-	inrect := rect_in(rect, input.get_mouse_position())
+	mouse_position := input.get_mouse_position()
+	inrect := rect_in(rect, mouse_position)
+	for r in stack.rects {
+		if rect_in(r, mouse_position) {
+			inrect = false
+			break
+		}
+	}
 	result : ButtonResult
 	if handle_event {
 		controller := vui.get_state(ctx, RecordCardController)
-		if hot != id && inrect && (active == 0 || active == id) {
-			hot = id
+		if dragging != id && (active == id || active == 0) {
+			if inrect do hot = id
+			else if hot == id do hot = 0
 		}
 		if dragging == id {
 			strings.write_string(&vwv_app.status_bar_info, fmt.tprintf("[dragging {}...]", id))
@@ -60,7 +73,6 @@ vcontrol_record_card :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord, rec
 				drag_threshold :f32= theme.line_height
 				drag_distance := linalg.distance(input.get_mouse_position(), controller.clicked_position)
 				if drag_distance > drag_threshold {
-					hot = 0
 					active = 0
 					dragging = id
 					return .Drag
@@ -68,13 +80,9 @@ vcontrol_record_card :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord, rec
 			}
 		} else {
 			if hot == id {
-				if inrect {
-					if input.get_mouse_button_down(.Left) || input.get_mouse_button_down(.Right) {
-						active = id
-						vui.set_state(ctx, RecordCardController{clicked_position=input.get_mouse_position()})
-					}
-				} else {
-					if !inrect do hot = 0
+				if input.get_mouse_button_down(.Left) || input.get_mouse_button_down(.Right) {
+					active = id
+					vui.set_state(ctx, RecordCardController{clicked_position=input.get_mouse_position()})
 				}
 			}
 		}
@@ -104,14 +112,14 @@ vcontrol_record_card :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord, rec
 	size :Vec2= {rect.w, rect.h}
 
 	// ** draw the card background
-	imdraw.quad(&pass_main, corner, size, col_bg, order = LAYER_RECORD_BASE)
+	imdraw.quad(pass, corner, size, col_bg, order = LAYER_RECORD_BASE)
 
 	_LAYER_PROGRESS_BAR :: LAYER_RECORD_CONTENT - 60
 	_LAYER_OVERLAY :: LAYER_RECORD_CONTENT + 1000
 
 	// ** draw the closed slash line
 	if record.info.state == .Closed {
-		imdraw.quad(&pass_main, corner+{2,0.5*size.y-1}, {size.x-4, 2}, {10,10,5,128}, order=_LAYER_OVERLAY)
+		imdraw.quad(pass, corner+{2,0.5*size.y-1}, {size.x-4, 2}, {10,10,5,128}, order=_LAYER_OVERLAY)
 	}
 
 	// ** draw the progress bar
@@ -128,20 +136,21 @@ vcontrol_record_card :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord, rec
 			progress_message := fmt.tprintf("%.2f%%", ((done / (1-closed)) * 100) if closed != 1 else 100)
 			msg_measure := dude.mesher_text_measure(font, progress_message, font_size * 0.25)
 			// ** progress bar background
-			imdraw.quad(&pass_main, {x,y+pgb_thickness}, {pgb_length_total, 1}, {10,10,20, 255}, order=_LAYER_PROGRESS_BAR)
+			imdraw.quad(pass, {x,y+pgb_thickness}, {pgb_length_total, 1}, {10,10,20, 255}, order=_LAYER_PROGRESS_BAR)
 
 			// ** progress bar
 			alpha :u8= 128
-			imdraw.quad(&pass_main, {x,y}, {pgb_length_total*done, pgb_thickness}, {20,180,20, alpha}, order=_LAYER_PROGRESS_BAR)
+			imdraw.quad(pass, {x,y}, {pgb_length_total*done, pgb_thickness}, {20,180,20, alpha}, order=_LAYER_PROGRESS_BAR)
 			x += pgb_length_total*done
-			imdraw.quad(&pass_main, {x,y}, {pgb_length_total*open, pgb_thickness}, {128,128,128, alpha}, order=_LAYER_PROGRESS_BAR)
+			imdraw.quad(pass, {x,y}, {pgb_length_total*open, pgb_thickness}, {128,128,128, alpha}, order=_LAYER_PROGRESS_BAR)
 			x += pgb_length_total*open
-			imdraw.quad(&pass_main, {x,y}, {pgb_length_total*closed, pgb_thickness}, {180,30,15, alpha}, order=_LAYER_PROGRESS_BAR)
+			imdraw.quad(pass, {x,y}, {pgb_length_total*closed, pgb_thickness}, {180,30,15, alpha}, order=_LAYER_PROGRESS_BAR)
 		}
 	}
 	return result
 }
 
+// TODO: Remove
 vcontrol_button_add_record :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord, rect: Rect) -> ButtonResult {
 	using vui
 	id := VUID_BY_RECORD(record, RECORD_ITEM_BUTTON_ADD_RECORD)
@@ -152,29 +161,49 @@ vcontrol_button_add_record :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecor
 	col :dd.Color32= {65,65,65, 255}
 	if hot == id do col = {80,80,80, 255}
 	if active == id do col = {95,95,95, 255}
-	imdraw.quad(&pass_main, {rect.x,rect.y+0.5*rect.h-2}, {rect.w,4}, col, order=LAYER_RECORD_BASE)
-	imdraw.quad(&pass_main, {rect.x+0.5*rect.w-2,rect.y}, {4,rect.h}, col, order=LAYER_RECORD_BASE)
+	imdraw.quad(pass, {rect.x,rect.y+0.5*rect.h-2}, {rect.w,4}, col, order=LAYER_RECORD_BASE)
+	imdraw.quad(pass, {rect.x+0.5*rect.w-2,rect.y}, {4,rect.h}, col, order=LAYER_RECORD_BASE)
 	return result
 }
 
 vcontrol_checkbutton :: proc(using ctx: ^vui.VuiContext, id: VID, rect: Rect, value: bool, order:=LAYER_RECORD_CONTENT) -> bool {
 	using vui
 	inrect := rect_in(rect, input.get_mouse_position())
-	result := _event_handler_button(ctx, id, inrect)
+	push_rect(ctx, rect)
+	pressed := false
+	if active == id {
+		if input.get_mouse_button_up(.Left) {
+			active = 0
+			if inrect {
+				pressed = true
+			}
+		}
+	} else {
+		if hot == id && input.get_mouse_button_down(.Left) {
+			active = id
+		}
+	}
+	if active == id || active == 0 {
+		if inrect do hot = id
+		else if hot == id do hot = 0
+	}
 
 	if value {
-		imdraw.quad(&pass_main, {rect.x,rect.y}, {rect.w,rect.h}, {0,255,0,255}, order=order)
+		imdraw.quad(pass, {rect.x,rect.y}, {rect.w,rect.h}, {0,255,0,255}, order=order)
 	} else {
-		imdraw.quad(&pass_main, {rect.x,rect.y}, {rect.w,rect.h}, {29,29,28, 255}, order=order)
+		imdraw.quad(pass, {rect.x,rect.y}, {rect.w,rect.h}, {29,29,28, 255}, order=order)
 	}
-	return !value if result == .Left else value
+	return !value if pressed else value
 }
 
 vcontrol_button :: proc(using ctx: ^vui.VuiContext, id: VID, rect: Rect, order:=LAYER_MAIN, btntheme:=theme.button_default) -> bool {
 	inrect := rect_in(rect, input.get_mouse_position())
 	result := false
-	if hot != id && inrect && (active == 0 || active == id) {
-		hot = id
+	vui.push_rect(ctx, rect)
+
+	if active == id || active == 0 {
+		if inrect do hot = id
+		else if hot == id do hot = 0
 	}
 	if active == id {
 		if input.get_mouse_button_up(.Left) {
@@ -184,20 +213,15 @@ vcontrol_button :: proc(using ctx: ^vui.VuiContext, id: VID, rect: Rect, order:=
 			}
 		}
 	} else {
-		if hot == id {
-			if inrect {
-				if input.get_mouse_button_down(.Left) {
-					active = id
-				}
-			} else {
-				if !inrect do hot = 0
-			}
+		if hot == id && input.get_mouse_button_down(.Left) {
+			active = id
 		}
 	}
+
 	col := btntheme.normal
 	if hot == id do col = btntheme.hover
 	else if active == id do col = btntheme.active
-	imdraw.quad(&pass_main, {rect.x,rect.y}, {rect.w,rect.h}, col, order=order)
+	imdraw.quad(pass, {rect.x,rect.y}, {rect.w,rect.h}, col, order=order)
 	return result
 }
 
@@ -287,16 +311,16 @@ vcontrol_edittable_textline :: proc(using ctx: ^vui.VuiContext, id: VID, rect: R
 	internal_font := dude.get_font(font)
 	dt := DrawText{ 0, font, font_size, 0, rect.h - internal_font.lineHeight-line_margin, rect }
 
-	draw_text :: proc(d: ^DrawText, str: string, col: Color32) {
+	draw_text :: proc(using ctx: ^vui.VuiContext, d: ^DrawText, str: string, col: Color32) {
 		corner := rect_position(d.rect)
 		next : Vec2
 		mesr := dude.mesher_text_measure(d.font, str, d.font_size, out_next_pos =&next)
 		region :Vec2= {d.rect.w-d.ptr-d.offset_x,-1}
-		imdraw.text(&pass_main, d.font, str, corner+{d.ptr+d.offset_x, d.offset_y}, d.font_size, dd.col_u2f(col), region=region, order = LAYER_RECORD_CONTENT)
+		imdraw.text(pass, d.font, str, corner+{d.ptr+d.offset_x, d.offset_y}, d.font_size, dd.col_u2f(col), region=region, order = LAYER_RECORD_CONTENT)
 		d.ptr += next.x
 	}
 	if DEBUG_VWV {
-		imdraw.quad(&pass_main, rcorner, rsize, {255, 120, 230, 40}, order = LAYER_RECORD_CONTENT) // draw the cursor
+		imdraw.quad(pass, rcorner, rsize, {255, 120, 230, 40}, order = LAYER_RECORD_CONTENT) // draw the cursor
 	}
 
 	text_line := gapbuffer_get_string(buffer); defer delete(text_line)
@@ -306,18 +330,18 @@ vcontrol_edittable_textline :: proc(using ctx: ^vui.VuiContext, id: VID, rect: R
 		
 		dt.offset_x = -max(cursor.x - 0.75 * rsize.x, 0)
 
-		imdraw.quad(&pass_main, rcorner+{cursor.x+dt.offset_x, 1}, {2,rsize.y-2}, ttheme.normal, order = LAYER_RECORD_CONTENT) // draw the cursor
+		imdraw.quad(pass, rcorner+{cursor.x+dt.offset_x, 1}, {2,rsize.y-2}, ttheme.normal, order = LAYER_RECORD_CONTENT) // draw the cursor
 		edit_point = rcorner+{cursor.x+dt.offset_x, 1+dt.offset_y}
 
 		if input.get_textinput_editting_text() != "" {
-			draw_text(&dt, text_line[:edit.selection.x], ttheme.normal)
-			draw_text(&dt, input.get_textinput_editting_text(), ttheme.dimmed)
-			draw_text(&dt, text_line[edit.selection.x:], ttheme.normal)
+			draw_text(ctx, &dt, text_line[:edit.selection.x], ttheme.normal)
+			draw_text(ctx, &dt, input.get_textinput_editting_text(), ttheme.dimmed)
+			draw_text(ctx, &dt, text_line[edit.selection.x:], ttheme.normal)
 		} else {
-			draw_text(&dt, text_line, ttheme.normal)
+			draw_text(ctx, &dt, text_line, ttheme.normal)
 		}
 	} else {
-		draw_text(&dt, text_line, ttheme.normal)
+		draw_text(ctx, &dt, text_line, ttheme.normal)
 		edit_point = {}
 	}
 	exit = result
