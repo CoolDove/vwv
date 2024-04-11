@@ -271,7 +271,7 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0) {
 	grow(rect, line_height + line_padding)
 
 	if rect_in(record_rect, input.get_mouse_position()) && len(r.children) != 0 {
-		focus_btn_rect := rect_padding(rect_split_right(record_rect, record_rect.h-6), 0,2,2,2)
+		focus_btn_rect := rect_padding(rect_split_right(record_rect, record_rect.h-2), 0,2,2,2)
 		focus_btn_vid := VUID_BY_RECORD(r, RECORD_ITEM_BUTTON_FOCUS)
 		if vcontrol_button(&vuictx, focus_btn_vid, focus_btn_rect, order=LAYER_RECORD_CONTENT+100) {
 			vwv_app.focusing_record = r
