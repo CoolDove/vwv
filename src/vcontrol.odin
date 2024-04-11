@@ -61,7 +61,7 @@ vcontrol_record_card :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord, rec
 	if len(record.children) != 0 {// ** draw the progress bar
 		padding_horizontal :f32= 50
 		pgb_length_total :f32= size.x - padding_horizontal - 16
-		pgb_thickness :f32= 9
+		pgb_thickness :f32= theme.record_progress_bar_height
 		if pgb_length_total > 0 {
 			x := corner.x + 16
 			y := corner.y + size.y - 12
@@ -70,8 +70,6 @@ vcontrol_record_card :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord, rec
 
 			progress_message := fmt.tprintf("%.2f%%", ((done / (1-closed)) * 100) if closed != 1 else 100)
 			msg_measure := dude.mesher_text_measure(font, progress_message, font_size * 0.25)
-			imdraw.text(&pass_main, font, progress_message, {x + pgb_length_total - msg_measure.x, y + pgb_thickness-2}, font_size * 0.25, {0,0,0, 0.86}, order=_LAYER_PROGRESS_BAR+10)
-
 			// ** progress bar background
 			imdraw.quad(&pass_main, {x,y+pgb_thickness}, {pgb_length_total, 1}, {10,10,20, 255}, order=_LAYER_PROGRESS_BAR)
 

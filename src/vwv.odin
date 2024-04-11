@@ -229,14 +229,21 @@ bubble_msg :: proc(msg: string, duration: f32) {
 vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0) {
     using theme
     indent := indent_width*depth
-	record_rect := rect_padding(rect_require(rect_split_bottom(rect^, line_height), indent+4), indent, 0,0,0)
+    
+    is_folded_header_style := r.fold && len(r.children) > 0
+    card_height := line_height
+    if is_folded_header_style do card_height += record_progress_bar_height
+    
+	record_rect := rect_padding(rect_require(rect_split_bottom(rect^, card_height), indent+4), indent, 0,0,0)
 	corner := rect_position(record_rect)
 	size := rect_size(record_rect)
     corner_rb := corner+size// right-bottom
+    
+    grow(rect, card_height + line_padding)
 
     editting := vwv_app.state == .Edit && vwv_app.editting_record == r
 
-    textbox_rect := rect_padding(rect_require(record_rect, 60), 20, 30, 0,0)
+    textbox_rect := rect_split_bottom(rect_padding(rect_require(record_rect, 60), 20, 30, 0,0), line_height)
     textbox_vid := VUID_BY_RECORD(r, RECORD_ITEM_LINE_TEXTBOX)
 	text_theme := theme.text_record_done if r.state == .Done else (theme.text_record_closed if r.state == .Closed else theme.text_record_open)
     edit_point, exit_text := vcontrol_edittable_textline(&vuictx, textbox_vid, textbox_rect, &r.line, &vwv_app.text_edit if editting else nil, text_theme)
@@ -269,10 +276,10 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0) {
             }
         }
     }
-	grow(rect, line_height + line_padding)
-
+    
+    // ** focus button
 	if rect_in(record_rect, input.get_mouse_position()) && len(r.children) != 0 {
-		focus_btn_rect := rect_padding(rect_split_right(record_rect, record_rect.h-2), 0,2,2,2)
+		focus_btn_rect := rect_padding(rect_split_right(record_rect, line_height-2), 0,2,2,2+(record_rect.h-line_height))
 		focus_btn_vid := VUID_BY_RECORD(r, RECORD_ITEM_BUTTON_FOCUS)
 		if vcontrol_button(&vuictx, focus_btn_vid, focus_btn_rect, order=LAYER_RECORD_CONTENT+100) {
 			vwv_app.focusing_record = r
@@ -283,13 +290,13 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0) {
 	}
 
 	if r.fold && len(r.children) > 0 {
-		folded_rect := rect_split_top(record_rect, -(theme.line_padding+8))
-		idt := indent_width
-		folded_rect = rect_padding(rect_require(folded_rect, idt+6, 6, anchor={1,0.5}), idt, 2,2,2)
-		bg_rect := rect_padding(record_rect, -2,-2,-2, -(theme.line_padding+8))
-		imdraw.quad(&pass_main, rect_position(bg_rect), rect_size(bg_rect), {0,0,0,128}, order = LAYER_RECORD_BASE-1)
-		imdraw.quad(&pass_main, rect_position(folded_rect), rect_size(folded_rect), color={215,220,210, 50}, order=LAYER_RECORD_CONTENT+100)
-		grow(rect, 8+4)
+        // folded_rect := rect_split_top(record_rect, -(theme.line_padding+8))
+        // idt := indent_width
+        // folded_rect = rect_padding(rect_require(folded_rect, idt+6, 6, anchor={1,0.5}), idt, 2,2,2)
+        // bg_rect := rect_padding(record_rect, -2,-2,-2, -(theme.line_padding+8))
+        // imdraw.quad(&pass_main, rect_position(bg_rect), rect_size(bg_rect), {0,0,0,128}, order = LAYER_RECORD_BASE-1)
+        // imdraw.quad(&pass_main, rect_position(folded_rect), rect_size(folded_rect), color={215,220,210, 50}, order=LAYER_RECORD_CONTENT+100)
+        // grow(rect, 8+4)
 	} else {
 		if vwv_app.state == .Normal {
 			width, height :f32= 14, 14
