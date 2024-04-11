@@ -52,9 +52,9 @@ theme : Theme = {
 	},
 
 	button_default = {
-		normal = {30,30,30, 255},
-		hover = {38,38,38, 255},
-		active = {46,46,46, 255},
+		normal = {45,45,45, 255},
+		hover = {55,55,55, 255},
+		active = {70,70,70, 255},
 	},
 }
 

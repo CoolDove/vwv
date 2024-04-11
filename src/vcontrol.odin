@@ -102,15 +102,15 @@ vcontrol_button_add_record :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecor
 	return result
 }
 
-vcontrol_checkbutton :: proc(using ctx: ^vui.VuiContext, id: VID, rect: Rect, value: bool) -> bool {
+vcontrol_checkbutton :: proc(using ctx: ^vui.VuiContext, id: VID, rect: Rect, value: bool, order:=LAYER_RECORD_CONTENT) -> bool {
 	using vui
 	inrect := rect_in(rect, input.get_mouse_position())
 	result := _event_handler_button(ctx, id, inrect)
 
 	if value {
-		imdraw.quad(&pass_main, {rect.x,rect.y}, {rect.w,rect.h}, {0,255,0,255}, order=LAYER_STATUS_BAR_ITEM)
+		imdraw.quad(&pass_main, {rect.x,rect.y}, {rect.w,rect.h}, {0,255,0,255}, order=order)
 	} else {
-		imdraw.quad(&pass_main, {rect.x,rect.y}, {rect.w,rect.h}, {29,29,28, 255}, order=LAYER_STATUS_BAR_ITEM)
+		imdraw.quad(&pass_main, {rect.x,rect.y}, {rect.w,rect.h}, {29,29,28, 255}, order=order)
 	}
 	return !value if result == .Left else value
 }

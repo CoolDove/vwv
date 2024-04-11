@@ -25,6 +25,8 @@ VwvApp :: struct {
     view_offset_y : f32,
     state : AppState,
 
+	status_bar_info : strings.Builder,
+
     pin : bool,
 
     // ** operations
@@ -75,6 +77,8 @@ vwv_init :: proc() {
     when ODIN_DEBUG {
         DEBUG_VWV = true
     }
+
+	strings.builder_init(&vwv_app.status_bar_info)
     
     // manually init root node
     record_init(&root)
@@ -108,12 +112,14 @@ vwv_init :: proc() {
 }
 
 vwv_release :: proc() {
+	strings.builder_destroy(&vwv_app.status_bar_info)
     vui.release(&vuictx)
     delete(vwv_app.record_operations)
     record_release_recursively(&root)
 }
 
 vwv_update :: proc() {
+	strings.builder_reset(&vwv_app.status_bar_info)
     if wheel := input.get_mouse_wheel(); wheel.y != 0 {
         vwv_app.view_offset_y += wheel.y * 10.0
     }
@@ -145,7 +151,9 @@ vwv_update :: proc() {
     }
 
 	if vwv_app.focusing_record != nil {
-		vwv_record_update(vwv_app.focusing_record, &rect)
+		focusing := vwv_app.focusing_record
+		vwv_record_update(focusing, &rect)
+		strings.write_string(&vwv_app.status_bar_info, fmt.tprintf("[Focus:{}]", gapbuffer_get_string(&focusing.line, context.temp_allocator)))
 	} else {
 		vwv_record_update(&root, &rect)
 	}
@@ -153,8 +161,9 @@ vwv_update :: proc() {
     {// ** status bar
         sbr := rect_split_top(app_rect, 42)
         imdraw.quad(&pass_main, {sbr.x, sbr.y}, {sbr.w, sbr.h}, {90, 100, 75, 255}, order=LAYER_STATUS_BAR_BASE)
+		imdraw.text(&pass_main, vuictx.font, strings.to_string(vwv_app.status_bar_info), rect_position(sbr)+{0,theme.font_size+15}, theme.font_size, {1,1,1,1}, order=LAYER_STATUS_BAR_ITEM)
         checkbutton_rect := rect_padding(rect_split_right(sbr, 42), 4,4,4,4)
-        new_pin_value := vcontrol_checkbutton(&vuictx, VUID_BUTTON_PIN, checkbutton_rect, vwv_app.pin)
+        new_pin_value := vcontrol_checkbutton(&vuictx, VUID_BUTTON_PIN, checkbutton_rect, vwv_app.pin, order=LAYER_STATUS_BAR_ITEM)
         if new_pin_value != vwv_app.pin {
             sdl.SetWindowAlwaysOnTop(dd.app.window.window, auto_cast new_pin_value)
             vwv_app.pin = new_pin_value
@@ -261,8 +270,8 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0) {
     }
 	grow(rect, line_height + line_padding)
 
-	if rect_in(record_rect, input.get_mouse_position()) {
-		focus_btn_rect := rect_split_right(record_rect, 35)
+	if rect_in(record_rect, input.get_mouse_position()) && len(r.children) != 0 {
+		focus_btn_rect := rect_padding(rect_split_right(record_rect, record_rect.h-6), 0,2,2,2)
 		focus_btn_vid := VUID_BY_RECORD(r, RECORD_ITEM_BUTTON_FOCUS)
 		if vcontrol_button(&vuictx, focus_btn_vid, focus_btn_rect, order=LAYER_RECORD_CONTENT+100) {
 			vwv_app.focusing_record = r
