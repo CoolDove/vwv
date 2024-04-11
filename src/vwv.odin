@@ -346,7 +346,7 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, parent_drag
 		}
 		
 		for &c, i in r.children {
-			vwv_record_update(&c, container_rect, depth + 1, dragging)
+			vwv_record_update(&c, container_rect, depth + 1, dragging || parent_dragged)
 		}
 	}
 
