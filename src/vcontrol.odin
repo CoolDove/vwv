@@ -2,6 +2,7 @@ package main
 
 import "core:log"
 import "core:strings"
+import "core:math/linalg"
 import "core:fmt"
 
 import "vui"
@@ -16,15 +17,68 @@ import "dude/dude/vendor/fontstash"
 VID :: vui.ID
 
 ButtonResult :: enum {
-	None, Left, Right,
+	None, 
+	Left, Right,// Click event, triggered by a button up.
+	Drag, DragRelease,
 }
 
-vcontrol_record_card :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord, rect: dd.Rect) -> ButtonResult
+@(private="file")
+RecordCardController :: struct {
+	clicked_position : dd.Vec2, // Where you pressed down, used to identify a drag.
+}
+
+vcontrol_record_card :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord, rect: dd.Rect, handle_event:=true) -> ButtonResult
 {
 	using vui
 	id := VUID_BY_RECORD(record)
 	inrect := rect_in(rect, input.get_mouse_position())
-	result := _event_handler_button(ctx, id, inrect)
+	result : ButtonResult
+	if handle_event {
+		controller := vui.get_state(ctx, RecordCardController)
+		if hot != id && inrect && (active == 0 || active == id) {
+			hot = id
+		}
+		if dragging == id {
+			strings.write_string(&vwv_app.status_bar_info, fmt.tprintf("[dragging {}...]", id))
+			if input.get_mouse_button_up(.Left) || input.get_mouse_button_up(.Right) {
+				dragging = 0
+				result = .DragRelease
+			}
+		} else if active == id {
+			if input.get_mouse_button_up(.Left) {
+				active = 0
+				if inrect {
+					result = .Left
+				}
+			} else if input.get_mouse_button_up(.Right) {
+				active = 0
+				if inrect {
+					result = .Right
+				}
+			}
+			else {
+				drag_threshold :f32= theme.line_height
+				drag_distance := linalg.distance(input.get_mouse_position(), controller.clicked_position)
+				if drag_distance > drag_threshold {
+					hot = 0
+					active = 0
+					dragging = id
+					return .Drag
+				}
+			}
+		} else {
+			if hot == id {
+				if inrect {
+					if input.get_mouse_button_down(.Left) || input.get_mouse_button_down(.Right) {
+						active = id
+						vui.set_state(ctx, RecordCardController{clicked_position=input.get_mouse_position()})
+					}
+				} else {
+					if !inrect do hot = 0
+				}
+			}
+		}
+	}
 
 	using theme
 	colors : ^RecordTheme
@@ -49,16 +103,19 @@ vcontrol_record_card :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord, rec
 	corner_rt :Vec2= {rect.x-rect.w,rect.y}// corner right-top
 	size :Vec2= {rect.w, rect.h}
 
+	// ** draw the card background
 	imdraw.quad(&pass_main, corner, size, col_bg, order = LAYER_RECORD_BASE)
 
 	_LAYER_PROGRESS_BAR :: LAYER_RECORD_CONTENT - 60
 	_LAYER_OVERLAY :: LAYER_RECORD_CONTENT + 1000
 
-	// ** draw the state or progress
+	// ** draw the closed slash line
 	if record.info.state == .Closed {
 		imdraw.quad(&pass_main, corner+{2,0.5*size.y-1}, {size.x-4, 2}, {10,10,5,128}, order=_LAYER_OVERLAY)
 	}
-	if len(record.children) != 0 {// ** draw the progress bar
+
+	// ** draw the progress bar
+	if len(record.children) != 0 {
 		padding_horizontal :f32= 50
 		pgb_length_total :f32= size.x - padding_horizontal - 16
 		pgb_thickness :f32= theme.record_progress_bar_height

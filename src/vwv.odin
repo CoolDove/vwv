@@ -36,10 +36,9 @@ VwvApp :: struct {
     msgbubble : string,
     msgbubble_time : f32,
 
-    // ** edit
-    text_edit : TextEdit,
-    editting_record : ^VwvRecord,
-    editting_point : dd.Vec2,
+    // ** states
+	using state_edit : VwvState_Edit,
+	using state_drag : VwvState_DragRecord,
 
 	// ** focus
 	// When you set a record focused, you can only update it and its children, so it's safe to hold 
@@ -52,7 +51,16 @@ VwvApp :: struct {
 }
 
 AppState :: enum {
-    Normal, Edit
+    Normal, Edit, DragRecord
+}
+
+VwvState_Edit :: struct {
+	text_edit : TextEdit,
+	editting_record : ^VwvRecord,
+	editting_point : dd.Vec2,
+}
+VwvState_DragRecord :: struct {
+	dragging_record : ^VwvRecord,
 }
 
 VwvRecord :: struct {
@@ -126,8 +134,7 @@ vwv_update :: proc() {
 
     viewport := dd.app.window.size
     app_rect :dd.Rect= {0,0, cast(f32)viewport.x, cast(f32)viewport.y}
-    
-    
+
     rect :dd.Rect= {20,20, cast(f32)viewport.x-40, cast(f32)viewport.y-40}
     rect.y += vwv_app.view_offset_y
 
@@ -207,6 +214,7 @@ vwv_update :: proc() {
             dmp.y += fsize + 10
         }
         screen_debug_msg(&dmp, fmt.tprintf("FrameId: {}", vwv_app._frame_id))
+        screen_debug_msg(&dmp, fmt.tprintf("Vwv state: {}", vwv_app.state))
         screen_debug_msg(&dmp, fmt.tprintf("Vui active: {}, hover: {}", vuictx.active, vuictx.hot))
         screen_debug_msg(&dmp, fmt.tprintf("Focus record: {}", "nil" if vwv_app.focusing_record == nil else gapbuffer_get_string(&vwv_app.focusing_record.line, context.temp_allocator)))
 
@@ -256,7 +264,8 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0) {
         input.textinput_set_imm_composition_pos(vwv_app.editting_point)
     }
     
-    if result := vcontrol_record_card(&vuictx, r, record_rect); result != .None {
+	card_handle_events := vwv_app.state != .DragRecord || vwv_app.dragging_record == r
+    if result := vcontrol_record_card(&vuictx, r, record_rect, card_handle_events); result != .None {
         if vwv_app.state == .Normal {
             if result == .Left {// left click to edit
                 if input.get_key(.LCTRL) {
@@ -273,12 +282,26 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0) {
 					record_set_state(r, dd.enum_step(VwvRecordState, r.info.state))
 					dd.dispatch_update()
 				}
-            }
-        }
-    }
+			} else if result == .Drag {
+				vwv_app.dragging_record = r
+				vwv_app.state = .DragRecord
+				dd.dispatch_update()
+			} else {
+				panic("This shouldn't happen.")
+			}
+		} else if vwv_app.state == .DragRecord {
+            if result == .DragRelease {// left click to edit
+				vwv_app.dragging_record = nil
+				vwv_app.state = .Normal
+				dd.dispatch_update()
+			} else {
+				panic("This shouldn't happen")
+			}
+		}
+	}
     
     // ** focus button
-	if rect_in(record_rect, input.get_mouse_position()) && len(r.children) != 0 {
+	if card_handle_events && rect_in(record_rect, input.get_mouse_position()) && len(r.children) != 0 {
 		focus_btn_rect := rect_padding(rect_split_right(record_rect, line_height-2), 0,2,2,2+(record_rect.h-line_height))
 		focus_btn_vid := VUID_BY_RECORD(r, RECORD_ITEM_BUTTON_FOCUS)
 		if vcontrol_button(&vuictx, focus_btn_vid, focus_btn_rect, order=LAYER_RECORD_CONTENT+100) {
