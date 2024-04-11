@@ -12,6 +12,8 @@ import "dude/dude/input"
 import "dude/dude/render"
 import "dude/dude/vendor/fontstash"
 
+@(private="file")
+VID :: vui.ID
 
 ButtonResult :: enum {
 	None, Left, Right,
@@ -56,12 +58,6 @@ vcontrol_record_card :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord, rec
 	if record.info.state == .Closed {
 		imdraw.quad(&pass_main, corner+{2,0.5*size.y-1}, {size.x-4, 2}, {10,10,5,128}, order=_LAYER_OVERLAY)
 	}
-
-	if inrect {
-		optbtn_rect := rect_padding(rect_require(rect_split_left(rect_split_right(rect, 40), 35), -1, 6), 0,0, 2,2)
-		imdraw.quad(&pass_main, rect_position(optbtn_rect), rect_size(optbtn_rect), {0,0,255, 128}, order=_LAYER_PROGRESS_BAR+1)
-	}
-
 	if len(record.children) != 0 {// ** draw the progress bar
 		padding_horizontal :f32= 50
 		pgb_length_total :f32= size.x - padding_horizontal - 16
@@ -106,7 +102,7 @@ vcontrol_button_add_record :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecor
 	return result
 }
 
-vcontrol_checkbutton :: proc(using ctx: ^vui.VuiContext, id: vui.ID, rect: Rect, value: bool) -> bool {
+vcontrol_checkbutton :: proc(using ctx: ^vui.VuiContext, id: VID, rect: Rect, value: bool) -> bool {
 	using vui
 	inrect := rect_in(rect, input.get_mouse_position())
 	result := _event_handler_button(ctx, id, inrect)
@@ -119,10 +115,41 @@ vcontrol_checkbutton :: proc(using ctx: ^vui.VuiContext, id: vui.ID, rect: Rect,
 	return !value if result == .Left else value
 }
 
+vcontrol_button :: proc(using ctx: ^vui.VuiContext, id: VID, rect: Rect, order:=LAYER_MAIN, btntheme:=theme.button_default) -> bool {
+	inrect := rect_in(rect, input.get_mouse_position())
+	result := false
+	if hot != id && inrect && (active == 0 || active == id) {
+		hot = id
+	}
+	if active == id {
+		if input.get_mouse_button_up(.Left) {
+			active = 0
+			if inrect {
+				result = true
+			}
+		}
+	} else {
+		if hot == id {
+			if inrect {
+				if input.get_mouse_button_down(.Left) {
+					active = id
+				}
+			} else {
+				if !inrect do hot = 0
+			}
+		}
+	}
+	col := btntheme.normal
+	if hot == id do col = btntheme.hover
+	else if active == id do col = btntheme.active
+	imdraw.quad(&pass_main, {rect.x,rect.y}, {rect.w,rect.h}, col, order=order)
+	return result
+}
+
 // If `edit` is nil, this control will only display the text. You pass in a edit, the control will
 //  work.
 //  Return: If you pressed outside or press `ESC` or `RETURN` to exit the edit.
-vcontrol_edittable_textline :: proc(using ctx: ^vui.VuiContext, id: vui.ID, rect: Rect, buffer: ^GapBuffer, edit:^TextEdit=nil, ttheme:=_text_theme_default) -> (edit_point: Vec2, exit: bool) {
+vcontrol_edittable_textline :: proc(using ctx: ^vui.VuiContext, id: VID, rect: Rect, buffer: ^GapBuffer, edit:^TextEdit=nil, ttheme:=theme.text_default) -> (edit_point: Vec2, exit: bool) {
 	using vui
 
 	inrect := rect_in(rect, input.get_mouse_position())
@@ -244,7 +271,7 @@ vcontrol_edittable_textline :: proc(using ctx: ^vui.VuiContext, id: vui.ID, rect
 
 
 @(private="file")
-_event_handler_button :: proc(using ctx: ^vui.VuiContext, id: vui.ID, inrect: bool) -> ButtonResult {
+_event_handler_button :: proc(using ctx: ^vui.VuiContext, id: VID, inrect: bool) -> ButtonResult {
 	using vui
 	result := ButtonResult.None
 	if active == id {

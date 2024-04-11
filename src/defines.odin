@@ -26,7 +26,8 @@ VUID_BY_RECORD :: proc(r: ^VwvRecord, elem:u8= 0) -> vui.ID {
     return VUID_RECORD_BASE + cast(vui.ID)(r.id * 256) + cast(vui.ID)elem
 }
 RECORD_ITEM_BUTTON_ADD_RECORD :u8: 4
-RECORD_ITEM_LINE_TEXTBOX :u8: 8
+RECORD_ITEM_BUTTON_FOCUS :u8: 8
+RECORD_ITEM_LINE_TEXTBOX :u8: 64
 
 
 VUID_BUTTON_PIN :vui.ID: 48000+1

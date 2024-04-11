@@ -29,6 +29,12 @@ theme : Theme = {
         normal = {80, 50, 55, 128},
         active = {90, 55, 60, 128},
     },
+
+	text_default = {
+		normal = {10,10,10, 255},
+		hilight = {4,20,4, 255},
+		dimmed = {10,10,10, 128},
+	},
 	text_record_open = {
 		normal = {10,10,10, 255},
 		hilight = {4,20,4, 255},
@@ -44,6 +50,12 @@ theme : Theme = {
 		hilight = {4,60,4, 255},
 		dimmed = {10,50,10, 128},
 	},
+
+	button_default = {
+		normal = {30,30,30, 255},
+		hover = {38,38,38, 255},
+		active = {46,46,46, 255},
+	},
 }
 
 Theme :: struct {
@@ -54,13 +66,20 @@ Theme :: struct {
     indent_width : f32,
     border_width : f32,
 
+	button_default : ButtonTheme,
+
     // ** colors
     record_open, record_closed, record_done : RecordTheme,
+	text_default : TextTheme,
 	text_record_open, text_record_closed, text_record_done : TextTheme,
 }
 
 RecordTheme :: struct {
 	normal, active : Color32
+}
+
+ButtonTheme :: struct {
+	normal, hover, active : Color32,
 }
 
 TextTheme :: struct {

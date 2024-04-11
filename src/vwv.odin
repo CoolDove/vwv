@@ -39,6 +39,11 @@ VwvApp :: struct {
     editting_record : ^VwvRecord,
     editting_point : dd.Vec2,
 
+	// ** focus
+	// When you set a record focused, you can only update it and its children, so it's safe to hold 
+	//	the pointer as a reference.
+	focusing_record : ^VwvRecord,
+
     // ** misc
     _frame_id : u64,
     _save_dirty : bool,
@@ -129,13 +134,21 @@ vwv_update :: proc() {
         if input.get_key_down(.C) && input.get_key(.LCTRL) && input.get_key(.LSHIFT) {
             save(true)
         }
+		if vwv_app.focusing_record != nil && input.get_key_down(.ESCAPE) {
+			vwv_app.focusing_record = nil
+			dd.dispatch_update()
+		}
     }
 
     if input.get_key_repeat(.F1) {
         DEBUG_VWV = !DEBUG_VWV
     }
 
-    vwv_record_update(&root, &rect)
+	if vwv_app.focusing_record != nil {
+		vwv_record_update(vwv_app.focusing_record, &rect)
+	} else {
+		vwv_record_update(&root, &rect)
+	}
 
     {// ** status bar
         sbr := rect_split_top(app_rect, 42)
@@ -185,6 +198,8 @@ vwv_update :: proc() {
         }
         screen_debug_msg(&dmp, fmt.tprintf("FrameId: {}", vwv_app._frame_id))
         screen_debug_msg(&dmp, fmt.tprintf("Vui active: {}, hover: {}", vuictx.active, vuictx.hot))
+        screen_debug_msg(&dmp, fmt.tprintf("Focus record: {}", "nil" if vwv_app.focusing_record == nil else gapbuffer_get_string(&vwv_app.focusing_record.line, context.temp_allocator)))
+
         if vwv_app.state == .Edit {
             ed := vwv_app.text_edit
             gp := ed.buffer
@@ -192,8 +207,6 @@ vwv_update :: proc() {
                 gapbuffer_len(gp), gapbuffer_len_buffer(gp), 
                 gp.gap_begin, gp.gap_end, ed.selection.x, ed.selection.y))
         }
-
-
         debug_point(vwv_app.editting_point)
     }
 }
@@ -247,6 +260,16 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0) {
         }
     }
 	grow(rect, line_height + line_padding)
+
+	if rect_in(record_rect, input.get_mouse_position()) {
+		focus_btn_rect := rect_split_right(record_rect, 35)
+		focus_btn_vid := VUID_BY_RECORD(r, RECORD_ITEM_BUTTON_FOCUS)
+		if vcontrol_button(&vuictx, focus_btn_vid, focus_btn_rect, order=LAYER_RECORD_CONTENT+100) {
+			vwv_app.focusing_record = r
+			dd.dispatch_update()
+			log.debugf("clicked focus")
+		}
+	}
 
 	if r.fold && len(r.children) > 0 {
 		folded_rect := rect_split_top(record_rect, -(theme.line_padding+8))
