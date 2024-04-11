@@ -10,6 +10,7 @@ import dd "dude/dude/core"
 import "dude/dude/imdraw"
 import "dude/dude/input"
 import "dude/dude/render"
+import "dude/dude/vendor/fontstash"
 
 
 ButtonResult :: enum {
@@ -201,7 +202,8 @@ vcontrol_edittable_textline :: proc(using ctx: ^vui.VuiContext, id: vui.ID, rect
 	}
 	using theme
 
-	dt := DrawText{ 0, font, font_size, 0, font_size-line_margin, rect }
+	internal_font := dude.get_font(font)
+	dt := DrawText{ 0, font, font_size, 0, rect.h - internal_font.lineHeight-line_margin, rect }
 
 	draw_text :: proc(d: ^DrawText, str: string, col: Color32) {
 		corner := rect_position(d.rect)

@@ -213,7 +213,7 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0) {
 
     editting := vwv_app.state == .Edit && vwv_app.editting_record == r
 
-    textbox_rect := rect_padding(rect_require(record_rect, 60+line_height), line_height, 55, 0,0)
+    textbox_rect := rect_padding(rect_require(record_rect, 60), 20, 30, 0,0)
     textbox_vid := VUID_BY_RECORD(r, RECORD_ITEM_LINE_TEXTBOX)
 	text_theme := theme.text_record_done if r.state == .Done else (theme.text_record_closed if r.state == .Closed else theme.text_record_open)
     edit_point, exit_text := vcontrol_edittable_textline(&vuictx, textbox_vid, textbox_rect, &r.line, &vwv_app.text_edit if editting else nil, text_theme)

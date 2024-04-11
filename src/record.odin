@@ -11,6 +11,7 @@ _record_next_id :u64= 1
 
 
 record_add_child :: proc(parent: ^VwvRecord) -> ^VwvRecord {
+	record_toggle_fold(parent, false)
 	append(&parent.children, VwvRecord{})
 	child := &(parent.children[len(parent.children)-1])
 	record_init(child, parent)
