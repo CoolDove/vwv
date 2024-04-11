@@ -142,6 +142,7 @@ vwv_update :: proc() {
         }
 		if vwv_app.focusing_record != nil && input.get_key_down(.ESCAPE) {
 			vwv_app.focusing_record = nil
+			bubble_msg("Exit focus mode.", 0.8)
 			dd.dispatch_update()
 		}
     }
@@ -276,6 +277,7 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0) {
 		if vcontrol_button(&vuictx, focus_btn_vid, focus_btn_rect, order=LAYER_RECORD_CONTENT+100) {
 			vwv_app.focusing_record = r
 			dd.dispatch_update()
+			bubble_msg("Enter focus mode, press [ESC] to exit.", 2.0)
 			log.debugf("clicked focus")
 		}
 	}
