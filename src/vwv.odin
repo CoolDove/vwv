@@ -150,6 +150,7 @@ vwv_update :: proc() {
 		if vwv_app.focusing_record != nil && input.get_key_down(.ESCAPE) {
 			vwv_app.focusing_record = nil
 			bubble_msg("Exit focus mode.", 0.8)
+			sdl.SetWindowTitle(dd.app.window.window, DEFAULT_WINDOW_TITLE)
 			dd.dispatch_update()
 		}
     }
@@ -284,11 +285,13 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, parent_drag
 	vbegin_record_card(&vuictx)
 
 	// ** focus button
-	if card_handle_events && rect_in(record_rect, input.get_mouse_position()) && len(r.children) != 0 {
+	if card_handle_events && r != &root && rect_in(record_rect, input.get_mouse_position()) && len(r.children) != 0 {
 		focus_btn_rect := rect_padding(rect_split_right(record_rect, line_height-2), 0,2,2,2+(record_rect.h-line_height))
 		focus_btn_vid := VUID_BY_RECORD(r, RECORD_ITEM_BUTTON_FOCUS)
 		if vcontrol_button(&vuictx, focus_btn_vid, focus_btn_rect, order=LAYER_RECORD_CONTENT+100) {
 			vwv_app.focusing_record = r
+			parent_line := gapbuffer_get_string(&vwv_app.focusing_record.parent.line, context.temp_allocator)
+			sdl.SetWindowTitle(dd.app.window.window, fmt.ctprintf("vwv - {}", parent_line))
 			dd.dispatch_update()
 			bubble_msg("Enter focus mode, press [ESC] to exit.", 2.0)
 		}

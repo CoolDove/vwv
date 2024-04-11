@@ -25,6 +25,7 @@ import "dude/dude/imdraw"
 
 REPAC_ASSETS :: false
 
+DEFAULT_WINDOW_TITLE :: "vwv - simple tool for simple soul"
 pass_main : dude.RenderPass
 
 
@@ -46,7 +47,7 @@ main :: proc() {
     
     config : dd.DudeConfig
     config.callbacks = { update, init, release, on_mui }
-    config.title = "vwv - simple tool for simple soul"
+    config.title =DEFAULT_WINDOW_TITLE
     config.position = {sdl.WINDOWPOS_CENTERED, sdl.WINDOWPOS_CENTERED}
     config.width = 400
     config.height = 860
