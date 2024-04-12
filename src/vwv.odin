@@ -219,6 +219,7 @@ vwv_update :: proc() {
         screen_debug_msg(&dmp, fmt.tprintf("FrameId: {}", vwv_app._frame_id))
         screen_debug_msg(&dmp, fmt.tprintf("Vwv state: {}", vwv_app.state))
         screen_debug_msg(&dmp, fmt.tprintf("Scroll offset: {}", vwv_app.view_offset_y))
+        if vwv_app.state == .DragRecord do screen_debug_msg(&dmp, fmt.tprintf("Drag gap: {}", vwv_app.drag_gap_height))
         screen_debug_msg(&dmp, fmt.tprintf("Vui active: {}, hover: {}", vuictx.active, vuictx.hot))
         screen_debug_msg(&dmp, fmt.tprintf("Focus record: {}", "nil" if vwv_app.focusing_record == nil else gapbuffer_get_string(&vwv_app.focusing_record.line, context.temp_allocator)))
 
@@ -247,7 +248,6 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, parent_drag
     editting := vwv_app.state == .Edit && vwv_app.editting_record == r
 	dragging := vwv_app.dragging_record == r
 
-	drag_context_rect_before : Rect // 
 	drag_context_rect : Rect
 
     card_height := line_height
@@ -261,7 +261,6 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, parent_drag
 	if dragging {
 		drag_height := input.get_mouse_position().y - record_rect.h*0.5
 		drag_context_rect = {rect.x, drag_height, rect.w, rect.h - drag_height}
-		drag_context_rect_before = drag_context_rect // Save this to compare how much height the children used, would be the drag gap height.
 		record_rect.y = drag_height
 	}
 
@@ -269,9 +268,8 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, parent_drag
 	if dragging {
 		container_rect = &drag_context_rect
 	}
+	container_rect_before := container_rect^ // You can get the height of this and children by compare with container_rect.
 	grow(container_rect, card_height + line_padding)
-
-	if vwv_app.state == .DragRecord && vwv_app.drag_gap_after == r do grow(container_rect, vwv_app.drag_gap_height)
 
     textbox_rect := rect_split_bottom(rect_padding(rect_require(record_rect, 60), 20, 30, 0,0), line_height)
     textbox_vid := VUID_BY_RECORD(r, RECORD_ITEM_LINE_TEXTBOX)
@@ -303,6 +301,8 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, parent_drag
 		}
 	}
 
+	to_start_drag : bool
+
 	dragged_record_rect := rect_padding(record_rect, -2,-2,-1,-1)
     if result := vend_record_card(&vuictx, r, record_rect if !dragging else dragged_record_rect , card_handle_events, render_layer_offset); result != .None {
         if vwv_app.state == .Normal {
@@ -322,8 +322,7 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, parent_drag
 					dd.dispatch_update()
 				}
 			} else if result == .Drag {
-				vwv_state_enter_drag(r, line_height)
-				dd.dispatch_update()
+				to_start_drag = true
 			} else {
 				panic("This shouldn't happen.")
 			}
@@ -354,7 +353,14 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, parent_drag
 		}
 	}
 
-	if dragging do vwv_app.state_drag.drag_gap_height = drag_context_rect_before.h - drag_context_rect.h
+	// If in drag mode and this is the record before the insert gap, grow the container_rect.
+	if vwv_app.state == .DragRecord && vwv_app.drag_gap_after == r do grow(container_rect, vwv_app.drag_gap_height)
+
+	if to_start_drag {
+		vwv_state_enter_drag(r, container_rect_before.h - container_rect.h)
+		log.debugf("start dragging")
+		dd.dispatch_update()
+	}
 
 	grow :: proc(r: ^dd.Rect, h: f32) {
 		r.y += h
