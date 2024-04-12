@@ -61,6 +61,8 @@ VwvState_Edit :: struct {
 }
 VwvState_DragRecord :: struct {
 	dragging_record : ^VwvRecord,
+	drag_gap_height : f32,
+	drag_gap_after : ^VwvRecord,
 }
 
 VwvRecord :: struct {
@@ -245,6 +247,7 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, parent_drag
     editting := vwv_app.state == .Edit && vwv_app.editting_record == r
 	dragging := vwv_app.dragging_record == r
 
+	drag_context_rect_before : Rect // 
 	drag_context_rect : Rect
 
     card_height := line_height
@@ -258,6 +261,7 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, parent_drag
 	if dragging {
 		drag_height := input.get_mouse_position().y - record_rect.h*0.5
 		drag_context_rect = {rect.x, drag_height, rect.w, rect.h - drag_height}
+		drag_context_rect_before = drag_context_rect // Save this to compare how much height the children used, would be the drag gap height.
 		record_rect.y = drag_height
 	}
 
@@ -266,6 +270,8 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, parent_drag
 		container_rect = &drag_context_rect
 	}
 	grow(container_rect, card_height + line_padding)
+
+	if vwv_app.state == .DragRecord && vwv_app.drag_gap_after == r do grow(container_rect, vwv_app.drag_gap_height)
 
     textbox_rect := rect_split_bottom(rect_padding(rect_require(record_rect, 60), 20, 30, 0,0), line_height)
     textbox_vid := VUID_BY_RECORD(r, RECORD_ITEM_LINE_TEXTBOX)
@@ -316,16 +322,14 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, parent_drag
 					dd.dispatch_update()
 				}
 			} else if result == .Drag {
-				vwv_app.dragging_record = r
-				vwv_app.state = .DragRecord
+				vwv_state_enter_drag(r, line_height)
 				dd.dispatch_update()
 			} else {
 				panic("This shouldn't happen.")
 			}
 		} else if vwv_app.state == .DragRecord {
             if result == .DragRelease {// left click to edit
-				vwv_app.dragging_record = nil
-				vwv_app.state = .Normal
+				vwv_state_exit_drag()
 				dd.dispatch_update()
 			} else {
 				panic("This shouldn't happen")
@@ -350,10 +354,35 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, parent_drag
 		}
 	}
 
+	if dragging do vwv_app.state_drag.drag_gap_height = drag_context_rect_before.h - drag_context_rect.h
+
 	grow :: proc(r: ^dd.Rect, h: f32) {
 		r.y += h
 		r.h -= h
 	}
+}
+
+vwv_state_enter_drag :: proc(r: ^VwvRecord, drag_gap_height:f32) {
+	assert(vwv_app.state == .Normal, "Should call this when in Normal mode.")
+	vwv_app.dragging_record = r
+	vwv_app.state = .DragRecord
+	vwv_app.state_drag.drag_gap_height = drag_gap_height
+	if r.parent == nil do panic("Handle this later")
+	else {
+		prev := r.parent
+		for &c in r.parent.children {
+			if &c == r {
+				break
+			}
+			prev = &c
+		}
+		vwv_app.drag_gap_after = prev
+	}
+}
+vwv_state_exit_drag :: proc() {
+	assert(vwv_app.state == .DragRecord, "Should call this when in DragRecord mode.")
+	vwv_app.state = .Normal
+	vwv_app.dragging_record = nil
 }
 
 vwv_state_exit_edit :: proc() {
