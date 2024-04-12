@@ -354,7 +354,13 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, parent_drag
 	}
 
 	// If in drag mode and this is the record before the insert gap, grow the container_rect.
-	if vwv_app.state == .DragRecord && vwv_app.drag_gap_after == r do grow(container_rect, vwv_app.drag_gap_height)
+	if vwv_app.state == .DragRecord && vwv_app.drag_gap_after == r {
+		if DEBUG_VWV {
+			debug_rect := rect_split_top(container_rect^, vwv_app.drag_gap_height)
+			imdraw.quad(&pass_main, rect_position(container_rect^), rect_size(debug_rect), {0, 255, 128, 128})
+		}
+ 		grow(container_rect, vwv_app.drag_gap_height)
+	}
 
 	if to_start_drag {
 		vwv_state_enter_drag(r, container_rect_before.h - container_rect.h)
