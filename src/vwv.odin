@@ -176,6 +176,13 @@ vwv_update :: proc() {
 		vwv_record_update(&root, &rect, 0, 0)
 	}
 
+	for slot, i in vwv_app.arrange_slots {
+		if i != vwv_app.dragging_record_sibling && rect_in(slot, input.get_mouse_position()) {
+			vwv_app.arrange_index = i
+			log.debugf("In rect {}", i)
+		}
+	}
+
     {// ** status bar
         sbr := rect_split_top(app_rect, 42)
         imdraw.quad(&pass_main, {sbr.x, sbr.y}, {sbr.w, sbr.h}, {90, 100, 75, 255}, order=LAYER_STATUS_BAR_BASE)
@@ -349,7 +356,7 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
 				panic("This shouldn't happen.")
 			}
 		} else if vwv_app.state == .DragRecord {
-            if result == .DragRelease {// left click to edit
+			if result == .DragRelease {// left click to edit
 				vwv_state_exit_drag()
 				dd.dispatch_update()
 			} else {
@@ -372,6 +379,7 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
 		
 		for &c, i in r.children {
 			is_drag_parent := vwv_app.dragging_record != nil && vwv_app.dragging_record.parent == r
+			if is_drag_parent do log.debugf("arrange to: {} ", vwv_app.arrange_index)
 			if is_drag_parent && vwv_app.arrange_index == 0 {
 				if vwv_app.arrange_index == i {
 					_grow_arrange_gap(container_rect)
