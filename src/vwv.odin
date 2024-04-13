@@ -61,8 +61,11 @@ VwvState_Edit :: struct {
 }
 VwvState_DragRecord :: struct {
 	dragging_record : ^VwvRecord,
+	dragging_record_sibling : int, // Sibling index of the record you're dragging.
+	arrange_index : int, // The index of slots you want to arrange to.
+
 	drag_gap_height : f32,
-	drag_gap_after : ^VwvRecord,
+	arrange_slots : [dynamic]Rect,
 }
 
 VwvRecord :: struct {
@@ -116,12 +119,14 @@ vwv_init :: proc() {
     }
     
     vwv_app.record_operations = make([dynamic]RecordOperation)
+	vwv_app.state_drag.arrange_slots = make([dynamic]Rect)
 
     vui.init(&vuictx, &pass_main, render.system().default_font)
     vwv_app._save_dirty = false
 }
 
 vwv_release :: proc() {
+	delete(vwv_app.state_drag.arrange_slots)
 	strings.builder_destroy(&vwv_app.status_bar_info)
     vui.release(&vuictx)
     delete(vwv_app.record_operations)
@@ -161,12 +166,14 @@ vwv_update :: proc() {
         DEBUG_VWV = !DEBUG_VWV
     }
 
+	clear(&vwv_app.arrange_slots)
+
 	if vwv_app.focusing_record != nil {
 		focusing := vwv_app.focusing_record
-		vwv_record_update(focusing, &rect)
+		vwv_record_update(focusing, &rect, 0, 0)
 		strings.write_string(&vwv_app.status_bar_info, fmt.tprintf("[Focus:{}]", gapbuffer_get_string(&focusing.line, context.temp_allocator)))
 	} else {
-		vwv_record_update(&root, &rect)
+		vwv_record_update(&root, &rect, 0, 0)
 	}
 
     {// ** status bar
@@ -181,6 +188,9 @@ vwv_update :: proc() {
             dd.dispatch_update()
         }
     }
+
+	draw_arrange_slots()
+	
     if vwv_app.msgbubble_time > 0 {// ** msg bubble
         using theme
         bubblerect := rect_padding(rect_split_bottom(rect_split_top(app_rect, 120), font_size+8), 4,4,0,0)
@@ -212,12 +222,13 @@ vwv_update :: proc() {
         dmp : dd.Vec2= {16, 16} // debug_msg_pos
         screen_debug_msg :: proc(dmp: ^dd.Vec2, msg: string, intent:i32=0) {
             fsize : f32 = 18
-            imdraw.text(&pass_main, render.system().default_font, msg, dmp^ + {0, fsize}, fsize, color={0,1,0,1}, order=999999)
+            imdraw.text(&pass_main, render.system().default_font, msg, dmp^ + {0, fsize}, fsize, color={1,1,0,1}, order=999999)
             imdraw.text(&pass_main, render.system().default_font, msg, dmp^ + {0, fsize} + {2,2}, fsize, color={0,0,0,.5}, order=999998)
             dmp.y += fsize + 4
         }
         screen_debug_msg(&dmp, fmt.tprintf("FrameId: {}", vwv_app._frame_id))
         screen_debug_msg(&dmp, fmt.tprintf("Vwv state: {}", vwv_app.state))
+		if vwv_app.state == .DragRecord do screen_debug_msg(&dmp, fmt.tprintf("Arrange index: {}", vwv_app.state_drag.arrange_index))
         screen_debug_msg(&dmp, fmt.tprintf("Scroll offset: {}", vwv_app.view_offset_y))
         if vwv_app.state == .DragRecord do screen_debug_msg(&dmp, fmt.tprintf("Drag gap: {}", vwv_app.drag_gap_height))
         screen_debug_msg(&dmp, fmt.tprintf("Vui active: {}, hover: {}", vuictx.active, vuictx.hot))
@@ -234,15 +245,22 @@ vwv_update :: proc() {
     }
 }
 
+
+draw_arrange_slots :: proc() {
+	for s in vwv_app.arrange_slots {
+		imdraw.quad(&pass_main, rect_position(s)+{1,1}, rect_size(s)-{2,2}, {0, 128, 0, 64})
+	}
+}
+
+
 bubble_msg :: proc(msg: string, duration: f32) {
     vwv_app.msgbubble = msg
     vwv_app.msgbubble_time = duration
 }
 
-vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, parent_dragged:=false) {
+vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx:int, parent_dragged:=false, is_arrange_sibling:=false) {
     using theme
     indent := indent_width*depth
-    
     is_folded_header := r.fold && len(r.children) > 0
 
     editting := vwv_app.state == .Edit && vwv_app.editting_record == r
@@ -269,6 +287,8 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, parent_drag
 		container_rect = &drag_context_rect
 	}
 	container_rect_before := container_rect^ // You can get the height of this and children by compare with container_rect.
+
+	// ** the card space
 	grow(container_rect, card_height + line_padding)
 
     textbox_rect := rect_split_bottom(rect_padding(rect_require(record_rect, 60), 20, 30, 0,0), line_height)
@@ -285,6 +305,7 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, parent_drag
 	}
 
 	card_handle_events := vwv_app.state != .DragRecord || dragging
+	
 
 	vbegin_record_card(&vuictx)
 
@@ -304,6 +325,7 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, parent_drag
 	to_start_drag : bool
 
 	dragged_record_rect := rect_padding(record_rect, -2,-2,-1,-1)
+	// ** handle card interact result
     if result := vend_record_card(&vuictx, r, record_rect if !dragging else dragged_record_rect , card_handle_events, render_layer_offset); result != .None {
         if vwv_app.state == .Normal {
             if result == .Left {// left click to edit
@@ -349,21 +371,37 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, parent_drag
 		}
 		
 		for &c, i in r.children {
-			vwv_record_update(&c, container_rect, depth + 1, dragging || parent_dragged)
+			is_drag_parent := vwv_app.dragging_record != nil && vwv_app.dragging_record.parent == r
+			if is_drag_parent && vwv_app.arrange_index == 0 {
+				if vwv_app.arrange_index == i {
+					_grow_arrange_gap(container_rect)
+				}
+			}
+			vwv_record_update(&c, container_rect, depth + 1, i, dragging || parent_dragged, is_drag_parent)
+
+			if is_drag_parent && vwv_app.arrange_index >= vwv_app.dragging_record_sibling {
+				if vwv_app.arrange_index == i+1 {
+					_grow_arrange_gap(container_rect)
+				}
+			}
+
+			_grow_arrange_gap :: proc(container_rect: ^Rect) {
+				if DEBUG_VWV {
+					debug_rect := rect_split_top(container_rect^, vwv_app.drag_gap_height)
+					imdraw.quad(&pass_main, rect_position(container_rect^), rect_size(debug_rect), {0, 255, 128, 128})
+				}
+				grow(container_rect, vwv_app.drag_gap_height)
+			}
 		}
 	}
 
-	// If in drag mode and this is the record before the insert gap, grow the container_rect.
-	if vwv_app.state == .DragRecord && vwv_app.drag_gap_after == r {
-		if DEBUG_VWV {
-			debug_rect := rect_split_top(container_rect^, vwv_app.drag_gap_height)
-			imdraw.quad(&pass_main, rect_position(container_rect^), rect_size(debug_rect), {0, 255, 128, 128})
-		}
- 		grow(container_rect, vwv_app.drag_gap_height)
+	if is_arrange_sibling {
+		height := container_rect.y - container_rect_before.y
+		append(&vwv_app.arrange_slots, Rect{container_rect.x, container_rect_before.y, container_rect.w, height})
 	}
 
 	if to_start_drag {
-		vwv_state_enter_drag(r, container_rect_before.h - container_rect.h)
+		vwv_state_enter_drag(r, sibling_idx, container_rect_before.h - container_rect.h)
 		log.debugf("start dragging")
 		dd.dispatch_update()
 	}
@@ -374,7 +412,11 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, parent_drag
 	}
 }
 
-vwv_state_enter_drag :: proc(r: ^VwvRecord, drag_gap_height:f32) {
+draw_debug_rect :: proc(r: Rect, col: Color32) {
+	imdraw.quad(&pass_main, rect_position(r), rect_size(r), col)
+}
+
+vwv_state_enter_drag :: proc(r: ^VwvRecord, sibling_idx: int, drag_gap_height:f32) {
 	assert(vwv_app.state == .Normal, "Should call this when in Normal mode.")
 	vwv_app.dragging_record = r
 	vwv_app.state = .DragRecord
@@ -388,8 +430,9 @@ vwv_state_enter_drag :: proc(r: ^VwvRecord, drag_gap_height:f32) {
 			}
 			prev = &c
 		}
-		vwv_app.drag_gap_after = prev
 	}
+	vwv_app.dragging_record_sibling = sibling_idx
+	vwv_app.state_drag.arrange_index = sibling_idx
 }
 vwv_state_exit_drag :: proc() {
 	assert(vwv_app.state == .DragRecord, "Should call this when in DragRecord mode.")
