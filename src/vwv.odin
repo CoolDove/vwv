@@ -64,7 +64,10 @@ VwvState_DragRecord :: struct {
 	dragging_record_sibling : int, // Sibling index of the record you're dragging.
 	arrange_index : int, // The index of slots you want to arrange to.
 
+    drag_record_position : f32, // y-axis position
+
 	drag_gap_height : f32,
+    drag_gap_position : f32, // Set when the gap drawn
 	arrange_slots : [dynamic]Rect,
 }
 
@@ -288,6 +291,7 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
 		drag_height := input.get_mouse_position().y - record_rect.h*0.5
 		drag_context_rect = {rect.x, drag_height, rect.w, rect.h - drag_height}
 		record_rect.y = drag_height
+        vwv_app.state_drag.drag_record_position = drag_height
 	}
 
 	container_rect := rect
@@ -366,7 +370,16 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
 		}
 	}
 
-	if !is_folded_header {
+    ArrangeInfo :: struct {
+        before : i32,
+        after : i32,
+        before_height : f32,
+        after_height : f32,
+    }
+
+    arrange_info : ArrangeInfo = {-1,-1,0,0}
+
+	if !is_folded_header { // ** update all children
 		if vwv_app.state == .Normal {
 			width, height :f32= 14, 14
 			padding :f32= 2
@@ -380,16 +393,28 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
 		
         dragging_record := vwv_app.dragging_record
 		is_drag_parent := vwv_app.state == .DragRecord && dragging_record != nil && dragging_record.parent == r
+
+        just_gapped := false// to find the after-node.
         if is_drag_parent {
             vwv_record_update(vwv_app.dragging_record, container_rect, depth + 1, 0, dragging || parent_dragged, is_drag_parent) // update the dragged record separately
-            if vwv_app.arrange_index == 0 do _grow_arrange_gap(container_rect)
-        }
-
-		for &c, i in r.children {
-            if &c == dragging_record do continue
-			vwv_record_update(&c, container_rect, depth + 1, i, dragging || parent_dragged, is_drag_parent)
-            if is_drag_parent && i == vwv_app.arrange_index - 1 {
+            if vwv_app.arrange_index == 0 {
                 _grow_arrange_gap(container_rect)
+                just_gapped = true
+            }
+        }
+		for &c, i in r.children {
+            height_before := container_rect.y
+			if &c != dragging_record do vwv_record_update(&c, container_rect, depth + 1, i, dragging || parent_dragged, is_drag_parent)
+            if just_gapped {
+                arrange_info.after = cast(i32)i
+                arrange_info.after_height = container_rect.y - height_before
+                just_gapped = false
+            }
+            if is_drag_parent && i == vwv_app.arrange_index - 1 {
+                arrange_info.before = cast(i32)i
+                arrange_info.before_height = container_rect.y - height_before
+                _grow_arrange_gap(container_rect)
+                just_gapped = true
             }
 		}
 
@@ -398,7 +423,22 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
                 debug_rect := rect_split_top(container_rect^, vwv_app.drag_gap_height)
                 imdraw.quad(&pass_main, rect_position(container_rect^), rect_size(debug_rect), {0, 255, 128, 128})
             }
+            vwv_app.state_drag.drag_gap_position = container_rect^.y
             grow(container_rect, vwv_app.drag_gap_height)
+        }
+
+        if is_drag_parent {
+            if vwv_app.drag_record_position > vwv_app.drag_gap_position {
+                available_gap := vwv_app.drag_record_position - vwv_app.drag_gap_position
+                if available_gap > arrange_info.after_height*0.9 && vwv_app.state_drag.arrange_index < len(r.children) {
+                    vwv_app.state_drag.arrange_index += 1
+                }
+            } else if vwv_app.drag_record_position < vwv_app.drag_gap_position {
+                available_gap := vwv_app.drag_gap_position - vwv_app.drag_record_position 
+                if available_gap > arrange_info.before_height*0.9 && vwv_app.state_drag.arrange_index > 0 {
+                    vwv_app.state_drag.arrange_index -= 1
+                }
+            }
         }
 	}
 
@@ -408,7 +448,7 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
 	}
 
 	if to_start_drag {
-		vwv_state_enter_drag(r, sibling_idx, container_rect_before.h - container_rect.h)
+		vwv_state_enter_drag(r, sibling_idx, container_rect_before.h - container_rect.h, container_rect_before.h)
 		log.debugf("start dragging")
 		dd.dispatch_update()
 	}
@@ -423,11 +463,13 @@ draw_debug_rect :: proc(r: Rect, col: Color32) {
 	imdraw.quad(&pass_main, rect_position(r), rect_size(r), col)
 }
 
-vwv_state_enter_drag :: proc(r: ^VwvRecord, sibling_idx: int, drag_gap_height:f32) {
+vwv_state_enter_drag :: proc(r: ^VwvRecord, sibling_idx: int, drag_gap_height:f32, drag_gap_position:f32) {
 	assert(vwv_app.state == .Normal, "Should call this when in Normal mode.")
 	vwv_app.dragging_record = r
 	vwv_app.state = .DragRecord
 	vwv_app.state_drag.drag_gap_height = drag_gap_height
+    vwv_app.state_drag.drag_gap_position = drag_gap_position
+    vwv_app.state_drag.drag_record_position = drag_gap_position
 	if r.parent == nil do panic("Handle this later")
 	else {
 		prev := r.parent
