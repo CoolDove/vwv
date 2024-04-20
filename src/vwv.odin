@@ -378,14 +378,15 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
 			}
 		}
 		
-		is_drag_parent := vwv_app.state == .DragRecord && vwv_app.dragging_record != nil && vwv_app.dragging_record.parent == r
+        dragging_record := vwv_app.dragging_record
+		is_drag_parent := vwv_app.state == .DragRecord && dragging_record != nil && dragging_record.parent == r
         if is_drag_parent {
             vwv_record_update(vwv_app.dragging_record, container_rect, depth + 1, 0, dragging || parent_dragged, is_drag_parent) // update the dragged record separately
             if vwv_app.arrange_index == 0 do _grow_arrange_gap(container_rect)
         }
 
 		for &c, i in r.children {
-            if &c == vwv_app.dragging_record do continue
+            if &c == dragging_record do continue
 			vwv_record_update(&c, container_rect, depth + 1, i, dragging || parent_dragged, is_drag_parent)
             if is_drag_parent && i == vwv_app.arrange_index - 1 {
                 _grow_arrange_gap(container_rect)
