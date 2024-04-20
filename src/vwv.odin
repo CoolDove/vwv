@@ -178,8 +178,9 @@ vwv_update :: proc() {
 
 	for slot, i in vwv_app.arrange_slots {
 		if i != vwv_app.dragging_record_sibling && rect_in(slot, input.get_mouse_position()) {
-			vwv_app.arrange_index = i
-			log.debugf("In rect {}", i)
+			// vwv_app.arrange_index = i
+			// log.debugf("In rect {} (dragging record sibling index: {})", i, vwv_app.dragging_record_sibling)
+            break
 		}
 	}
 
@@ -377,30 +378,27 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
 			}
 		}
 		
+		is_drag_parent := vwv_app.state == .DragRecord && vwv_app.dragging_record != nil && vwv_app.dragging_record.parent == r
+        if is_drag_parent {
+            vwv_record_update(vwv_app.dragging_record, container_rect, depth + 1, 0, dragging || parent_dragged, is_drag_parent) // update the dragged record separately
+            if vwv_app.arrange_index == 0 do _grow_arrange_gap(container_rect)
+        }
+
 		for &c, i in r.children {
-			is_drag_parent := vwv_app.dragging_record != nil && vwv_app.dragging_record.parent == r
-			if is_drag_parent do log.debugf("arrange to: {} ", vwv_app.arrange_index)
-			if is_drag_parent && vwv_app.arrange_index == 0 {
-				if vwv_app.arrange_index == i {
-					_grow_arrange_gap(container_rect)
-				}
-			}
+            if &c == vwv_app.dragging_record do continue
 			vwv_record_update(&c, container_rect, depth + 1, i, dragging || parent_dragged, is_drag_parent)
-
-			if is_drag_parent && vwv_app.arrange_index >= vwv_app.dragging_record_sibling {
-				if vwv_app.arrange_index == i+1 {
-					_grow_arrange_gap(container_rect)
-				}
-			}
-
-			_grow_arrange_gap :: proc(container_rect: ^Rect) {
-				if DEBUG_VWV {
-					debug_rect := rect_split_top(container_rect^, vwv_app.drag_gap_height)
-					imdraw.quad(&pass_main, rect_position(container_rect^), rect_size(debug_rect), {0, 255, 128, 128})
-				}
-				grow(container_rect, vwv_app.drag_gap_height)
-			}
+            if is_drag_parent && i == vwv_app.arrange_index - 1 {
+                _grow_arrange_gap(container_rect)
+            }
 		}
+
+        _grow_arrange_gap :: proc(container_rect: ^Rect) {
+            if DEBUG_VWV {
+                debug_rect := rect_split_top(container_rect^, vwv_app.drag_gap_height)
+                imdraw.quad(&pass_main, rect_position(container_rect^), rect_size(debug_rect), {0, 255, 128, 128})
+            }
+            grow(container_rect, vwv_app.drag_gap_height)
+        }
 	}
 
 	if is_arrange_sibling {
