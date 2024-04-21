@@ -179,14 +179,6 @@ vwv_update :: proc() {
 		vwv_record_update(&root, &rect, 0, 0)
 	}
 
-	for slot, i in vwv_app.arrange_slots {
-		if i != vwv_app.dragging_record_sibling && rect_in(slot, input.get_mouse_position()) {
-			// vwv_app.arrange_index = i
-			// log.debugf("In rect {} (dragging record sibling index: {})", i, vwv_app.dragging_record_sibling)
-            break
-		}
-	}
-
     {// ** status bar
         sbr := rect_split_top(app_rect, 42)
         imdraw.quad(&pass_main, {sbr.x, sbr.y}, {sbr.w, sbr.h}, {90, 100, 75, 255}, order=LAYER_STATUS_BAR_BASE)
@@ -318,7 +310,6 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
 
 	card_handle_events := vwv_app.state != .DragRecord || dragging
 	
-
 	vbegin_record_card(&vuictx)
 
 	// ** focus button
@@ -338,7 +329,7 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
 
 	dragged_record_rect := rect_padding(record_rect, -2,-2,-1,-1)
 	// ** handle card interact result
-    if result := vend_record_card(&vuictx, r, record_rect if !dragging else dragged_record_rect , card_handle_events, render_layer_offset); result != .None {
+    if result := vend_record_card(&vuictx, r, record_rect if !dragging else dragged_record_rect, card_handle_events, render_layer_offset); result != .None {
         if vwv_app.state == .Normal {
             if result == .Left {// left click to edit
                 if input.get_key(.LCTRL) {
@@ -432,11 +423,13 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
                 available_gap := vwv_app.drag_record_position - vwv_app.drag_gap_position
                 if available_gap > arrange_info.after_height*0.9 && vwv_app.state_drag.arrange_index < len(r.children) {
                     vwv_app.state_drag.arrange_index += 1
+                    log.debugf("arrange: {} -> {}", vwv_app.state_drag.dragging_record_sibling, vwv_app.state_drag.arrange_index)
                 }
             } else if vwv_app.drag_record_position < vwv_app.drag_gap_position {
                 available_gap := vwv_app.drag_gap_position - vwv_app.drag_record_position 
                 if available_gap > arrange_info.before_height*0.9 && vwv_app.state_drag.arrange_index > 0 {
                     vwv_app.state_drag.arrange_index -= 1
+                    log.debugf("arrange: {} -> {}", vwv_app.state_drag.dragging_record_sibling, vwv_app.state_drag.arrange_index)
                 }
             }
         }
@@ -484,6 +477,10 @@ vwv_state_enter_drag :: proc(r: ^VwvRecord, sibling_idx: int, drag_gap_height:f3
 	vwv_app.state_drag.arrange_index = sibling_idx
 }
 vwv_state_exit_drag :: proc() {
+    if vwv_app.dragging_record_sibling != vwv_app.arrange_index {
+        push_record_operations(RecordOp_Arrange{vwv_app.dragging_record, vwv_app.dragging_record_sibling, vwv_app.arrange_index})
+    }
+
 	assert(vwv_app.state == .DragRecord, "Should call this when in DragRecord mode.")
 	vwv_app.state = .Normal
 	vwv_app.dragging_record = nil
@@ -514,6 +511,7 @@ vwv_mark_save_dirty :: proc() {
 
 RecordOperation :: union {
     RecordOp_AddChild,
+    RecordOp_Arrange,
     RecordOp_RemoveChild,
 }
 
@@ -523,6 +521,10 @@ RecordOp_AddChild :: struct {
 }
 RecordOp_RemoveChild :: struct {
     record : ^VwvRecord,
+}
+RecordOp_Arrange :: struct {
+    record : ^VwvRecord,
+    from, to : int,
 }
 
 push_record_operations :: proc(op: RecordOperation) {
@@ -544,6 +546,8 @@ flush_record_operations :: proc() {
             vwv_state_enter_edit(new_record)
         case RecordOp_RemoveChild:
             if op.record.parent != nil do record_remove_record(op.record)
+        case RecordOp_Arrange:
+            if op.record != nil && op.from != op.to do record_arrange(op.record, op.from, op.to)
         }
     }
     clear_record_operations()

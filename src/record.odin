@@ -1,6 +1,7 @@
 package main
 
 import "core:strings"
+import "core:log"
 
 // ** basic
 
@@ -15,6 +16,24 @@ record_add_child :: proc(parent: ^VwvRecord) -> ^VwvRecord {
 	_record_calculate_progress(parent)
 	vwv_mark_save_dirty()
 	return child
+}
+
+record_arrange :: proc(record: ^VwvRecord, from, to: int) {
+    log.debugf("Arrange: {} -> {}", from, to)
+    if from < 0 || from >= len(record.children) || to < 0 || to >= len(record.children) || from == to do return
+    parent := record.parent
+    n := record^
+    if to < from {
+        for i := from; i > to; i-=1 {
+            parent.children[i] = parent.children[i-1]
+        }
+    } else {
+        for i := from; i < to; i+=1 {
+            parent.children[i] = parent.children[i+1]
+        }
+    }
+    parent.children[to] = n
+    vwv_mark_save_dirty()
 }
 
 record_remove_record :: proc(record: ^VwvRecord) {
