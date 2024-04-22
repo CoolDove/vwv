@@ -422,7 +422,7 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
             {// interpolate the visual rect
                 gpos, gsize := rect_position(container_rect^), rect_size(gap_rect)
                 if linalg.distance(vpos,gpos) > 2 || linalg.distance(vsize, vsize) > 2 {
-                    t :f32= 0.5
+                    t :f32= 0.3
                     vpos = (gpos-vpos)*t + vpos
                     vsize = (gsize-vsize)*t + vsize
                     dd.dispatch_update()
@@ -456,7 +456,7 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
 
 	if to_start_drag {
 		vwv_state_enter_drag(r, sibling_idx, container_rect_before.h - container_rect.h, container_rect_before.h)
-        vwv_app.visual_gap_box = {record_rect.x, container_rect_before.h - container_rect.h, record_rect.w, container_rect_before.h}
+        vwv_app.visual_gap_box = {record_rect.x, container_rect_before.h, record_rect.w, container_rect_before.h - container_rect.h}
 		log.debugf("start dragging, sibling idx: {}", sibling_idx)
 		dd.dispatch_update()
 	}
