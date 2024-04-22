@@ -359,6 +359,7 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
 			btn_rect := dd.Rect{corner.x - width - padding, corner.y + size.y - height, width, height}
 			if result := vcontrol_button_add_record(&vuictx, r, btn_rect); result != .None {
 				if result == .Left {
+                    push_record_operations(RecordOp_ToggleFold{r, false})
 					push_record_operations(RecordOp_AddChild{r, true})
 				}
 			}
@@ -499,6 +500,7 @@ RecordOperation :: union {
     RecordOp_AddChild,
     RecordOp_Arrange,
     RecordOp_RemoveChild,
+    RecordOp_ToggleFold,
 }
 
 RecordOp_AddChild :: struct {
@@ -511,6 +513,10 @@ RecordOp_RemoveChild :: struct {
 RecordOp_Arrange :: struct {
     record : ^VwvRecord,
     from, to : int,
+}
+RecordOp_ToggleFold :: struct {
+    record : ^VwvRecord,
+    fold : bool,
 }
 
 push_record_operations :: proc(op: RecordOperation) {
@@ -531,9 +537,11 @@ flush_record_operations :: proc() {
             new_record := record_add_child(op.parent)
             vwv_state_enter_edit(new_record)
         case RecordOp_RemoveChild:
-            if op.record.parent != nil do record_remove_record(op.record)
+            if op.record != nil && op.record.parent != nil do record_remove_record(op.record)
         case RecordOp_Arrange:
             if op.record != nil && op.from != op.to do record_arrange(op.record, op.from, op.to)
+        case RecordOp_ToggleFold:
+            if op.record != nil do record_toggle_fold(op.record, op.fold)
         }
     }
     clear_record_operations()
