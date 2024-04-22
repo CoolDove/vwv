@@ -163,6 +163,10 @@ vwv_update :: proc() {
 			sdl.SetWindowTitle(dd.app.window.window, DEFAULT_WINDOW_TITLE)
 			dd.dispatch_update()
 		}
+    } else if vwv_app.state == .DragRecord {
+        if input.get_mouse_button_down(.Right) {
+            vwv_state_exit_drag(false)
+        }
     }
 
     if input.get_key_repeat(.F1) {
@@ -233,7 +237,9 @@ vwv_update :: proc() {
         screen_debug_msg(&dmp, fmt.tprintf("Vwv state: {}", vwv_app.state))
 		if vwv_app.state == .DragRecord do screen_debug_msg(&dmp, fmt.tprintf("Arrange index: {}", vwv_app.state_drag.arrange_index))
         screen_debug_msg(&dmp, fmt.tprintf("Scroll offset: {}", vwv_app.view_offset_y))
-        if vwv_app.state == .DragRecord do screen_debug_msg(&dmp, fmt.tprintf("Drag gap: {}", vwv_app.drag_gap_height))
+        if vwv_app.state == .DragRecord {
+            screen_debug_msg(&dmp, fmt.tprintf("Drag gap: {}", vwv_app.drag_gap_height))
+        }
         screen_debug_msg(&dmp, fmt.tprintf("Vui active: {}, hover: {}", vuictx.active, vuictx.hot))
         screen_debug_msg(&dmp, fmt.tprintf("Focus record: {}", "nil" if vwv_app.focusing_record == nil else gapbuffer_get_string(&vwv_app.focusing_record.line, context.temp_allocator)))
 
@@ -279,18 +285,8 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
 	size := rect_size(record_rect)
 	render_layer_offset :i32= 10000 if (dragging || parent_dragged) else 0
 
-	if dragging {
-		drag_height := input.get_mouse_position().y - record_rect.h*0.5
-		drag_context_rect = {rect.x, drag_height, rect.w, rect.h - drag_height}
-		record_rect.y = drag_height
-        vwv_app.state_drag.drag_record_position = drag_height
-	}
-
 	container_rect := rect
-	if dragging {
-		container_rect = &drag_context_rect
-	}
-	container_rect_before := container_rect^ // You can get the height of this and children by compare with container_rect.
+	container_rect_before := container_rect^
 
 	// ** the card space
 	grow(container_rect, card_height + line_padding)
@@ -349,7 +345,7 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
 			} else if result == .Drag {
 				to_start_drag = true
 			} else {
-				panic("This shouldn't happen.")
+				// panic("This shouldn't happen.")
 			}
 		} else if vwv_app.state == .DragRecord {
 			if result == .DragRelease {// left click to edit
@@ -362,8 +358,8 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
 	}
 
     ArrangeInfo :: struct {
-        before : i32,
-        after : i32,
+        before : i32,// The sibling before the gap.
+        after : i32,// The sibling after the gap.
         before_height : f32,
         after_height : f32,
     }
@@ -385,29 +381,33 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
         dragging_record := vwv_app.dragging_record
 		is_drag_parent := vwv_app.state == .DragRecord && dragging_record != nil && dragging_record.parent == r
 
-        just_gapped := false// to find the after-node.
         if is_drag_parent {
-            vwv_record_update(vwv_app.dragging_record, container_rect, depth + 1, 0, dragging || parent_dragged, is_drag_parent) // update the dragged record separately
-            if vwv_app.arrange_index == 0 {
-                _grow_arrange_gap(container_rect)
-                just_gapped = true
+            drag_height := input.get_mouse_position().y - record_rect.h*0.5
+            floating_rect := Rect{rect.x, drag_height, rect.w, rect.h - drag_height}
+            vwv_app.state_drag.drag_record_position = floating_rect.y
+            vwv_record_update(vwv_app.dragging_record, &floating_rect, depth + 1, 0, dragging || parent_dragged, is_drag_parent) // update the dragged record separately
+
+		    for i in 0..<len(r.children) {
+                height_before := container_rect.y
+                if i == vwv_app.arrange_index {
+                    _grow_arrange_gap(container_rect)
+                } else {
+                    sibling_idx := _get_sibling_idx(i, vwv_app.arrange_index, vwv_app.dragging_record_sibling)
+                    vwv_record_update(&r.children[sibling_idx], container_rect, depth + 1, i, dragging || parent_dragged, is_drag_parent)
+                    if i == vwv_app.arrange_index-1 {
+                        arrange_info.before = cast(i32)i
+                        arrange_info.before_height = container_rect.y - height_before
+                    } else if i == vwv_app.arrange_index+1 {
+                        arrange_info.after = cast(i32)i
+                        arrange_info.after_height = container_rect.y - height_before
+                    }
+                }
+            }
+        } else {
+		    for &c,i in r.children {
+                vwv_record_update(&c, container_rect, depth + 1, i, dragging || parent_dragged, is_drag_parent)
             }
         }
-		for &c, i in r.children {
-            height_before := container_rect.y
-			if &c != dragging_record do vwv_record_update(&c, container_rect, depth + 1, i, dragging || parent_dragged, is_drag_parent)
-            if just_gapped {
-                arrange_info.after = cast(i32)i
-                arrange_info.after_height = container_rect.y - height_before
-                just_gapped = false
-            }
-            if is_drag_parent && i == vwv_app.arrange_index - 1 {
-                arrange_info.before = cast(i32)i
-                arrange_info.before_height = container_rect.y - height_before
-                _grow_arrange_gap(container_rect)
-                just_gapped = true
-            }
-		}
 
         _grow_arrange_gap :: proc(container_rect: ^Rect) {
             if DEBUG_VWV {
@@ -419,17 +419,17 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
         }
 
         if is_drag_parent {
-            if vwv_app.drag_record_position > vwv_app.drag_gap_position {
+            if vwv_app.drag_record_position > vwv_app.drag_gap_position && arrange_info.after != -1 {// Drag down
                 available_gap := vwv_app.drag_record_position - vwv_app.drag_gap_position
                 if available_gap > arrange_info.after_height*0.9 && vwv_app.state_drag.arrange_index < len(r.children) {
                     vwv_app.state_drag.arrange_index += 1
-                    log.debugf("arrange: {} -> {}", vwv_app.state_drag.dragging_record_sibling, vwv_app.state_drag.arrange_index)
+                    log.debugf("arrange: {} -> {}, available gap: {}, arrange: {}", vwv_app.state_drag.dragging_record_sibling, vwv_app.state_drag.arrange_index, available_gap, arrange_info)
                 }
-            } else if vwv_app.drag_record_position < vwv_app.drag_gap_position {
+            } else if vwv_app.drag_record_position < vwv_app.drag_gap_position && arrange_info.before != -1 {// Drag up
                 available_gap := vwv_app.drag_gap_position - vwv_app.drag_record_position 
                 if available_gap > arrange_info.before_height*0.9 && vwv_app.state_drag.arrange_index > 0 {
                     vwv_app.state_drag.arrange_index -= 1
-                    log.debugf("arrange: {} -> {}", vwv_app.state_drag.dragging_record_sibling, vwv_app.state_drag.arrange_index)
+                    log.debugf("arrange: {} -> {}, available gap: {}, arrange: {}", vwv_app.state_drag.dragging_record_sibling, vwv_app.state_drag.arrange_index, available_gap, arrange_info)
                 }
             }
         }
@@ -445,6 +445,13 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
 		log.debugf("start dragging")
 		dd.dispatch_update()
 	}
+
+    _get_sibling_idx :: proc(i, arrange_idx, drag_sib : int) -> int {
+        if i == arrange_idx do return drag_sib
+        if arrange_idx < drag_sib do return i - 1 if arrange_idx < i&&i <= drag_sib else i
+        if arrange_idx > drag_sib do return i + 1 if drag_sib <= i&&i < arrange_idx else i
+        return i
+    }
 
 	grow :: proc(r: ^dd.Rect, h: f32) {
 		r.y += h
@@ -476,8 +483,8 @@ vwv_state_enter_drag :: proc(r: ^VwvRecord, sibling_idx: int, drag_gap_height:f3
 	vwv_app.dragging_record_sibling = sibling_idx
 	vwv_app.state_drag.arrange_index = sibling_idx
 }
-vwv_state_exit_drag :: proc() {
-    if vwv_app.dragging_record_sibling != vwv_app.arrange_index {
+vwv_state_exit_drag :: proc(apply:= true) {
+    if apply && vwv_app.dragging_record_sibling != vwv_app.arrange_index {
         push_record_operations(RecordOp_Arrange{vwv_app.dragging_record, vwv_app.dragging_record_sibling, vwv_app.arrange_index})
     }
 

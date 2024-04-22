@@ -20,8 +20,10 @@ record_add_child :: proc(parent: ^VwvRecord) -> ^VwvRecord {
 
 record_arrange :: proc(record: ^VwvRecord, from, to: int) {
     log.debugf("Arrange: {} -> {}", from, to)
-    if from < 0 || from >= len(record.children) || to < 0 || to >= len(record.children) || from == to do return
     parent := record.parent
+    assert(parent != nil, "RecordOperation: Cannot arrange the root node.")
+    if from < 0 || from >= len(parent.children) || to < 0 || to >= len(parent.children) || from == to do return
+    log.debugf("Apply arrange: {} -> {}", from, to)
     n := record^
     if to < from {
         for i := from; i > to; i-=1 {
