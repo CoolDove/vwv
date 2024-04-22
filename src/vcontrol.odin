@@ -148,6 +148,12 @@ vend_record_card :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord, rect: d
 			imdraw.quad(pass, {x,y}, {pgb_length_total*closed, pgb_thickness}, {180,30,15, alpha}, order=_LAYER_PROGRESS_BAR)
 		}
 	}
+
+    if DEBUG_VWV {
+        debug_msg := fmt.tprintf("id: {}, parent: {}", record.id, record.parent.id)
+        imdraw.text(pass, render.system().default_font, debug_msg, rect_position(rect) + {0, 12}, 12, color={0,0,1,1}, order=999998)
+
+    }
 	return result
 }
 

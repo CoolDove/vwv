@@ -68,7 +68,6 @@ VwvState_DragRecord :: struct {
 
 	drag_gap_height : f32,
     drag_gap_position : f32, // Set when the gap drawn
-	arrange_slots : [dynamic]Rect,
 }
 
 VwvRecord :: struct {
@@ -122,14 +121,12 @@ vwv_init :: proc() {
     }
     
     vwv_app.record_operations = make([dynamic]RecordOperation)
-	vwv_app.state_drag.arrange_slots = make([dynamic]Rect)
 
     vui.init(&vuictx, &pass_main, render.system().default_font)
     vwv_app._save_dirty = false
 }
 
 vwv_release :: proc() {
-	delete(vwv_app.state_drag.arrange_slots)
 	strings.builder_destroy(&vwv_app.status_bar_info)
     vui.release(&vuictx)
     delete(vwv_app.record_operations)
@@ -173,8 +170,6 @@ vwv_update :: proc() {
         DEBUG_VWV = !DEBUG_VWV
     }
 
-	clear(&vwv_app.arrange_slots)
-
 	if vwv_app.focusing_record != nil {
 		focusing := vwv_app.focusing_record
 		vwv_record_update(focusing, &rect, 0, 0)
@@ -195,8 +190,6 @@ vwv_update :: proc() {
             dd.dispatch_update()
         }
     }
-
-	draw_arrange_slots()
 	
     if vwv_app.msgbubble_time > 0 {// ** msg bubble
         using theme
@@ -255,19 +248,12 @@ vwv_update :: proc() {
 }
 
 
-draw_arrange_slots :: proc() {
-	for s in vwv_app.arrange_slots {
-		imdraw.quad(&pass_main, rect_position(s)+{1,1}, rect_size(s)-{2,2}, {0, 128, 0, 64})
-	}
-}
-
-
 bubble_msg :: proc(msg: string, duration: f32) {
     vwv_app.msgbubble = msg
     vwv_app.msgbubble_time = duration
 }
 
-vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx:int, parent_dragged:=false, is_arrange_sibling:=false) {
+vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx:int, parent_dragged:=false) {
     using theme
     indent := indent_width*depth
     is_folded_header := r.fold && len(r.children) > 0
@@ -343,7 +329,7 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
 					dd.dispatch_update()
 				}
 			} else if result == .Drag {
-				to_start_drag = true
+				to_start_drag = vwv_app.focusing_record != r
 			} else {
 				// panic("This shouldn't happen.")
 			}
@@ -382,10 +368,11 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
 		is_drag_parent := vwv_app.state == .DragRecord && dragging_record != nil && dragging_record.parent == r
 
         if is_drag_parent {
+            log.debugf("Handling drag: {}", gapbuffer_get_string(&r.line, context.temp_allocator))
             drag_height := input.get_mouse_position().y - record_rect.h*0.5
             floating_rect := Rect{rect.x, drag_height, rect.w, rect.h - drag_height}
             vwv_app.state_drag.drag_record_position = floating_rect.y
-            vwv_record_update(vwv_app.dragging_record, &floating_rect, depth + 1, 0, dragging || parent_dragged, is_drag_parent) // update the dragged record separately
+            vwv_record_update(vwv_app.dragging_record, &floating_rect, depth + 1, 0, true) // update the dragged record separately
 
 		    for i in 0..<len(r.children) {
                 height_before := container_rect.y
@@ -393,7 +380,7 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
                     _grow_arrange_gap(container_rect)
                 } else {
                     sibling_idx := _get_sibling_idx(i, vwv_app.arrange_index, vwv_app.dragging_record_sibling)
-                    vwv_record_update(&r.children[sibling_idx], container_rect, depth + 1, i, dragging || parent_dragged, is_drag_parent)
+                    vwv_record_update(&r.children[sibling_idx], container_rect, depth + 1, i, dragging || parent_dragged)
                     if i == vwv_app.arrange_index-1 {
                         arrange_info.before = cast(i32)i
                         arrange_info.before_height = container_rect.y - height_before
@@ -405,7 +392,7 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
             }
         } else {
 		    for &c,i in r.children {
-                vwv_record_update(&c, container_rect, depth + 1, i, dragging || parent_dragged, is_drag_parent)
+                vwv_record_update(&c, container_rect, depth + 1, i, dragging || parent_dragged)
             }
         }
 
@@ -423,26 +410,21 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
                 available_gap := vwv_app.drag_record_position - vwv_app.drag_gap_position
                 if available_gap > arrange_info.after_height*0.9 && vwv_app.state_drag.arrange_index < len(r.children) {
                     vwv_app.state_drag.arrange_index += 1
-                    log.debugf("arrange: {} -> {}, available gap: {}, arrange: {}", vwv_app.state_drag.dragging_record_sibling, vwv_app.state_drag.arrange_index, available_gap, arrange_info)
+                    log.debugf("arrange: {} -> {}", vwv_app.state_drag.dragging_record_sibling, vwv_app.state_drag.arrange_index)
                 }
             } else if vwv_app.drag_record_position < vwv_app.drag_gap_position && arrange_info.before != -1 {// Drag up
                 available_gap := vwv_app.drag_gap_position - vwv_app.drag_record_position 
                 if available_gap > arrange_info.before_height*0.9 && vwv_app.state_drag.arrange_index > 0 {
                     vwv_app.state_drag.arrange_index -= 1
-                    log.debugf("arrange: {} -> {}, available gap: {}, arrange: {}", vwv_app.state_drag.dragging_record_sibling, vwv_app.state_drag.arrange_index, available_gap, arrange_info)
+                    log.debugf("arrange: {} -> {}", vwv_app.state_drag.dragging_record_sibling, vwv_app.state_drag.arrange_index)
                 }
             }
         }
 	}
 
-	if is_arrange_sibling {
-		height := container_rect.y - container_rect_before.y
-		append(&vwv_app.arrange_slots, Rect{container_rect.x, container_rect_before.y, container_rect.w, height})
-	}
-
 	if to_start_drag {
 		vwv_state_enter_drag(r, sibling_idx, container_rect_before.h - container_rect.h, container_rect_before.h)
-		log.debugf("start dragging")
+		log.debugf("start dragging, sibling idx: {}", sibling_idx)
 		dd.dispatch_update()
 	}
 

@@ -19,7 +19,6 @@ record_add_child :: proc(parent: ^VwvRecord) -> ^VwvRecord {
 }
 
 record_arrange :: proc(record: ^VwvRecord, from, to: int) {
-    log.debugf("Arrange: {} -> {}", from, to)
     parent := record.parent
     assert(parent != nil, "RecordOperation: Cannot arrange the root node.")
     if from < 0 || from >= len(parent.children) || to < 0 || to >= len(parent.children) || from == to do return
@@ -28,14 +27,23 @@ record_arrange :: proc(record: ^VwvRecord, from, to: int) {
     if to < from {
         for i := from; i > to; i-=1 {
             parent.children[i] = parent.children[i-1]
+            _set_parent_for_children(parent.children[i].children[:], &parent.children[i])
         }
     } else {
         for i := from; i < to; i+=1 {
             parent.children[i] = parent.children[i+1]
+            _set_parent_for_children(parent.children[i].children[:], &parent.children[i])
         }
     }
     parent.children[to] = n
+    parent.children[to].parent = parent
+    _set_parent_for_children(parent.children[to].children[:], &parent.children[to])
+
     vwv_mark_save_dirty()
+    _set_parent_for_children :: proc(children: []VwvRecord, parent: ^VwvRecord) {
+        if DEBUG_VWV do log.debugf("set parent for {} children", len(children))
+        for &c in children do c.parent = parent
+    }
 }
 
 record_remove_record :: proc(record: ^VwvRecord) {
