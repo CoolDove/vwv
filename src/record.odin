@@ -55,6 +55,7 @@ record_remove_record :: proc(record: ^VwvRecord) {
 			break
 		}
 	}
+	_record_calculate_progress(record.parent)
 	vwv_mark_save_dirty()
 }
 

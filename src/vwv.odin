@@ -368,7 +368,6 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
 		is_drag_parent := vwv_app.state == .DragRecord && dragging_record != nil && dragging_record.parent == r
 
         if is_drag_parent {
-            log.debugf("Handling drag: {}", gapbuffer_get_string(&r.line, context.temp_allocator))
             drag_height := input.get_mouse_position().y - record_rect.h*0.5
             floating_rect := Rect{rect.x, drag_height, rect.w, rect.h - drag_height}
             vwv_app.state_drag.drag_record_position = floating_rect.y
@@ -397,10 +396,8 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
         }
 
         _grow_arrange_gap :: proc(container_rect: ^Rect) {
-            if DEBUG_VWV {
-                debug_rect := rect_split_top(container_rect^, vwv_app.drag_gap_height)
-                imdraw.quad(&pass_main, rect_position(container_rect^), rect_size(debug_rect), {0, 255, 128, 128})
-            }
+            debug_rect := rect_split_top(container_rect^, vwv_app.drag_gap_height)
+            imdraw.quad(&pass_main, rect_position(container_rect^), rect_size(debug_rect), {0, 0, 0, 32})
             vwv_app.state_drag.drag_gap_position = container_rect^.y
             grow(container_rect, vwv_app.drag_gap_height)
         }
