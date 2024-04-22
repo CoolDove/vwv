@@ -22,6 +22,9 @@ rect_position :: #force_inline proc(r: R) -> V2 {
 rect_size :: #force_inline proc(r: R) -> V2 {
 	return {r.w, r.h}
 }
+rect_position_size :: #force_inline proc(r: R) -> (V2, V2) {
+	return {r.x, r.y}, {r.w, r.h}
+}
 
 rect_require :: proc(r: R, width:f32=0, height:f32=0, anchor:V2={0,0}) -> R {
 	if width <= r.w && height <= r.h do return r
@@ -72,4 +75,10 @@ rect_split_top :: proc(r: R, height: f32) -> R {
 	if height > 0 do return {r.x, r.y+r.h-height, r.w, height}
 	else if height < 0 do return {r.x, r.y+r.h, r.w, -height}
 	return {r.x, r.y+r.h, r.w, 0}
+}
+
+
+// ***
+rect_from_position_size :: proc(p,s: V2) -> R {
+    return {p.x, p.y, s.x, s.y}
 }

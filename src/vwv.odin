@@ -5,6 +5,7 @@ import "core:runtime"
 import "core:strings"
 import "core:unicode/utf8"
 import "core:log"
+import "core:math/linalg"
 import sdl "vendor:sdl2"
 import dd "dude/dude/core"
 import "dude/dude/render"
@@ -68,6 +69,9 @@ VwvState_DragRecord :: struct {
 
 	drag_gap_height : f32,
     drag_gap_position : f32, // Set when the gap drawn
+
+    // ** Visual
+    visual_gap_box : Rect,
 }
 
 VwvRecord :: struct {
@@ -397,8 +401,23 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
         }
 
         _grow_arrange_gap :: proc(container_rect: ^Rect) {
-            debug_rect := rect_split_top(container_rect^, vwv_app.drag_gap_height)
-            imdraw.quad(&pass_main, rect_position(container_rect^), rect_size(debug_rect), {0, 0, 0, 32})
+            gap_rect := rect_split_top(container_rect^, vwv_app.drag_gap_height)
+
+            vpos, vsize := rect_position_size(vwv_app.visual_gap_box)
+            {// interpolate the visual rect
+                gpos, gsize := rect_position(container_rect^), rect_size(gap_rect)
+                if linalg.distance(vpos,gpos) > 2 || linalg.distance(vsize, vsize) > 2 {
+                    t :f32= 0.5
+                    vpos = (gpos-vpos)*t + vpos
+                    vsize = (gsize-vsize)*t + vsize
+                    dd.dispatch_update()
+                } else {
+                    vpos, vsize = gpos, gsize
+                }
+                vwv_app.visual_gap_box = rect_from_position_size(vpos, vsize)
+            }
+            
+            imdraw.quad(&pass_main, vpos, vsize, {0, 0, 0, 48})
             vwv_app.state_drag.drag_gap_position = container_rect^.y
             grow(container_rect, vwv_app.drag_gap_height)
         }
@@ -422,6 +441,7 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
 
 	if to_start_drag {
 		vwv_state_enter_drag(r, sibling_idx, container_rect_before.h - container_rect.h, container_rect_before.h)
+        vwv_app.visual_gap_box = {record_rect.x, container_rect_before.h - container_rect.h, record_rect.w, container_rect_before.h}
 		log.debugf("start dragging, sibling idx: {}", sibling_idx)
 		dd.dispatch_update()
 	}
