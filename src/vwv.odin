@@ -6,6 +6,7 @@ import "core:strings"
 import "core:unicode/utf8"
 import "core:log"
 import "core:math/linalg"
+import "core:math"
 import sdl "vendor:sdl2"
 import dd "dude/dude/core"
 import "dude/dude/render"
@@ -49,6 +50,9 @@ VwvApp :: struct {
     // ** misc
     _frame_id : u64,
     _save_dirty : bool,
+
+    // ** visual
+    visual_view_offset_y : f32,
 }
 
 AppState :: enum {
@@ -143,11 +147,19 @@ vwv_update :: proc() {
         vwv_app.view_offset_y += wheel.y * 10.0
     }
 
+    if math.abs(vwv_app.visual_view_offset_y-vwv_app.view_offset_y) > 2 {
+        using vwv_app
+        visual_view_offset_y = (view_offset_y - visual_view_offset_y) * 0.3 + visual_view_offset_y
+        dd.dispatch_update()
+    } else {
+        vwv_app.visual_view_offset_y = vwv_app.view_offset_y
+    }
+
     viewport := dd.app.window.size
     app_rect :dd.Rect= {0,0, cast(f32)viewport.x, cast(f32)viewport.y}
 
     rect :dd.Rect= {20,20, cast(f32)viewport.x-40, cast(f32)viewport.y-40}
-    rect.y += vwv_app.view_offset_y
+    rect.y += vwv_app.visual_view_offset_y
 
     if vwv_app.state == .Edit {
         // ...
@@ -303,7 +315,10 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
 		focus_btn_rect := rect_padding(rect_split_right(record_rect, line_height-2), 0,2,2,2+(record_rect.h-line_height))
 		focus_btn_vid := VUID_BY_RECORD(r, RECORD_ITEM_BUTTON_FOCUS)
 		if vcontrol_button(&vuictx, focus_btn_vid, focus_btn_rect, order=LAYER_RECORD_CONTENT+100) {
+            vwv_app.view_offset_y = 0
+            vwv_app.visual_view_offset_y = rect.y
 			vwv_app.focusing_record = r
+            push_record_operations(RecordOp_ToggleFold{r, false})
 			parent_line := gapbuffer_get_string(&vwv_app.focusing_record.parent.line, context.temp_allocator)
 			sdl.SetWindowTitle(dd.app.window.window, fmt.ctprintf("vwv - {}", parent_line))
 			dd.dispatch_update()
