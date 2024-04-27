@@ -299,7 +299,10 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
     edit_point, exit_text := vcontrol_edittable_textline(&vuictx, textbox_vid, textbox_rect, &r.line, &vwv_app.text_edit if editting else nil, text_theme, render_layer_offset)
 
 	if exit_text {
+        editting_record := vwv_app.editting_record
 		vwv_state_exit_edit()
+        // Delete the added record if an empty line is left.
+        if len(editting_record.children) == 0 && gapbuffer_len(&editting_record.line) == 0 do push_record_operations(RecordOp_RemoveChild{editting_record})
 		dd.dispatch_update()
 	} else if editting {
 		vwv_app.editting_point = edit_point

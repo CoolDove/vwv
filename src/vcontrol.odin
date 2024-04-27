@@ -234,7 +234,7 @@ vcontrol_button :: proc(using ctx: ^vui.VuiContext, id: VID, rect: Rect, order:=
 
 // If `edit` is nil, this control will only display the text. You pass in a edit, the control will
 //  work.
-//  Return: If you pressed outside or press `ESC` or `RETURN` to exit the edit.
+//  Return: Click outside or press `ESC` or `RETURN` to exit the edit.
 vcontrol_edittable_textline :: proc(using ctx: ^vui.VuiContext, id: VID, rect: Rect, buffer: ^GapBuffer, edit:^TextEdit=nil, ttheme:=theme.text_default, render_layer_offset:i32=0) -> (edit_point: Vec2, exit: bool) {
 	using vui
 
