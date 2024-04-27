@@ -144,7 +144,7 @@ vwv_release :: proc() {
 vwv_update :: proc() {
 	strings.builder_reset(&vwv_app.status_bar_info)
     if wheel := input.get_mouse_wheel(); wheel.y != 0 {
-        vwv_app.view_offset_y += wheel.y * 10.0
+        vwv_app.view_offset_y += wheel.y * 24.0
     }
 
     if math.abs(vwv_app.visual_view_offset_y-vwv_app.view_offset_y) > 2 {
@@ -442,13 +442,13 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
                 available_gap := vwv_app.drag_record_position - vwv_app.drag_gap_position
                 if available_gap > arrange_info.after_height*0.9 && vwv_app.state_drag.arrange_index < len(r.children) {
                     vwv_app.state_drag.arrange_index += 1
-                    log.debugf("arrange: {} -> {}", vwv_app.state_drag.dragging_record_sibling, vwv_app.state_drag.arrange_index)
+                    // log.debugf("arrange: {} -> {}", vwv_app.state_drag.dragging_record_sibling, vwv_app.state_drag.arrange_index)
                 }
             } else if vwv_app.drag_record_position < vwv_app.drag_gap_position && arrange_info.before != -1 {// Drag up
                 available_gap := vwv_app.drag_gap_position - vwv_app.drag_record_position 
                 if available_gap > arrange_info.before_height*0.9 && vwv_app.state_drag.arrange_index > 0 {
                     vwv_app.state_drag.arrange_index -= 1
-                    log.debugf("arrange: {} -> {}", vwv_app.state_drag.dragging_record_sibling, vwv_app.state_drag.arrange_index)
+                    // log.debugf("arrange: {} -> {}", vwv_app.state_drag.dragging_record_sibling, vwv_app.state_drag.arrange_index)
                 }
             }
         }
@@ -568,9 +568,9 @@ flush_record_operations :: proc() {
             vwv_state_exit_edit()
         }
         switch op in o {
-        case RecordOp_AddChild:
-            new_record := record_add_child(op.parent)
-            vwv_state_enter_edit(new_record)
+        case RecordOp_AddChild:// The `AddChild` operation adds a child and arrange it to the first.
+            record_arrange(record_add_child(op.parent), len(op.parent.children)-1, 0)
+            vwv_state_enter_edit(&op.parent.children[0])
         case RecordOp_RemoveChild:
             if op.record != nil && op.record.parent != nil do record_remove_record(op.record)
         case RecordOp_Arrange:
