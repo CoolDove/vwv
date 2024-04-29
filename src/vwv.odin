@@ -152,7 +152,7 @@ vwv_update :: proc() {
 		vwv_app.view_offset_y += wheel.y * 24.0
 	}
 
-	if math.abs(vwv_app.visual_view_offset_y-vwv_app.view_offset_y) > 2 {
+	if math.abs(vwv_app.visual_view_offset_y-vwv_app.view_offset_y) > 4 {
 		using vwv_app
 		visual_view_offset_y = (view_offset_y - visual_view_offset_y) * 0.3 + visual_view_offset_y
 		dd.dispatch_update()
