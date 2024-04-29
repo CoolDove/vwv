@@ -220,6 +220,7 @@ vcontrol_checkbox :: proc(
 	id: VID,
 	rect: Rect,
 	value: bool,
+	icon :Icon={},
 	order := LAYER_RECORD_CONTENT,
 	btntheme := theme.button_default,
 ) -> bool {
@@ -247,7 +248,12 @@ vcontrol_checkbox :: proc(
 	if value do col = btntheme.active
 	else if hot == id do col = btntheme.hover
 
-	imdraw.quad(pass, {rect.x, rect.y}, {rect.w, rect.h}, col, order = order)
+	if icon != {} {
+		imdraw.quad(pass, {rect.x, rect.y}, {rect.w, rect.h}, col, texture = ICON_TEXTURE.id, order = order, uv_min=rect_position(auto_cast icon), uv_max=rect_max(auto_cast icon))
+		imdraw.quad(pass, {rect.x+2, rect.y+2}, {rect.w, rect.h}, {0,0,0,32}, texture = ICON_TEXTURE.id, order = order-1, uv_min=rect_position(auto_cast icon), uv_max=rect_max(auto_cast icon))
+	} else {
+		imdraw.quad(pass, {rect.x, rect.y}, {rect.w, rect.h}, col, order = order)
+	}
 
 	return !value if pressed else value
 }
@@ -257,6 +263,7 @@ vcontrol_button :: proc(
 	id: VID,
 	rect: Rect,
 	order := LAYER_MAIN,
+	icon : Icon={},
 	btntheme := theme.button_default,
 ) -> bool {
 	inrect := rect_in(rect, input.get_mouse_position())
@@ -283,7 +290,13 @@ vcontrol_button :: proc(
 	if hot == id do col = btntheme.hover
 	if active == id do col = btntheme.active
 
-	imdraw.quad(pass, {rect.x, rect.y}, {rect.w, rect.h}, col, order = order)
+	if icon != {} {
+		imdraw.quad(pass, {rect.x, rect.y}, {rect.w, rect.h}, col, texture = ICON_TEXTURE.id, order = order, uv_min=rect_position(auto_cast icon), uv_max=rect_max(auto_cast icon))
+		imdraw.quad(pass, {rect.x+2, rect.y+2}, {rect.w, rect.h}, {0,0,0,32}, texture = ICON_TEXTURE.id, order = order-1, uv_min=rect_position(auto_cast icon), uv_max=rect_max(auto_cast icon))
+	} else {
+		imdraw.quad(pass, {rect.x, rect.y}, {rect.w, rect.h}, col, order = order)
+	}
+
 	return result
 }
 

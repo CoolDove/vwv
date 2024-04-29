@@ -13,6 +13,7 @@ import "dude/dude/render"
 import "dude/dude/imdraw"
 import "dude/dude/input"
 import "dude/dude"
+import "dude/dude/dgl"
 import "dude/dude/vendor/fontstash"
 import "vui"
 
@@ -132,6 +133,10 @@ vwv_init :: proc() {
 
 	vui.init(&vuictx, &pass_main, render.system().default_font)
 	vwv_app._save_dirty = false
+
+	ICON_TEXTURE = dgl.texture_load_from_mem(#load("./res/icons.png"))
+	dgl.texture_set_filter(ICON_TEXTURE.id, .Nearest, .Nearest)
+
 }
 
 vwv_release :: proc() {
@@ -263,7 +268,7 @@ status_bar :: proc(app_rect: Rect) {
 	imdraw.quad(&pass_main, {sbr.x, sbr.y}, {sbr.w, sbr.h}, {90, 100, 75, 255}, order=LAYER_STATUS_BAR_BASE)
 	imdraw.text(&pass_main, vuictx.font, strings.to_string(vwv_app.status_bar_info), rect_position(sbr)+{0,theme.font_size+15}, theme.font_size, {1,1,1,1}, order=LAYER_STATUS_BAR_ITEM)
 	checkbox_rect := rect_padding(rect_split_right(sbr, 42), 4,4,4,4)
-	new_pin_value := vcontrol_checkbox(&vuictx, VUID_BUTTON_PIN, checkbox_rect, vwv_app.pin, order=LAYER_STATUS_BAR_ITEM)
+	new_pin_value := vcontrol_checkbox(&vuictx, VUID_BUTTON_PIN, checkbox_rect, vwv_app.pin, icon=ICON_PIN, order=LAYER_STATUS_BAR_ITEM)
 	if new_pin_value != vwv_app.pin {
 		sdl.SetWindowAlwaysOnTop(dd.app.window.window, auto_cast new_pin_value)
 		vwv_app.pin = new_pin_value
@@ -314,12 +319,32 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
 	card_handle_events := vwv_app.state != .DragRecord || dragging
 	
 	vbegin_record_card(&vuictx)
+	if vwv_app.state == .Normal {
+		width, height :f32= 14, 14
+		padding :f32= 2
+		buttons_rect := rect_split_left(record_rect, width+2*padding)
+
+		btn_rect := rect_padding(rect_split_top(buttons_rect, height+2*padding), padding,padding,padding,padding)
+		if len(r.children) > 0 {
+			if vcontrol_button(&vuictx, VUID_BY_RECORD(r, RECORD_ITEM_BUTTON_FOLD_TOGGLE), btn_rect, LAYER_RECORD_BASE+2, icon=ICON_TRIANGLE_RIGHT if r.fold else ICON_TRIANGLE_DOWN) {
+				push_record_operations(RecordOp_ToggleFold{r, !r.fold})
+				dd.dispatch_update()
+			}
+			btn_rect.y -= height
+		}
+
+		if vcontrol_button(&vuictx, VUID_BY_RECORD(r, RECORD_ITEM_BUTTON_ADD_RECORD), btn_rect, LAYER_RECORD_BASE+2, icon=ICON_ADD) {
+			vui._reset(&vuictx)
+			push_record_operations(RecordOp_ToggleFold{r, false})
+			push_record_operations(RecordOp_AddChild{r, true})
+		}
+	}
 
 	// ** focus button
 	if card_handle_events && r != &root && rect_in(record_rect, input.get_mouse_position()) && len(r.children) != 0 {
 		focus_btn_rect := rect_padding(rect_split_right(record_rect, line_height-2), 0,2,2,2+(record_rect.h-line_height))
 		focus_btn_vid := VUID_BY_RECORD(r, RECORD_ITEM_BUTTON_FOCUS)
-		if vcontrol_button(&vuictx, focus_btn_vid, focus_btn_rect, order=LAYER_RECORD_CONTENT+100) {
+		if vcontrol_button(&vuictx, focus_btn_vid, focus_btn_rect, icon=ICON_FOCUS, order=LAYER_RECORD_CONTENT+100) {
 			vui._reset(&vuictx)
 			vwv_app.view_offset_y = 0
 			vwv_app.visual_view_offset_y = rect.y
@@ -340,7 +365,7 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
 		if vwv_app.state == .Normal {
 			if result == .Left {// left click to edit
 				if input.get_key(.LCTRL) {
-					record_toggle_fold(r, !r.fold)
+					push_record_operations(RecordOp_ToggleFold{r, !r.fold})
 				} else {
 					vwv_state_enter_edit(r)
 					editting = true
@@ -378,17 +403,6 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
 	arrange_info : ArrangeInfo = {-1,-1,0,0}
 
 	if !is_folded_header { // ** update all children
-		if vwv_app.state == .Normal {
-			width, height :f32= 14, 14
-			padding :f32= 2
-			btn_rect := dd.Rect{corner.x - width - padding, corner.y + size.y - height, width, height}
-			if vcontrol_button(&vuictx, VUID_BY_RECORD(r, RECORD_ITEM_BUTTON_ADD_RECORD), btn_rect, LAYER_RECORD_BASE) {
-				vui._reset(&vuictx)
-				push_record_operations(RecordOp_ToggleFold{r, false})
-				push_record_operations(RecordOp_AddChild{r, true})
-			}
-		}
-		
 		dragging_record := vwv_app.dragging_record
 		is_drag_parent := vwv_app.state == .DragRecord && dragging_record != nil && dragging_record.parent == r
 
@@ -582,6 +596,7 @@ flush_record_operations :: proc() {
 			if op.record != nil && op.from != op.to do record_arrange(op.record, op.from, op.to)
 		case RecordOp_ToggleFold:
 			if op.record != nil do record_toggle_fold(op.record, op.fold)
+			vwv_app.view_offset_y += -theme.record_progress_bar_height if op.fold else theme.record_progress_bar_height
 		}
 	}
 	clear_record_operations()

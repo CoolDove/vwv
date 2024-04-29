@@ -25,6 +25,9 @@ rect_size :: #force_inline proc(r: R) -> V2 {
 rect_position_size :: #force_inline proc(r: R) -> (V2, V2) {
 	return {r.x, r.y}, {r.w, r.h}
 }
+rect_max :: #force_inline proc(r: R) -> V2 {
+	return rect_position(r)+rect_size(r)
+}
 
 rect_require :: proc(r: R, width:f32=0, height:f32=0, anchor:V2={0,0}) -> R {
 	if width <= r.w && height <= r.h do return r
