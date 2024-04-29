@@ -10,26 +10,26 @@ import "vui"
 // rect: xy: min, zw: size
 
 theme : Theme = {
-    font_size = 16,
-    line_height = 30,
-    line_margin = 8,
-    line_padding = 8,
-    indent_width = 18,
-    border_width = 2,
-    record_progress_bar_height = 8,
+	font_size = 16,
+	line_height = 30,
+	line_margin = 8,
+	line_padding = 8,
+	indent_width = 18,
+	border_width = 2,
+	record_progress_bar_height = 8,
 
-    record_open = {
-        normal = {200, 200, 200, 255},
-        active = {255, 255, 255, 255},
-    },
-    record_done = {
-        normal = {80, 200, 40, 255},
-        active = {65, 212, 60, 255},
-    },
-    record_closed = {
-        normal = {90, 60, 65, 255},
-        active = {100, 75, 70, 255},
-    },
+	record_open = {
+		normal = {200, 200, 200, 255},
+		active = {255, 255, 255, 255},
+	},
+	record_done = {
+		normal = {80, 200, 40, 255},
+		active = {65, 212, 60, 255},
+	},
+	record_closed = {
+		normal = {90, 60, 65, 255},
+		active = {100, 75, 70, 255},
+	},
 
 	text_default = {
 		normal = {10,10,10, 255},
@@ -55,23 +55,23 @@ theme : Theme = {
 	button_default = {
 		normal = {45,45,45, 255},
 		hover = {65,65,65, 255},
-		active = {70,70,70, 255},
+		active = {98,128,75, 255},
 	},
 }
 
 Theme :: struct {
-    font_size : f32,
-    line_height : f32,
-    line_margin : f32,
-    line_padding : f32,
-    indent_width : f32,
-    border_width : f32,
-    record_progress_bar_height : f32,
+	font_size : f32,
+	line_height : f32,
+	line_margin : f32,
+	line_padding : f32,
+	indent_width : f32,
+	border_width : f32,
+	record_progress_bar_height : f32,
 
 	button_default : ButtonTheme,
 
-    // ** colors
-    record_open, record_closed, record_done : RecordTheme,
+	// ** colors
+	record_open, record_closed, record_done : RecordTheme,
 	text_default : TextTheme,
 	text_record_open, text_record_closed, text_record_done : TextTheme,
 }
