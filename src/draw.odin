@@ -54,7 +54,7 @@ theme : Theme = {
 
 	button_default = {
 		normal = {45,45,45, 255},
-		hover = {55,55,55, 255},
+		hover = {65,65,65, 255},
 		active = {70,70,70, 255},
 	},
 }

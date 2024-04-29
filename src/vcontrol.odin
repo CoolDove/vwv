@@ -48,8 +48,11 @@ vend_record_card :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord, rect: d
 	if handle_event {
 		controller := vui.get_state(ctx, RecordCardController)
 		if dragging != id && (active == id || active == 0) {
-			if inrect do hot = id
-			else if hot == id do hot = 0
+			if inrect {
+				if LAYER_RECORD_BASE > hot_order do hot, hot_order = id, LAYER_RECORD_BASE
+			} else if hot == id {
+				hot, hot_order = 0, 0
+			}
 		}
 		if dragging == id {
 			strings.write_string(&vwv_app.status_bar_info, fmt.tprintf("[dragging {}...]", id))
@@ -157,27 +160,14 @@ vend_record_card :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord, rect: d
 	return result
 }
 
-// TODO: Remove
-vcontrol_button_add_record :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord, rect: Rect) -> ButtonResult {
-	using vui
-	id := VUID_BY_RECORD(record, RECORD_ITEM_BUTTON_ADD_RECORD)
-	inrect := rect_in(rect, input.get_mouse_position())
-	result := _event_handler_button(ctx, id, inrect)
-
-	using theme
-	col :dd.Color32= {65,65,65, 255}
-	if hot == id do col = {80,80,80, 255}
-	if active == id do col = {95,95,95, 255}
-	imdraw.quad(pass, {rect.x,rect.y+0.5*rect.h-2}, {rect.w,4}, col, order=LAYER_RECORD_BASE)
-	imdraw.quad(pass, {rect.x+0.5*rect.w-2,rect.y}, {4,rect.h}, col, order=LAYER_RECORD_BASE)
-	return result
-}
-
-vcontrol_checkbutton :: proc(using ctx: ^vui.VuiContext, id: VID, rect: Rect, value: bool, order:=LAYER_RECORD_CONTENT) -> bool {
+vcontrol_checkbox :: proc(using ctx: ^vui.VuiContext, id: VID, rect: Rect, value: bool, order:=LAYER_RECORD_CONTENT, btntheme:=theme.button_default) -> bool {
 	using vui
 	inrect := rect_in(rect, input.get_mouse_position())
 	push_rect(ctx, rect)
 	pressed := false
+	if active == id || active == 0 {
+		vui._handle_hot(ctx, inrect, id, order)
+	}
 	if active == id {
 		if input.get_mouse_button_up(.Left) {
 			active = 0
@@ -190,16 +180,13 @@ vcontrol_checkbutton :: proc(using ctx: ^vui.VuiContext, id: VID, rect: Rect, va
 			active = id
 		}
 	}
-	if active == id || active == 0 {
-		if inrect do hot = id
-		else if hot == id do hot = 0
-	}
 
-	if value {
-		imdraw.quad(pass, {rect.x,rect.y}, {rect.w,rect.h}, {0,255,0,255}, order=order)
-	} else {
-		imdraw.quad(pass, {rect.x,rect.y}, {rect.w,rect.h}, {29,29,28, 255}, order=order)
-	}
+	col := btntheme.normal
+	if value do col = btntheme.active
+	else if hot == id do col = btntheme.hover
+
+	imdraw.quad(pass, {rect.x,rect.y}, {rect.w,rect.h}, col, order=order)
+
 	return !value if pressed else value
 }
 
@@ -209,8 +196,7 @@ vcontrol_button :: proc(using ctx: ^vui.VuiContext, id: VID, rect: Rect, order:=
 	vui.push_rect(ctx, rect)
 
 	if active == id || active == 0 {
-		if inrect do hot = id
-		else if hot == id do hot = 0
+		vui._handle_hot(ctx, inrect, id, order)
 	}
 	if active == id {
 		if input.get_mouse_button_up(.Left) {
@@ -235,7 +221,7 @@ vcontrol_button :: proc(using ctx: ^vui.VuiContext, id: VID, rect: Rect, order:=
 // If `edit` is nil, this control will only display the text. You pass in a edit, the control will
 //  work.
 //  Return: Click outside or press `ESC` or `RETURN` to exit the edit.
-vcontrol_edittable_textline :: proc(using ctx: ^vui.VuiContext, id: VID, rect: Rect, buffer: ^GapBuffer, edit:^TextEdit=nil, ttheme:=theme.text_default, render_layer_offset:i32=0) -> (edit_point: Vec2, exit: bool) {
+vcontrol_edittable_textline :: proc(using ctx: ^vui.VuiContext, id: VID, rect: Rect, layer:i32, buffer: ^GapBuffer, edit:^TextEdit=nil, ttheme:=theme.text_default) -> (edit_point: Vec2, exit: bool) {
 	using vui
 
 	inrect := rect_in(rect, input.get_mouse_position())
@@ -246,7 +232,8 @@ vcontrol_edittable_textline :: proc(using ctx: ^vui.VuiContext, id: VID, rect: R
 		if edit.buffer != buffer do textedit_begin(edit, buffer, gapbuffer_len(buffer))
 
 		active = id
-		hot = id if inrect else 0
+		// hot = id if inrect else 0
+		vui._handle_hot(ctx, inrect, id, layer)
 		
 		if  (!inrect && (input.get_mouse_button_up(.Left) || input.get_mouse_button_down(.Right))) || // Click outside
 			(input.get_key_down(.ESCAPE) || input.get_key_down(.RETURN)) // Press ESC or RETURN
@@ -318,16 +305,16 @@ vcontrol_edittable_textline :: proc(using ctx: ^vui.VuiContext, id: VID, rect: R
 	internal_font := dude.get_font(font)
 	dt := DrawText{ 0, font, font_size, 0, rect.h - internal_font.lineHeight-line_margin, rect }
 
-	draw_text :: proc(using ctx: ^vui.VuiContext, d: ^DrawText, str: string, col: Color32, render_layer_offset:i32=0) {
+	draw_text :: proc(using ctx: ^vui.VuiContext, d: ^DrawText, str: string, col: Color32, layer:i32=0) {
 		corner := rect_position(d.rect)
 		next : Vec2
 		mesr := dude.mesher_text_measure(d.font, str, d.font_size, out_next_pos =&next)
 		region :Vec2= {d.rect.w-d.ptr-d.offset_x,-1}
-		imdraw.text(pass, d.font, str, corner+{d.ptr+d.offset_x, d.offset_y}, d.font_size, dd.col_u2f(col), region=region, order = LAYER_RECORD_CONTENT+render_layer_offset)
+		imdraw.text(pass, d.font, str, corner+{d.ptr+d.offset_x, d.offset_y}, d.font_size, dd.col_u2f(col), region=region, order = layer)
 		d.ptr += next.x
 	}
 	if DEBUG_VWV {
-		imdraw.quad(pass, rcorner, rsize, {255, 120, 230, 40}, order = LAYER_RECORD_CONTENT) // draw the cursor
+		imdraw.quad(pass, rcorner, rsize, {255, 120, 230, 40}, order = layer) // draw the cursor
 	}
 
 	text_line := gapbuffer_get_string(buffer); defer delete(text_line)
@@ -337,55 +324,20 @@ vcontrol_edittable_textline :: proc(using ctx: ^vui.VuiContext, id: VID, rect: R
 		
 		dt.offset_x = -max(cursor.x - 0.75 * rsize.x, 0)
 
-		imdraw.quad(pass, rcorner+{cursor.x+dt.offset_x, 1}, {2,rsize.y-2}, ttheme.normal, order = LAYER_RECORD_CONTENT+render_layer_offset) // draw the cursor
+		imdraw.quad(pass, rcorner+{cursor.x+dt.offset_x, 1}, {2,rsize.y-2}, ttheme.normal, order = layer) // draw the cursor
 		edit_point = rcorner+{cursor.x+dt.offset_x, 1+dt.offset_y}
 
 		if input.get_textinput_editting_text() != "" {
-			draw_text(ctx, &dt, text_line[:edit.selection.x], ttheme.normal, render_layer_offset)
-			draw_text(ctx, &dt, input.get_textinput_editting_text(), ttheme.dimmed, render_layer_offset)
-			draw_text(ctx, &dt, text_line[edit.selection.x:], ttheme.normal, render_layer_offset)
+			draw_text(ctx, &dt, text_line[:edit.selection.x], ttheme.normal, layer)
+			draw_text(ctx, &dt, input.get_textinput_editting_text(), ttheme.dimmed, layer)
+			draw_text(ctx, &dt, text_line[edit.selection.x:], ttheme.normal, layer)
 		} else {
-			draw_text(ctx, &dt, text_line, ttheme.normal, render_layer_offset)
+			draw_text(ctx, &dt, text_line, ttheme.normal, layer)
 		}
 	} else {
-		draw_text(ctx, &dt, text_line, ttheme.normal, render_layer_offset)
+		draw_text(ctx, &dt, text_line, ttheme.normal, layer)
 		edit_point = {}
 	}
 	exit = result
 	return 
-}
-
-
-@(private="file")
-_event_handler_button :: proc(using ctx: ^vui.VuiContext, id: VID, inrect: bool) -> ButtonResult {
-	using vui
-	result := ButtonResult.None
-	if active == id {
-		if input.get_mouse_button_up(.Left) {
-			active = 0
-			if inrect {
-				result = .Left
-			}
-		} else if input.get_mouse_button_up(.Right) {
-			active = 0
-			if inrect {
-				result = .Right
-			}
-		}
-	} else {
-		if hot == id {
-			if inrect {
-				if input.get_mouse_button_down(.Left) || input.get_mouse_button_down(.Right) {
-					active = id
-				}
-			} else {
-				if !inrect do hot = 0
-			}
-		} else {
-			if inrect && active == 0 {
-				hot = id
-			}
-		}
-	}
-	return result
 }
