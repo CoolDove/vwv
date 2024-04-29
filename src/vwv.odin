@@ -166,7 +166,7 @@ vwv_update :: proc() {
 	viewport := dd.app.window.size
 	app_rect :dd.Rect= {0,0, cast(f32)viewport.x, cast(f32)viewport.y}
 
-	rect :dd.Rect= {20,20, cast(f32)viewport.x-40, cast(f32)viewport.y-40}
+	rect :dd.Rect= {10,10, cast(f32)viewport.x-20, cast(f32)viewport.y-20}
 	rect.y += vwv_app.visual_view_offset_y
 
 	if vwv_app.state == .Edit {
@@ -271,6 +271,7 @@ status_bar :: proc(app_rect: Rect) {
 	sbr := rect_split_top(app_rect, sbr_height)
 	imdraw.quad(&pass_main, {sbr.x, sbr.y}, {sbr.w, sbr.h}, {90, 100, 75, 255}, order=LAYER_STATUS_BAR_BASE)
 	imdraw.text(&pass_main, vuictx.font, strings.to_string(vwv_app.status_bar_info), rect_position(sbr)+{0,theme.font_size+15}, theme.font_size, {1,1,1,1}, order=LAYER_STATUS_BAR_ITEM)
+
 	icon_unit :f32= sbr_height-8
 	checkbox_rect := rect_padding(rect_split_right(sbr, sbr_height), 4,4,4,4)
 	new_pin_value := vcontrol_checkbox(&vuictx, VUID_BUTTON_PIN, checkbox_rect, vwv_app.pin, icon=ICON_PIN, order=LAYER_STATUS_BAR_ITEM)
