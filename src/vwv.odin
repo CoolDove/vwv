@@ -31,6 +31,7 @@ VwvApp :: struct {
 	status_bar_info : strings.Builder,
 
 	pin : bool,
+	window_bordered : bool,
 
 	// ** operations
 	record_operations : [dynamic]RecordOperation,
@@ -136,6 +137,8 @@ vwv_init :: proc() {
 
 	ICON_TEXTURE = dgl.texture_load_from_mem(#load("./res/icons.png"))
 	dgl.texture_set_filter(ICON_TEXTURE.id, .Nearest, .Nearest)
+
+	vwv_app.window_bordered = true
 
 }
 
@@ -264,16 +267,27 @@ bubble_msg :: proc(msg: string, duration: f32) {
 }
 
 status_bar :: proc(app_rect: Rect) {
-	sbr := rect_split_top(app_rect, 42)
+	sbr_height :f32= 42
+	sbr := rect_split_top(app_rect, sbr_height)
 	imdraw.quad(&pass_main, {sbr.x, sbr.y}, {sbr.w, sbr.h}, {90, 100, 75, 255}, order=LAYER_STATUS_BAR_BASE)
 	imdraw.text(&pass_main, vuictx.font, strings.to_string(vwv_app.status_bar_info), rect_position(sbr)+{0,theme.font_size+15}, theme.font_size, {1,1,1,1}, order=LAYER_STATUS_BAR_ITEM)
-	checkbox_rect := rect_padding(rect_split_right(sbr, 42), 4,4,4,4)
+	icon_unit :f32= sbr_height-8
+	checkbox_rect := rect_padding(rect_split_right(sbr, sbr_height), 4,4,4,4)
 	new_pin_value := vcontrol_checkbox(&vuictx, VUID_BUTTON_PIN, checkbox_rect, vwv_app.pin, icon=ICON_PIN, order=LAYER_STATUS_BAR_ITEM)
 	if new_pin_value != vwv_app.pin {
 		sdl.SetWindowAlwaysOnTop(dd.app.window.window, auto_cast new_pin_value)
 		vwv_app.pin = new_pin_value
 		dd.dispatch_update()
 	}
+
+	checkbox_rect.x -= icon_unit+4
+	new_bordered_value := vcontrol_checkbox(&vuictx, VUID_BUTTON_WINDOW_BORDERED, checkbox_rect, vwv_app.window_bordered, icon=ICON_WINDOW_BORDERED, order=LAYER_STATUS_BAR_ITEM)
+	if new_bordered_value != vwv_app.window_bordered {
+		sdl.SetWindowBordered(dd.app.window.window, auto_cast new_bordered_value)
+		vwv_app.window_bordered = new_bordered_value
+		dd.dispatch_update()
+	}
+
 }
 
 vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx:int, parent_dragged:=false) {
