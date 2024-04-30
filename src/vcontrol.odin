@@ -385,79 +385,54 @@ vcontrol_edittable_textline :: proc(
 		}
 	}
 
-	draw_text_ptr: f32
-	DrawText :: struct {
-		ptr:       f32,
-		font:      dude.DynamicFont,
-		font_size: f32,
-		offset_x:  f32,
-		offset_y:  f32,
-		rect:      dd.Rect,
-	}
-	using theme
-
-	internal_font := dude.get_font(font)
-	dt := DrawText{0, font, font_size, 0, rect.h - internal_font.lineHeight - line_margin, rect}
-
-	draw_text :: proc(
-		using ctx: ^vui.VuiContext,
-		d: ^DrawText,
-		str: string,
-		col: Color32,
-		layer: i32 = 0,
-	) {
-		corner := rect_position(d.rect)
-		next: Vec2
-		mesr := dude.mesher_text_measure(d.font, str, d.font_size, out_next_pos = &next)
-		region: Vec2 = {d.rect.w - d.ptr - d.offset_x, -1}
-		imdraw.text(
-			pass,
-			d.font,
-			str,
-			corner + {d.ptr + d.offset_x, d.offset_y},
-			d.font_size,
-			dd.col_u2f(col),
-			region = region,
-			order = layer,
-		)
-		d.ptr += next.x
-	}
 	if DEBUG_VWV {
-		imdraw.quad(pass, rcorner, rsize, {255, 120, 230, 40}, order = layer) // draw the cursor
+		imdraw.quad(pass, rcorner, rsize, {255, 120, 230, 40}, order = layer)
 	}
 
 	text_line := gapbuffer_get_string(buffer);defer delete(text_line)
+
+	ttbro : dude.TextBro
+	dude.tbro_init(&ttbro, vuictx.font, theme.font_size); defer dude.tbro_release(&ttbro)
+
+	internal_font := dude.get_font(font)
+	using theme
 	if editting {
-		cursor: Vec2
-		mesr := dude.mesher_text_measure(
-			font,
-			text_line[:edit.selection.x],
-			font_size,
-			out_next_pos = &cursor,
-		)
-
-		dt.offset_x = -max(cursor.x - 0.75 * rsize.x, 0)
-
+		cursor_pos := rcorner + {0, internal_font.lineHeight}
+		text_pos := rcorner + {0, rect.h - internal_font.lineHeight - line_margin}
+		if input.get_textinput_editting_text() != "" {
+			tbro_idx_before_edit := dude.tbro_write_string(&ttbro, text_line[:edit.selection.x])
+			tbro_idx_after_edit := dude.tbro_write_string(&ttbro, input.get_textinput_editting_text())
+			tbro_idx_last := dude.tbro_write_string(&ttbro, text_line[edit.selection.x:])
+			log.debugf("idx: {}, {}, {}", tbro_idx_before_edit, tbro_idx_after_edit, tbro_idx_last)
+			if tbro_idx_before_edit>0 do imdraw.textbro(&pass_main, &ttbro, text_pos, 0, tbro_idx_before_edit, ttheme.normal, layer)
+			imdraw.textbro(&pass_main, &ttbro, text_pos, tbro_idx_before_edit+1, tbro_idx_after_edit, ttheme.dimmed, layer)
+			if tbro_idx_last>tbro_idx_after_edit do imdraw.textbro(&pass_main, &ttbro, text_pos, tbro_idx_after_edit+1, tbro_idx_last, ttheme.normal, layer)
+			edit_point = cursor_pos + {dude.tbro_next_pos(&ttbro, tbro_idx_before_edit).x, rsize.y-2}
+			cursor_pos += {dude.tbro_next_pos(&ttbro, tbro_idx_after_edit).x, 0}
+		} else {
+			idx_before := dude.tbro_write_string(&ttbro, text_line[:edit.selection.x])
+			dude.tbro_write_string(&ttbro, text_line[edit.selection.x:])
+			if dude.tbro_length(&ttbro)!=0 do imdraw.textbro(&pass_main, &ttbro, text_pos, 0, dude.tbro_length(&ttbro)-1, ttheme.normal, layer)
+			if idx_before>-1 {
+				cursor_pos += {dude.tbro_next_pos(&ttbro, idx_before).x, 0}
+				edit_point = cursor_pos+{0,rsize.y-2}
+			}
+		}
 		imdraw.quad(
 			pass,
-			rcorner + {cursor.x + dt.offset_x, 1},
+			cursor_pos,
 			{2, rsize.y - 2},
 			ttheme.normal,
 			order = layer,
 		) // draw the cursor
-		edit_point = rcorner + {cursor.x + dt.offset_x, 1 + dt.offset_y}
-
-		if input.get_textinput_editting_text() != "" {
-			draw_text(ctx, &dt, text_line[:edit.selection.x], ttheme.normal, layer)
-			draw_text(ctx, &dt, input.get_textinput_editting_text(), ttheme.dimmed, layer)
-			draw_text(ctx, &dt, text_line[edit.selection.x:], ttheme.normal, layer)
-		} else {
-			draw_text(ctx, &dt, text_line, ttheme.normal, layer)
-		}
 	} else {
-		draw_text(ctx, &dt, text_line, ttheme.normal, layer)
+		text_pos := rcorner + {0, rect.h -  internal_font.lineHeight - line_margin}
+		dude.tbro_write_string(&ttbro, text_line)
+		imdraw.textbro(&pass_main, &ttbro, text_pos, 0, dude.tbro_length(&ttbro)-1, ttheme.normal, layer)
 		edit_point = {}
 	}
+
+
 	exit = result
 	return
 }
