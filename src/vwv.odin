@@ -289,6 +289,19 @@ status_bar :: proc(app_rect: Rect) {
 		dd.dispatch_update()
 	}
 
+	
+	if vwv_app.focusing_record != nil {
+		bro : dude.TextBro
+		dude.tbro_init(&bro, vuictx.font, theme.font_size); defer dude.tbro_release(&bro)
+		idx := dude.tbro_write_string(&bro, "Focusing on: ")
+		dude.tbro_write_string(&bro, gapbuffer_get_string(&vwv_app.focusing_record.line, context.temp_allocator))
+
+		pos := rect_position(sbr)+{0,theme.font_size+15}
+		imdraw.textbro(&pass_main, &bro, pos, 0, idx, {255,0,0,255}, LAYER_STATUS_BAR_ITEM)
+		imdraw.textbro(&pass_main, &bro, pos, idx+1, dude.tbro_length(&bro)-1, {0,255,0,255}, LAYER_STATUS_BAR_ITEM)
+		imdraw.textbro(&pass_main, &bro, pos+{2,2}, 0, dude.tbro_length(&bro)-1, {0,0,0,64}, LAYER_STATUS_BAR_ITEM-1)
+	}
+
 }
 
 vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx:int, parent_dragged:=false) {
