@@ -403,7 +403,6 @@ vcontrol_edittable_textline :: proc(
 			tbro_idx_before_edit := dude.tbro_write_string(&ttbro, text_line[:edit.selection.x])
 			tbro_idx_after_edit := dude.tbro_write_string(&ttbro, input.get_textinput_editting_text())
 			tbro_idx_last := dude.tbro_write_string(&ttbro, text_line[edit.selection.x:])
-			log.debugf("idx: {}, {}, {}", tbro_idx_before_edit, tbro_idx_after_edit, tbro_idx_last)
 			if tbro_idx_before_edit>0 do imdraw.textbro(&pass_main, &ttbro, text_pos, 0, tbro_idx_before_edit, ttheme.normal, layer)
 			imdraw.textbro(&pass_main, &ttbro, text_pos, tbro_idx_before_edit+1, tbro_idx_after_edit, ttheme.dimmed, layer)
 			if tbro_idx_last>tbro_idx_after_edit do imdraw.textbro(&pass_main, &ttbro, text_pos, tbro_idx_after_edit+1, tbro_idx_last, ttheme.normal, layer)
