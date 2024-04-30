@@ -403,19 +403,19 @@ vcontrol_edittable_textline :: proc(
 			tbro_idx_before_edit := dude.tbro_write_string(&ttbro, text_line[:edit.selection.x])
 			tbro_idx_after_edit := dude.tbro_write_string(&ttbro, input.get_textinput_editting_text())
 			tbro_idx_last := dude.tbro_write_string(&ttbro, text_line[edit.selection.x:])
-			if tbro_idx_before_edit>0 do imdraw.textbro(&pass_main, &ttbro, text_pos, 0, tbro_idx_before_edit, ttheme.normal, layer)
+
 			imdraw.textbro(&pass_main, &ttbro, text_pos, tbro_idx_before_edit+1, tbro_idx_after_edit, ttheme.dimmed, layer)
+			if tbro_idx_before_edit>0 do imdraw.textbro(&pass_main, &ttbro, text_pos, 0, tbro_idx_before_edit, ttheme.normal, layer)
 			if tbro_idx_last>tbro_idx_after_edit do imdraw.textbro(&pass_main, &ttbro, text_pos, tbro_idx_after_edit+1, tbro_idx_last, ttheme.normal, layer)
+
 			edit_point = cursor_pos + {dude.tbro_next_pos(&ttbro, tbro_idx_before_edit).x, rsize.y-2}
 			cursor_pos += {dude.tbro_next_pos(&ttbro, tbro_idx_after_edit).x, 0}
 		} else {
 			idx_before := dude.tbro_write_string(&ttbro, text_line[:edit.selection.x])
 			dude.tbro_write_string(&ttbro, text_line[edit.selection.x:])
 			if dude.tbro_length(&ttbro)!=0 do imdraw.textbro(&pass_main, &ttbro, text_pos, 0, dude.tbro_length(&ttbro)-1, ttheme.normal, layer)
-			if idx_before>-1 {
-				cursor_pos += {dude.tbro_next_pos(&ttbro, idx_before).x, 0}
-				edit_point = cursor_pos+{0,rsize.y-2}
-			}
+			cursor_pos += {dude.tbro_next_pos(&ttbro, idx_before).x, 0}
+			edit_point = cursor_pos+{0,rsize.y-2}
 		}
 		imdraw.quad(
 			pass,
