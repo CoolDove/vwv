@@ -3,6 +3,7 @@ package main
 import "core:fmt"
 import "core:log"
 import "core:math/linalg"
+import "core:math"
 import "core:strings"
 
 import "dude/dude"
@@ -399,21 +400,28 @@ vcontrol_edittable_textline :: proc(
 	if editting {
 		cursor_pos := rcorner + {0, internal_font.lineHeight}
 		text_pos := rcorner + {0, rect.h - internal_font.lineHeight - line_margin}
+		config := dude.TextBroExportConfig{color=ttheme.dimmed, transform={
+			1,0,text_pos.x,
+			0,1,text_pos.y,
+			0,0,1,
+		}}
 		if input.get_textinput_editting_text() != "" {
 			tbro_idx_before_edit := dude.tbro_write_string(&ttbro, text_line[:edit.selection.x])
 			tbro_idx_after_edit := dude.tbro_write_string(&ttbro, input.get_textinput_editting_text())
 			tbro_idx_last := dude.tbro_write_string(&ttbro, text_line[edit.selection.x:])
 
-			imdraw.textbro(&pass_main, &ttbro, text_pos, tbro_idx_before_edit+1, tbro_idx_after_edit, ttheme.dimmed, layer)
-			if tbro_idx_before_edit>0 do imdraw.textbro(&pass_main, &ttbro, text_pos, 0, tbro_idx_before_edit, ttheme.normal, layer)
-			if tbro_idx_last>tbro_idx_after_edit do imdraw.textbro(&pass_main, &ttbro, text_pos, tbro_idx_after_edit+1, tbro_idx_last, ttheme.normal, layer)
+			imdraw.textbro(&pass_main, &ttbro, tbro_idx_before_edit+1, tbro_idx_after_edit, config, layer)
+			config.color = ttheme.normal
+			if tbro_idx_before_edit>0 do imdraw.textbro(&pass_main, &ttbro, 0, tbro_idx_before_edit, config, layer)
+			if tbro_idx_last>tbro_idx_after_edit do imdraw.textbro(&pass_main, &ttbro, tbro_idx_after_edit+1, tbro_idx_last, config, layer)
 
 			edit_point = cursor_pos + {dude.tbro_next_pos(&ttbro, tbro_idx_before_edit).x, rsize.y-2}
 			cursor_pos += {dude.tbro_next_pos(&ttbro, tbro_idx_after_edit).x, 0}
 		} else {
 			idx_before := dude.tbro_write_string(&ttbro, text_line[:edit.selection.x])
 			dude.tbro_write_string(&ttbro, text_line[edit.selection.x:])
-			if dude.tbro_length(&ttbro)!=0 do imdraw.textbro(&pass_main, &ttbro, text_pos, 0, dude.tbro_length(&ttbro)-1, ttheme.normal, layer)
+			config.color = ttheme.normal
+			if dude.tbro_length(&ttbro)!=0 do imdraw.textbro(&pass_main, &ttbro, 0, dude.tbro_length(&ttbro)-1, config, layer)
 			cursor_pos += {dude.tbro_next_pos(&ttbro, idx_before).x, 0}
 			edit_point = cursor_pos+{0,rsize.y-2}
 		}
@@ -426,11 +434,14 @@ vcontrol_edittable_textline :: proc(
 		) // draw the cursor
 	} else {
 		text_pos := rcorner + {0, rect.h -  internal_font.lineHeight - line_margin}
+		config := dude.TextBroExportConfig{color=ttheme.normal, transform=dude.mat3_trs(text_pos, 0,1)}
+		// Test the rotation
+		// config := dude.TextBroExportConfig{color=ttheme.normal, transform=dude.mat3_trs(text_pos, 15*math.RAD_PER_DEG,1)}
+
 		dude.tbro_write_string(&ttbro, text_line)
-		imdraw.textbro(&pass_main, &ttbro, text_pos, 0, dude.tbro_length(&ttbro)-1, ttheme.normal, layer)
+		imdraw.textbro(&pass_main, &ttbro, 0, dude.tbro_length(&ttbro)-1, config, layer)
 		edit_point = {}
 	}
-
 
 	exit = result
 	return

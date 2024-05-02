@@ -297,9 +297,16 @@ status_bar :: proc(app_rect: Rect) {
 		dude.tbro_write_string(&bro, gapbuffer_get_string(&vwv_app.focusing_record.line, context.temp_allocator))
 
 		pos := rect_position(sbr)+{0,theme.font_size+15}
-		imdraw.textbro(&pass_main, &bro, pos, 0, idx, {255,0,0,255}, LAYER_STATUS_BAR_ITEM)
-		imdraw.textbro(&pass_main, &bro, pos, idx+1, dude.tbro_length(&bro)-1, {0,255,0,255}, LAYER_STATUS_BAR_ITEM)
-		imdraw.textbro(&pass_main, &bro, pos+{2,2}, 0, dude.tbro_length(&bro)-1, {0,0,0,64}, LAYER_STATUS_BAR_ITEM-1)
+		config := dude.TextBroExportConfig{
+			color = {255,0,0,255},
+			transform = dude.mat3_trs(pos, 0,1),
+		}
+		imdraw.textbro(&pass_main, &bro, 0, idx, config, LAYER_STATUS_BAR_ITEM)
+		config.color = {0,255,0,255}
+		imdraw.textbro(&pass_main, &bro, idx+1, dude.tbro_length(&bro)-1, config, LAYER_STATUS_BAR_ITEM)
+		config.color = {0,0,0,64}
+		config.transform = dude.mat3_trs(pos+{2,2}, 0,1)
+		imdraw.textbro(&pass_main, &bro, 0, dude.tbro_length(&bro)-1, config, LAYER_STATUS_BAR_ITEM-1)
 	}
 
 }
