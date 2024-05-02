@@ -271,6 +271,7 @@ status_bar :: proc(app_rect: Rect) {
 	sbr := rect_split_top(app_rect, sbr_height)
 	imdraw.quad(&pass_main, {sbr.x, sbr.y}, {sbr.w, sbr.h}, {90, 100, 75, 255}, order=LAYER_STATUS_BAR_BASE)
 	imdraw.text(&pass_main, vuictx.font, strings.to_string(vwv_app.status_bar_info), rect_position(sbr)+{0,theme.font_size+15}, theme.font_size, {1,1,1,1}, order=LAYER_STATUS_BAR_ITEM)
+	vcontrol_panel(&vuictx, VUID_STATUS_BAR_PANEL, sbr, LAYER_STATUS_BAR_BASE)
 
 	icon_unit :f32= sbr_height-8
 	checkbox_rect := rect_padding(rect_split_right(sbr, sbr_height), 4,4,4,4)

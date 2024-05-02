@@ -301,6 +301,29 @@ vcontrol_button :: proc(
 	return result
 }
 
+// An invisible empty ui contorl. To block interactions to other controls.
+// Acts like a button, but does nothing.
+vcontrol_panel :: proc(using ctx: ^vui.VuiContext, id: VID, rect: Rect, order := LAYER_MAIN) {
+	inrect := rect_in(rect, input.get_mouse_position())
+	result := false
+	vui.push_rect(ctx, rect)
+	if active == id || active == 0 {
+		vui._handle_hot(ctx, inrect, id, order)
+	}
+	if active == id {
+		if input.get_mouse_button_up(.Left) {
+			active = 0
+			if inrect {
+				result = true
+			}
+		}
+	} else {
+		if hot == id && input.get_mouse_button_down(.Left) {
+			active = id
+		}
+	}
+}
+
 // If `edit` is nil, this control will only display the text. You pass in a edit, the control will
 //  work.
 //  Return: Click outside or press `ESC` or `RETURN` to exit the edit.
