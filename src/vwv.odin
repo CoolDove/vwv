@@ -564,7 +564,7 @@ _update_record_keyboard_control :: proc(r: ^VwvRecord) {
 				push_record_operations(RecordOp_ActivateRecord{activate_id=current_record.children[0].id})
 				return
 			}
-			for current_record != nil && current_record.parent != nil {
+			for current_record != nil && current_record.parent != nil && vwv_app.focusing_record != current_record {
 				for &cr, idx in current_record.parent.children {
 					if cr.id == current_record.id {
 						if idx == len(current_record.parent.children)-1 {
@@ -577,7 +577,7 @@ _update_record_keyboard_control :: proc(r: ^VwvRecord) {
 				}
 			}
 		} else if input.get_key_repeat(.K) {
-			if r == nil || r.parent == nil do return
+			if r == nil || r.parent == nil || vwv_app.focusing_record == r do return
 			for &cr, idx in r.parent.children {
 				if cr.id == r.id {
 					if idx == 0 {
@@ -664,6 +664,7 @@ vwv_focus_on :: proc(r: ^VwvRecord) {
 	parent_line := gapbuffer_get_string(&vwv_app.focusing_record.parent.line, context.temp_allocator)
 	sdl.SetWindowTitle(dd.app.window.window, fmt.ctprintf("vwv - {}", parent_line))
 	dd.dispatch_update()
+	vwv_app.activating_record = r.id
 	bubble_msg("Enter focus mode, press [ESC] to exit.", 2.0)
 }
 

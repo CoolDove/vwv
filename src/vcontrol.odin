@@ -279,6 +279,7 @@ vcontrol_button :: proc(
 			active = 0
 			if inrect {
 				result = true
+				vui._reset(ctx)
 			}
 		}
 	} else {
