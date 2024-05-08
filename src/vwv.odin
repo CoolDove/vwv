@@ -394,15 +394,9 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
 		focus_btn_rect := rect_padding(rect_split_right(record_rect, line_height-2), 0,2,2,2+(record_rect.h-line_height))
 		focus_btn_vid := VUID_BY_RECORD(r, RECORD_ITEM_BUTTON_FOCUS)
 		if vcontrol_button(&vuictx, focus_btn_vid, focus_btn_rect, icon=ICON_FOCUS, order=LAYER_RECORD_CONTENT+100) {
-			vui._reset(&vuictx)
+			vwv_focus_on(r)
 			vwv_app.view_offset_y = 0
 			vwv_app.visual_view_offset_y = rect.y
-			vwv_app.focusing_record = r
-			push_record_operations(RecordOp_ToggleFold{r, false})
-			parent_line := gapbuffer_get_string(&vwv_app.focusing_record.parent.line, context.temp_allocator)
-			sdl.SetWindowTitle(dd.app.window.window, fmt.ctprintf("vwv - {}", parent_line))
-			dd.dispatch_update()
-			bubble_msg("Enter focus mode, press [ESC] to exit.", 2.0)
 		}
 	}
 
@@ -551,8 +545,13 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
 _update_record_keyboard_control :: proc(r: ^VwvRecord) {
 	if r.id == vwv_app.activating_record {
 		if input.get_key_repeat(.F) {
-			push_record_operations(RecordOp_ToggleFold{ r, !r.fold })
-			return
+			if input.get_key(.LCTRL) {
+				vwv_focus_on(r)
+				return
+			} else {
+				push_record_operations(RecordOp_ToggleFold{ r, !r.fold })
+				return
+			}
 		}
 		if input.get_key_up(.RETURN) && input.get_key(.LCTRL) {
 			push_record_operations(RecordOp_AddChild{ r, true })
@@ -655,6 +654,17 @@ vwv_state_enter_edit :: proc(r: ^VwvRecord) {
 	vwv_app.editting_record = r
 	vwv_app.activating_record = r.id
 	dd.dispatch_update()
+}
+
+vwv_focus_on :: proc(r: ^VwvRecord) {
+	if vwv_app.focusing_record == r do return
+	vui._reset(&vuictx)
+	vwv_app.focusing_record = r
+	push_record_operations(RecordOp_ToggleFold{r, false})
+	parent_line := gapbuffer_get_string(&vwv_app.focusing_record.parent.line, context.temp_allocator)
+	sdl.SetWindowTitle(dd.app.window.window, fmt.ctprintf("vwv - {}", parent_line))
+	dd.dispatch_update()
+	bubble_msg("Enter focus mode, press [ESC] to exit.", 2.0)
 }
 
 vwv_mark_save_dirty :: proc() {
