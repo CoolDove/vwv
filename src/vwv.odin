@@ -723,7 +723,12 @@ flush_record_operations :: proc() {
 			record_arrange(record_add_child(op.parent), len(op.parent.children)-1, 0)
 			if op.edit do vwv_state_enter_edit(&op.parent.children[0])
 		case RecordOp_RemoveChild:
-			if op.record != nil && op.record.parent != nil do record_remove_record(op.record)
+			if op.record != nil && op.record.parent != nil {
+				if op.record.id == vwv_app.activating_record {
+					if op.record.parent != nil do vwv_app.activating_record = op.record.parent.id
+				}
+				record_remove_record(op.record)
+			}
 		case RecordOp_Arrange:
 			if op.record != nil && op.from != op.to do record_arrange(op.record, op.from, op.to)
 		case RecordOp_ToggleFold:
