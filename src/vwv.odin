@@ -544,7 +544,7 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
 @(private="file")
 _update_record_keyboard_control :: proc(r: ^VwvRecord) {
 	if r.id == vwv_app.activating_record {
-		if input.get_key_repeat(.F) {
+		if input.get_key_down(.F) || input.get_key_repeat(.F) {
 			if input.get_key(.LCTRL) {
 				vwv_focus_on(r)
 				return
@@ -557,7 +557,13 @@ _update_record_keyboard_control :: proc(r: ^VwvRecord) {
 			push_record_operations(RecordOp_AddChild{ r, true })
 			return
 		}
-		if input.get_key_repeat(.J) {
+		if input.get_key_down(.H) || input.get_key_repeat(.H) {
+			if r.parent != nil {
+				push_record_operations(RecordOp_ActivateRecord{activate_id=r.parent.id})
+				return
+			}
+		}
+		if input.get_key_down(.J) || input.get_key_repeat(.J) {
 			current_record := r
 			if current_record == nil do return
 			if !current_record.fold && len(current_record.children) != 0 {
@@ -576,7 +582,7 @@ _update_record_keyboard_control :: proc(r: ^VwvRecord) {
 					}
 				}
 			}
-		} else if input.get_key_repeat(.K) {
+		} else if input.get_key_down(.K) || input.get_key_repeat(.K) {
 			if r == nil || r.parent == nil || vwv_app.focusing_record == r do return
 			for &cr, idx in r.parent.children {
 				if cr.id == r.id {
@@ -716,6 +722,7 @@ clear_record_operations :: proc() {
 
 flush_record_operations :: proc() {
 	operations := vwv_app.record_operations[:]
+	if len(operations) != 0 do dd.dispatch_update()
 	for o in operations {
 		switch op in o {
 		case RecordOp_AddChild:// The `AddChild` operation adds a child and arrange it to the first.
