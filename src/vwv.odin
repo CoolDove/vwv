@@ -34,7 +34,9 @@ VwvApp :: struct {
 	window_bordered : bool,
 
 	// ** operations
-	record_operations : [dynamic]RecordOperation,
+	record_operations : [dynamic]RecordOperation,// Call push_record_operations to push. Flushed every frame.
+	selecting_records : [dynamic]u64,
+	activating_record : u64,
 
 	// ** time
 	msgbubble : string,
@@ -131,6 +133,7 @@ vwv_init :: proc() {
 	}
 	
 	vwv_app.record_operations = make([dynamic]RecordOperation)
+	vwv_app.selecting_records = make([dynamic]u64)
 
 	vui.init(&vuictx, &pass_main, render.system().default_font)
 	vwv_app._save_dirty = false
@@ -140,12 +143,15 @@ vwv_init :: proc() {
 
 	vwv_app.window_bordered = true
 
+	vwv_app.activating_record = root.id
+
 }
 
 vwv_release :: proc() {
 	strings.builder_destroy(&vwv_app.status_bar_info)
 	vui.release(&vuictx)
 	delete(vwv_app.record_operations)
+	delete(vwv_app.selecting_records)
 	record_release_recursively(&root)
 }
 
@@ -342,8 +348,9 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
 	edit_point, exit_text := vcontrol_edittable_textline(&vuictx, textbox_vid, textbox_rect, LAYER_RECORD_CONTENT+render_layer_offset, &r.line, &vwv_app.text_edit if editting else nil, text_theme)
 
 	if exit_text {
+		log.debugf("exit editting")
 		editting_record := vwv_app.editting_record
-		vwv_state_exit_edit()
+		push_record_operations(RecordOp_ToggleEdit{editting_record, false})
 		// Delete the added record if an empty line is left.
 		if len(editting_record.children) == 0 && gapbuffer_len(&editting_record.line) == 0 do push_record_operations(RecordOp_RemoveChild{editting_record})
 		dd.dispatch_update()
@@ -355,6 +362,12 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
 	card_handle_events := vwv_app.state != .DragRecord || dragging
 	
 	vbegin_record_card(&vuictx)
+
+	if vwv_app.activating_record == r.id {
+		_temp_thickness :Vec2= {2,2}
+		imdraw.quad(&pass_main, rect_position(record_rect)-_temp_thickness, rect_size(record_rect)+2*_temp_thickness, theme.activate_color)
+	}
+
 	if vwv_app.state == .Normal {
 		width, height :f32= 14, 14
 		padding :f32= 2
@@ -403,7 +416,8 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
 				if input.get_key(.LCTRL) {
 					push_record_operations(RecordOp_ToggleFold{r, !r.fold})
 				} else {
-					vwv_state_enter_edit(r)
+					// vwv_state_enter_edit(r)
+					push_record_operations(RecordOp_ToggleEdit{r, true})
 					editting = true
 					dd.dispatch_update()
 				}
@@ -427,6 +441,10 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
 				panic("This shouldn't happen")
 			}
 		}
+	}
+
+	if vwv_app.state == .Normal {
+		_update_record_keyboard_control(r)
 	}
 
 	ArrangeInfo :: struct {
@@ -529,6 +547,63 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
 	}
 }
 
+@(private="file")
+_update_record_keyboard_control :: proc(r: ^VwvRecord) {
+	if r.id == vwv_app.activating_record {
+		if input.get_key_repeat(.F) {
+			push_record_operations(RecordOp_ToggleFold{ r, !r.fold })
+			return
+		}
+		if input.get_key_up(.RETURN) && input.get_key(.LCTRL) {
+			push_record_operations(RecordOp_AddChild{ r, true })
+			return
+		}
+		if input.get_key_repeat(.J) {
+			current_record := r
+			if current_record == nil do return
+			if !current_record.fold && len(current_record.children) != 0 {
+				push_record_operations(RecordOp_ActivateRecord{activate_id=current_record.children[0].id})
+				return
+			}
+			for current_record != nil && current_record.parent != nil {
+				for &cr, idx in current_record.parent.children {
+					if cr.id == current_record.id {
+						if idx == len(current_record.parent.children)-1 {
+							current_record = current_record.parent
+						} else {
+							push_record_operations(RecordOp_ActivateRecord{activate_id=current_record.parent.children[idx+1].id})
+							return
+						}
+					}
+				}
+			}
+		} else if input.get_key_repeat(.K) {
+			if r == nil || r.parent == nil do return
+			for &cr, idx in r.parent.children {
+				if cr.id == r.id {
+					if idx == 0 {
+						if r.parent != nil {
+							push_record_operations(RecordOp_ActivateRecord{activate_id=r.parent.id})
+							return
+						}
+					} else {
+						target := &r.parent.children[idx-1]
+						for len(target.children) != 0 && !target.fold {
+							target = &target.children[len(target.children)-1]
+						}
+						push_record_operations(RecordOp_ActivateRecord{activate_id=target.id})
+						return
+					}
+				}
+			}
+		}
+		if input.get_key_up(.RETURN) {
+			vwv_state_enter_edit(r)
+		}
+	}
+}
+
+
 draw_debug_rect :: proc(r: Rect, col: Color32) {
 	imdraw.quad(&pass_main, rect_position(r), rect_size(r), col)
 }
@@ -564,6 +639,7 @@ vwv_state_exit_drag :: proc(apply:= true) {
 }
 
 vwv_state_exit_edit :: proc() {
+	log.debugf("exit called")
 	assert(vwv_app.state == .Edit, "Should call this when in Edit mode.")
 	vwv_app.state = .Normal
 	vwv_app.editting_record = nil
@@ -577,6 +653,7 @@ vwv_state_enter_edit :: proc(r: ^VwvRecord) {
 	vwv_app.state = .Edit
 	textedit_begin(&vwv_app.text_edit, &r.line, gapbuffer_len(&r.line))
 	vwv_app.editting_record = r
+	vwv_app.activating_record = r.id
 	dd.dispatch_update()
 }
 
@@ -591,6 +668,8 @@ RecordOperation :: union {
 	RecordOp_Arrange,
 	RecordOp_RemoveChild,
 	RecordOp_ToggleFold,
+	RecordOp_ActivateRecord,
+	RecordOp_ToggleEdit,
 }
 
 RecordOp_AddChild :: struct {
@@ -609,6 +688,14 @@ RecordOp_ToggleFold :: struct {
 	fold : bool,
 }
 
+RecordOp_ActivateRecord :: struct {
+	activate_id : u64,
+}
+RecordOp_ToggleEdit :: struct {
+	r : ^VwvRecord,
+	edit : bool,
+}
+
 push_record_operations :: proc(op: RecordOperation) {
 	append(&vwv_app.record_operations, op)
 }
@@ -619,13 +706,11 @@ clear_record_operations :: proc() {
 flush_record_operations :: proc() {
 	operations := vwv_app.record_operations[:]
 	for o in operations {
-		if vwv_app.state == .Edit {
-			vwv_state_exit_edit()
-		}
 		switch op in o {
 		case RecordOp_AddChild:// The `AddChild` operation adds a child and arrange it to the first.
+			if op.parent.fold do record_toggle_fold(op.parent, false)
 			record_arrange(record_add_child(op.parent), len(op.parent.children)-1, 0)
-			vwv_state_enter_edit(&op.parent.children[0])
+			if op.edit do vwv_state_enter_edit(&op.parent.children[0])
 		case RecordOp_RemoveChild:
 			if op.record != nil && op.record.parent != nil do record_remove_record(op.record)
 		case RecordOp_Arrange:
@@ -633,6 +718,11 @@ flush_record_operations :: proc() {
 		case RecordOp_ToggleFold:
 			if op.record != nil do record_toggle_fold(op.record, op.fold)
 			vwv_app.view_offset_y += -theme.record_progress_bar_height if op.fold else theme.record_progress_bar_height
+		case RecordOp_ActivateRecord:
+			vwv_app.activating_record = op.activate_id
+		case RecordOp_ToggleEdit:
+			if op.edit do vwv_state_enter_edit(op.r)
+			else do vwv_state_exit_edit()
 		}
 	}
 	clear_record_operations()

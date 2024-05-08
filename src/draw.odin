@@ -17,6 +17,8 @@ theme : Theme = {
 	indent_width = 18,
 	border_width = 2,
 	record_progress_bar_height = 8,
+	activate_color = {255, 0,0, 255},
+	select_color = {255, 0,0, 255},
 
 	record_open = {
 		normal = {200, 200, 200, 255},
@@ -67,6 +69,8 @@ Theme :: struct {
 	indent_width : f32,
 	border_width : f32,
 	record_progress_bar_height : f32,
+
+	activate_color, select_color : Color32,
 
 	button_default : ButtonTheme,
 

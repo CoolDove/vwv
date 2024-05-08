@@ -354,7 +354,7 @@ vcontrol_edittable_textline :: proc(
 
 		if (!inrect &&
 			(input.get_mouse_button_up(.Left) || input.get_mouse_button_up(.Right))) ||
-			(input.get_key_down(.ESCAPE) || input.get_key_down(.RETURN)) // Click outside// Press ESC or RETURN
+			(input.get_key_up(.ESCAPE) || input.get_key_up(.RETURN)) // Click outside// Press ESC or RETURN
 		{
 			result = true
 			vui._reset(ctx)
@@ -470,7 +470,7 @@ vcontrol_edittable_textline :: proc(
 		// config := dude.TextBroExportConfig{color=ttheme.normal, transform=dude.mat3_trs(text_pos, 15*math.RAD_PER_DEG,1)}
 
 		dude.tbro_write_string(&ttbro, text_line)
-		imdraw.textbro(&pass_main, &ttbro, 0, dude.tbro_length(&ttbro)-1, config, layer)
+		if len(ttbro.elems) != 0 do imdraw.textbro(&pass_main, &ttbro, 0, dude.tbro_length(&ttbro)-1, config, layer)
 		edit_point = {}
 	}
 
