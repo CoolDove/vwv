@@ -557,6 +557,12 @@ _update_record_keyboard_control :: proc(r: ^VwvRecord) {
 			push_record_operations(RecordOp_AddChild{ r, true })
 			return
 		}
+		if (input.get_key_up(.D) && input.get_key(.LCTRL)) || input.get_key_up(.DELETE) {
+			push_record_operations(RecordOp_RemoveChild{ r })
+			return
+		}
+
+
 		if input.get_key_down(.H) || input.get_key_repeat(.H) {
 			if r.parent != nil {
 				push_record_operations(RecordOp_ActivateRecord{activate_id=r.parent.id})
