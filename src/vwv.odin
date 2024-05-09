@@ -419,7 +419,7 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
 				if input.get_key(.LCTRL) {// fold the record
 					push_record_operations(RecordOp_RemoveChild{r})
 				} else {// change record state
-					record_set_state(r, dd.enum_step(VwvRecordState, r.info.state))
+					push_record_operations(RecordOp_SetState{ r, dd.enum_step(VwvRecordState, r.info.state) })
 					dd.dispatch_update()
 				}
 			} else if result == .Drag {
@@ -553,8 +553,17 @@ _update_record_keyboard_control :: proc(r: ^VwvRecord) {
 				return
 			}
 		}
-		if input.get_key_up(.RETURN) && input.get_key(.LCTRL) {
-			push_record_operations(RecordOp_AddChild{ r, true })
+		if input.get_key_up(.RETURN)  {
+			if input.get_key(.LCTRL) {
+				push_record_operations(RecordOp_AddChild{ r, true })
+				return
+			} else if input.get_key(.LSHIFT) {
+			} else {
+				vwv_state_enter_edit(r)
+			}
+		}
+		if input.get_key_up(.A) {
+			push_record_operations(RecordOp_SetState{ r, dd.enum_step(VwvRecordState, r.info.state) })
 			return
 		}
 		if (input.get_key_up(.D) && input.get_key(.LCTRL)) || input.get_key_up(.DELETE) {
@@ -607,9 +616,6 @@ _update_record_keyboard_control :: proc(r: ^VwvRecord) {
 					}
 				}
 			}
-		}
-		if input.get_key_up(.RETURN) {
-			vwv_state_enter_edit(r)
 		}
 	}
 }
@@ -691,6 +697,8 @@ RecordOperation :: union {
 	RecordOp_Arrange,
 	RecordOp_RemoveChild,
 	RecordOp_ToggleFold,
+	RecordOp_SetState,
+
 	RecordOp_ActivateRecord,
 	RecordOp_ToggleEdit,
 }
@@ -709,6 +717,10 @@ RecordOp_Arrange :: struct {
 RecordOp_ToggleFold :: struct {
 	record : ^VwvRecord,
 	fold : bool,
+}
+RecordOp_SetState :: struct {
+	record : ^VwvRecord,
+	state : VwvRecordState,
 }
 
 RecordOp_ActivateRecord :: struct {
@@ -752,6 +764,8 @@ flush_record_operations :: proc() {
 		case RecordOp_ToggleEdit:
 			if op.edit do vwv_state_enter_edit(op.r)
 			else do vwv_state_exit_edit()
+		case RecordOp_SetState:
+			record_set_state(op.record, op.state)
 		}
 	}
 	clear_record_operations()
