@@ -30,8 +30,8 @@ RecordCardController :: struct {
 	clicked_position: dd.Vec2, // Where you pressed down, used to identify a drag.
 }
 
-vbegin_record_card :: proc(using ctx: ^vui.VuiContext) {
-	vui.push_stack(ctx)
+vbegin_record_card :: proc(using ctx: ^vui.VuiContext, record: ^VwvRecord) {
+	vui.push_stack(ctx, cast(i32)record.id, 8, auto_cast LAYER_RECORD_BASE)
 }
 
 vend_record_card :: proc(
@@ -56,7 +56,7 @@ vend_record_card :: proc(
 	if handle_event {
 		controller := vui.get_state(ctx, RecordCardController)
 		if dragging != id && (active == id || active == 0) {
-			vui._handle_hot(ctx, inrect, id, LAYER_RECORD_BASE)
+			vui._handle_hot(ctx, inrect, id, auto_cast LAYER_RECORD_BASE)
 		}
 		if dragging == id {
 			strings.write_string(&vwv_app.status_bar_info, fmt.tprintf("[dragging {}...]", id))
@@ -230,7 +230,7 @@ vcontrol_checkbox :: proc(
 	push_rect(ctx, rect)
 	pressed := false
 	if active == id || active == 0 {
-		vui._handle_hot(ctx, inrect, id, order)
+		vui._handle_hot(ctx, inrect, id, auto_cast order)
 	}
 	if active == id {
 		if input.get_mouse_button_up(.Left) {
@@ -272,7 +272,7 @@ vcontrol_button :: proc(
 	vui.push_rect(ctx, rect)
 
 	if active == id || active == 0 {
-		vui._handle_hot(ctx, inrect, id, order)
+		vui._handle_hot(ctx, inrect, id, auto_cast order)
 	}
 	if active == id {
 		if input.get_mouse_button_up(.Left) {
@@ -309,7 +309,7 @@ vcontrol_panel :: proc(using ctx: ^vui.VuiContext, id: VID, rect: Rect, order :=
 	result := false
 	vui.push_rect(ctx, rect)
 	if active == id || active == 0 {
-		vui._handle_hot(ctx, inrect, id, order)
+		vui._handle_hot(ctx, inrect, id, auto_cast order)
 	}
 	if active == id {
 		if input.get_mouse_button_up(.Left) {
@@ -351,7 +351,7 @@ vcontrol_edittable_textline :: proc(
 		if edit.buffer != buffer do textedit_begin(edit, buffer, gapbuffer_len(buffer))
 
 		active = id
-		vui._handle_hot(ctx, inrect, id, layer)
+		vui._handle_hot(ctx, inrect, id, auto_cast layer)
 
 		if (!inrect &&
 			(input.get_mouse_button_up(.Left) || input.get_mouse_button_up(.Right))) ||

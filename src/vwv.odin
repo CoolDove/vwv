@@ -120,16 +120,24 @@ vwv_init :: proc() {
 			ra1 := record_add_child(ra)
 			ra2 := record_add_child(ra)
 			ra3 := record_add_child(ra)
-
 		rb := record_add_child(&root)
+            rb0 := record_add_child(rb)
+            rb1 := record_add_child(rb)
+            rb2 := record_add_child(rb)
+		rc := record_add_child(&root)
 
 		record_set_line(ra, "Hello, this is VWV, a simple todo tool.")
-			record_set_line(ra0, "Press the '+' button to add a record.")
+			record_set_line(ra0, "Click the '+' button to add a record.")
 			record_set_line(ra1, "Press LCtrl+LMB to fold/unfold a record.")
 			record_set_line(ra2, "Press LCtrl+RMB to delete a record.")
 			record_set_line(ra3, "Press RMB to change the state.")
-		record_set_line(rb, "Enjoy yourself.")
-		record_set_state(rb, .Done)
+		record_set_line(rb, "Keyboard operations")
+			record_set_line(rb0, "[J]:move down, [K]:move up, [H]:move to the parent")
+			record_set_line(rb1, "[A]:switch state, [F]:toggle fold, [Ctrl-F]:focus, [Esc]:exit focus/edit mode")
+			record_set_line(rb2, "[Enter]:edit, [Ctrl-Enter]:add a child, [Ctrl-D]:delete")
+
+		record_set_line(rc, "The End")
+		record_set_state(rc, .Done)
 	}
 	
 	vwv_app.record_operations = make([dynamic]RecordOperation)
@@ -361,7 +369,7 @@ vwv_record_update :: proc(r: ^VwvRecord, rect: ^Rect, depth :f32= 0, sibling_idx
 
 	card_handle_events := vwv_app.state != .DragRecord || dragging
 	
-	vbegin_record_card(&vuictx)
+	vbegin_record_card(&vuictx, r)
 
 	if vwv_app.activating_record == r.id {
 		_temp_thickness :Vec2= {2,2}
