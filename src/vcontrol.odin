@@ -226,6 +226,9 @@ vcontrol_checkbox :: proc(
 	btntheme := theme.button_default,
 ) -> bool {
 	using vui
+	id := vui.get_real_id(ctx, auto_cast id)
+	order := vui.get_real_layer(ctx, auto_cast order)
+
 	inrect := rect_in(rect, input.get_mouse_position())
 	push_rect(ctx, rect)
 	pressed := false
@@ -250,10 +253,10 @@ vcontrol_checkbox :: proc(
 	else if hot == id do col = btntheme.hover
 
 	if icon != {} {
-		imdraw.quad(pass, {rect.x, rect.y}, {rect.w, rect.h}, col, texture = ICON_TEXTURE.id, order = order, uv_min=rect_position(auto_cast icon), uv_max=rect_max(auto_cast icon))
-		imdraw.quad(pass, {rect.x+2, rect.y+2}, {rect.w, rect.h}, {0,0,0,32}, texture = ICON_TEXTURE.id, order = order-1, uv_min=rect_position(auto_cast icon), uv_max=rect_max(auto_cast icon))
+		imdraw.quad(pass, {rect.x, rect.y}, {rect.w, rect.h}, col, texture = ICON_TEXTURE.id, order = auto_cast order, uv_min=rect_position(auto_cast icon), uv_max=rect_max(auto_cast icon))
+		imdraw.quad(pass, {rect.x+2, rect.y+2}, {rect.w, rect.h}, {0,0,0,32}, texture = ICON_TEXTURE.id, order = auto_cast order-1, uv_min=rect_position(auto_cast icon), uv_max=rect_max(auto_cast icon))
 	} else {
-		imdraw.quad(pass, {rect.x, rect.y}, {rect.w, rect.h}, col, order = order)
+		imdraw.quad(pass, {rect.x, rect.y}, {rect.w, rect.h}, col, order = auto_cast order)
 	}
 
 	return !value if pressed else value
@@ -267,6 +270,9 @@ vcontrol_button :: proc(
 	icon : Icon={},
 	btntheme := theme.button_default,
 ) -> bool {
+	id := vui.get_real_id(ctx, auto_cast id)
+	order := vui.get_real_layer(ctx, auto_cast order)
+
 	inrect := rect_in(rect, input.get_mouse_position())
 	result := false
 	vui.push_rect(ctx, rect)
@@ -293,10 +299,10 @@ vcontrol_button :: proc(
 	if active == id do col = btntheme.active
 
 	if icon != {} {
-		imdraw.quad(pass, {rect.x, rect.y}, {rect.w, rect.h}, col, texture = ICON_TEXTURE.id, order = order, uv_min=rect_position(auto_cast icon), uv_max=rect_max(auto_cast icon))
-		imdraw.quad(pass, {rect.x+2, rect.y+2}, {rect.w, rect.h}, {0,0,0,32}, texture = ICON_TEXTURE.id, order = order-1, uv_min=rect_position(auto_cast icon), uv_max=rect_max(auto_cast icon))
+		imdraw.quad(pass, {rect.x, rect.y}, {rect.w, rect.h}, col, texture = ICON_TEXTURE.id, order = auto_cast order, uv_min=rect_position(auto_cast icon), uv_max=rect_max(auto_cast icon))
+		imdraw.quad(pass, {rect.x+2, rect.y+2}, {rect.w, rect.h}, {0,0,0,32}, texture = ICON_TEXTURE.id, order = auto_cast order-1, uv_min=rect_position(auto_cast icon), uv_max=rect_max(auto_cast icon))
 	} else {
-		imdraw.quad(pass, {rect.x, rect.y}, {rect.w, rect.h}, col, order = order)
+		imdraw.quad(pass, {rect.x, rect.y}, {rect.w, rect.h}, col, order = auto_cast order)
 	}
 
 	return result
@@ -305,6 +311,9 @@ vcontrol_button :: proc(
 // An invisible empty ui contorl. To block interactions to other controls.
 // Acts like a button, but does nothing.
 vcontrol_panel :: proc(using ctx: ^vui.VuiContext, id: VID, rect: Rect, order := LAYER_MAIN) {
+	id := vui.get_real_id(ctx, auto_cast id)
+	order := vui.get_real_layer(ctx, auto_cast order)
+
 	inrect := rect_in(rect, input.get_mouse_position())
 	result := false
 	vui.push_rect(ctx, rect)
@@ -341,6 +350,8 @@ vcontrol_edittable_textline :: proc(
 	exit: bool,
 ) {
 	using vui
+	id := vui.get_real_id(ctx, auto_cast id)
+	order := vui.get_real_layer(ctx, auto_cast layer)
 
 	inrect := rect_in(rect, input.get_mouse_position())
 	result := false
