@@ -1,6 +1,6 @@
 package vui
 
-import "core:runtime"
+import "base:runtime"
 import "core:fmt"
 import "core:sort"
 import "core:strings"

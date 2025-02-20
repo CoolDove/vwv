@@ -34,7 +34,7 @@ save :: proc(to_clipboard:= false) {
     _dump(&dumped, &root)
     opt : json.Marshal_Options
 	opt.pretty = true
-    opt.spec = .Bitsquid
+    opt.spec = .JSON5
     data, _ := json.marshal(dumped, opt); defer delete(data)
 
 	if !to_clipboard {
@@ -61,7 +61,7 @@ load :: proc() {// The root record is initialized before this.
     log.debugf("read path: {}", path)
     data, _ := os.read_entire_file(path); defer delete(data)
     buffer : []RecordStorage
-    json.unmarshal(data, &buffer, .Bitsquid)
+    json.unmarshal(data, &buffer, .JSON5)
     ptr := 0
     _apply(buffer, &ptr, &root)
 

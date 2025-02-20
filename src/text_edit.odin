@@ -1,6 +1,6 @@
 package main
 
-import "core:runtime"
+import "base:runtime"
 import "core:strings"
 import "core:unicode/utf8"
 import "core:mem"

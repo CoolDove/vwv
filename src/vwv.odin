@@ -1,7 +1,7 @@
 package main
 
 import "core:fmt"
-import "core:runtime"
+import "base:runtime"
 import "core:strings"
 import "core:unicode/utf8"
 import "core:log"
