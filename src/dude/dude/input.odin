@@ -157,11 +157,11 @@ input_release :: proc() {
     strings.builder_destroy(&input.strbuffer_editting)
 }
 
-@private
+// @private
 input_before_update :: proc() {
 }
 
-@private
+// @private
 input_after_update :: proc() {
     for &state in input.keys {
         if state.pressed_prev != state.pressed do state.pressed_prev = state.pressed
@@ -193,7 +193,6 @@ InputHandleResult :: enum u32 {
     TextEdit = 1<<6
 }
 
-@private
 input_handle_sdl2 :: proc(event: sdl.Event) -> InputHandleResult {
     input.input_handle_result = .None
     result : InputHandleResult

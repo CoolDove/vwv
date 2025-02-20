@@ -23,6 +23,8 @@ root : VwvRecord
 
 DEBUG_VWV : bool
 
+pass_main : render.Pass
+
 VwvApp :: struct {
 	// ** basic
 	view_offset_y : f32,
