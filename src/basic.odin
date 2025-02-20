@@ -14,7 +14,7 @@ import win32 "core:sys/windows"
 
 // import sdl "vendor:sdl3"
 import gl "vendor:OpenGL"
-import "dude/dude/dgl"
+import "dgl"
 
 OPENGL_VERSION_MAJOR :: 4
 OPENGL_VERSION_MINOR :: 4
@@ -117,18 +117,15 @@ window_init :: proc() {
 
 wndproc :: proc "system" (hwnd: win32.HWND, msg: win32.UINT, wparam: win32.WPARAM, lparam: win32.LPARAM) -> win32.LRESULT {
 	context = runtime.default_context()
-	fmt.printf("receiving messages {}\n", msg)
 	switch(msg) {
+	case win32.WM_SIZE:
+		window_size = {auto_cast win32.LOWORD(lparam), auto_cast win32.HIWORD(lparam)}
 	case win32.WM_ERASEBKGND:
 		return 1 // paint should fill out the client area so no need to erase the background
 	case win32.WM_PAINT:
 	case win32.WM_DESTROY:
 		win32.PostQuitMessage(0)
 	case win32.WM_KEYFIRST:
-		if wparam == win32.VK_A {
-			frozen = !frozen
-			fmt.printf("toggle froze: {}\n", frozen)
-		}
 	}
 	return win32.DefWindowProcW(hwnd, msg, wparam, lparam)
 }

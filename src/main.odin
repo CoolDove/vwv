@@ -9,17 +9,23 @@ import "core:c"
 import "core:reflect"
 import "core:strings"
 import "core:math/linalg"
+import "core:math/linalg/glsl"
 import "core:math"
 import "core:mem"
 import win32 "core:sys/windows"
 
 import "vendor:glfw"
 import gl "vendor:OpenGL"
+import rl "vendor:raylib"
 
-import "dude/dude/dgl"
+import "dgl"
 
-// REPAC_ASSETS :: false
 DEFAULT_WINDOW_TITLE :: "vwv - simple tool for simple soul"
+
+window_size : [2]i32
+
+VERTEX_FORMAT_P3U2C4 :: dgl.VertexFormat{ 3,2,4, 0,0,0,0,0 } // 9
+VERTEX_FORMAT_VWV    :: VERTEX_FORMAT_P3U2C4
 
 main :: proc() {
 	tracking_allocator : mem.Tracking_Allocator
@@ -42,124 +48,54 @@ main :: proc() {
 	defer log.destroy_console_logger(logger)
 
 	window_init()
+	dgl.init()
 
 	timer : time.Stopwatch
 	time.stopwatch_start(&timer)
 
-	froze_draw := false
+	mb : dgl.MeshBuilder
+	dgl.mesh_builder_init(&mb, VERTEX_FORMAT_VWV)
+	defer dgl.mesh_builder_release(&mb)
+
+	dgl.mesh_builder_add_vertices(&mb,
+		{ 0,0,0,    0,0,  1,0,0,1 },
+		{ 300,0,0,  0,0,  0,1,0,1 },
+		{ 0,400,0,   0,0,  0,0,1,1 },
+	)
+	dgl.mesh_builder_add_indices(&mb, 0, 1, 2)
+
+	triangle := dgl.mesh_builder_create(mb)
+
+	shader := dgl.shader_load_from_sources(#load("../res/default.vert"), #load("../res/default.frag"))
+	uniform_mvp :dgl.UniformLocMat4x4= dgl.uniform_get_location(shader, "mvp")
+	uniform_texture0 :dgl.UniformLocTexture= dgl.uniform_get_location(shader, "texture0")
+
+	white := dgl.texture_create_with_color(1,1, {255,255,255,255})
+
 
 	msg: win32.MSG
 	for {
-		if frozen || win32.PeekMessageW(&msg, nil, 0,0, win32.PM_REMOVE) {
+		if win32.PeekMessageW(&msg, nil, 0,0, win32.PM_REMOVE) {
 			if msg.message == win32.WM_QUIT { break }
 			win32.TranslateMessage(&msg)
 			win32.DispatchMessageW(&msg)
 		} else {
 			s := time.duration_seconds(time.stopwatch_duration(timer))
-			gl.ClearColor(0.2, 0.2, auto_cast math.sin(s)*0.5+0.5, 1) // Pink: 0.9, 0.2, 0.8
+			w, h :f32= auto_cast window_size.x, auto_cast window_size.y
+
+			gl.Viewport(0,0, auto_cast w, auto_cast h)
+			gl.ClearColor(0.2, 0.2, auto_cast math.sin(s)*0.5+0.5, 1)
 			gl.Clear(gl.COLOR_BUFFER_BIT)
+
+			mat := glsl.mat4Scale({1.0/w, 1.0/h, 0}) * glsl.mat4Translate({-0.5,-0.5, 0}) * glsl.mat4Scale({2,2,0})
+
+			dgl.shader_bind(shader)
+			dgl.uniform_set_mat4x4(uniform_mvp, glsl.mat4Ortho3d(0,w, h,0, -1,1))
+			dgl.uniform_set_texture(uniform_texture0, white, 0)
+			dgl.draw_mesh(triangle)
 
 			win32.SwapBuffers(win32.GetDC(hwnd))
 		}
-		if frozen {
-			win32.GetMessageW(&msg, nil, 0, 0)
-		}
 	}
-
-	// window_init(DEFAULT_WINDOW_TITLE, 400, 860)
-	// dgl.init()
-
-	// for !glfw.WindowShouldClose(window) {
-	//	   glfw.WaitEvents()
-	//	   // Note: glfw.PollEvents will block on Windows during window resize, hence
-	//	// strange rendering occurs during resize. To keep this example simple, we
-	//	   // will not fix this here. A partial solution is found in Rainbow-Triangle
-	//	   // and subsequent examples.
-
-	//	   // Create oscillating value (osl).
-	//	   
-	//	   // Clear screen with color.
-	//	   gl.ClearColor(0.9, 0.2, 0.8, 1) // Pink: 0.9, 0.2, 0.8
-	//	   gl.Clear(gl.COLOR_BUFFER_BIT)
-	//	   
-	//	   // Render screen with background color.
-	//	   glfw.SwapBuffers(window)
-	// }
-
-	// dgl.release()
-	// window_destroy()
+	dgl.release()
 }
-frozen := false
-
-
-// _dispatch_update := false
-// _during_update := false
-
-// _handle_event :: proc(window: ^sdl.Window, event: sdl.Event, window_close: ^bool) {
-//	log.debugf("handle event: {}", event.type)
-//	if event.type == .WINDOWEVENT {
-//		log.debugf("\thandle window event: {}", event.window.event)
-//		if event.window.event == .CLOSE {
-//			log.debugf("quit")
-//			window_close^ = true
-//		}
-//	   } else {
-//		   // input_handle_sdl2(event)
-//	   }
-//	   // if window.handler != nil {
-//	   //	  window.handler(window, event)
-//	   // }
-// }
-
-// @(private="file")
-// update :: proc(game: ^dd.Game, delta: f32) {
-//	   using dd, vwv_app
-//	   vwv_app._frame_id += 1
-// 
-//	   viewport := app.window.size
-//	   pass_main.viewport = Vec4i{0,0, viewport.x, viewport.y}
-//	   pass_main.camera.viewport = vec_i2f(viewport)
-// 
-//	   vwv_update()
-// }
-// 
-// 
-// @(private="file")
-// init :: proc(game: ^dude.Game) {
-//	   append(&game.render_pass, &pass_main)
-// 
-//	   using dd
-//	   // Pass initialization
-//	   wndx, wndy := app.window.size.x, app.window.size.y
-//	   render.pass_init(&pass_main, {0,0, wndx, wndy})
-//	   pass_main.clear.color = {.2,.2,.2, 1}
-//	   pass_main.clear.mask = {.Color,.Depth,.Stencil}
-//	   blend := &pass_main.blend.(dgl.GlStateBlendSimp)
-//	   blend.enable = true
-// 
-//	   vwv_init()
-//	   dude.timer_check("Vwv Fully Inited")
-// }
-// 
-// @(private="file")
-// release :: proc(game: ^dd.Game) {
-//	   dude.timer_check("Vwv start release")
-//	   vwv_release()
-// 
-//	   render.pass_release(&pass_main)
-//	   dude.timer_check("Vwv released")
-// }
-// 
-// @(private="file")
-// on_mui :: proc(ctx: ^mui.Context) {
-// }
-// 
-// @(private="file")
-// vwv_window_handler :: proc(using wnd: ^dd.Window, event:sdl.Event) {
-//	   if event.window.event == .RESIZED {
-//		   dd.dispatch_update()
-//	   }
-//	   if input.get_input_handle_result() != .None {
-//		   dd.dispatch_update()
-//	   }
-// }
