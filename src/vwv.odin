@@ -65,6 +65,10 @@ update :: proc() {
 	}
 
 	end_draw()
-	win32.SwapBuffers(win32.GetDC(hwnd))
+	if dc == {} do dc = win32.GetDC(hwnd)
+	if dc != {} {
+		fmt.printf("dc: {}\n", dc)
+		win32.SwapBuffers(dc)
+	}
 	free_all(context.temp_allocator)
 }

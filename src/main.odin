@@ -40,24 +40,24 @@ frame_timer : time.Stopwatch
 the_context : runtime.Context
 
 main :: proc() {
-	// tracking_allocator : mem.Tracking_Allocator
-	// mem.tracking_allocator_init(&tracking_allocator, context.allocator)
-	// context.allocator = mem.tracking_allocator(&tracking_allocator)
-	// reset_tracking_allocator :: proc(a: ^mem.Tracking_Allocator) -> bool {
-	// 	fmt.printf("\nMemory leak report:\n")
-	// 	leaks := false
-	// 	for key, value in a.allocation_map {
-	// 	   fmt.printf("%v: Leaked %v bytes\n", value.location, value.size)
-	// 	   leaks = true
-	// 	}
-	// 	mem.tracking_allocator_clear(a)
-	// 	return leaks
-	// }
-	// defer reset_tracking_allocator(&tracking_allocator)
+	tracking_allocator : mem.Tracking_Allocator
+	mem.tracking_allocator_init(&tracking_allocator, context.allocator)
+	context.allocator = mem.tracking_allocator(&tracking_allocator)
+	reset_tracking_allocator :: proc(a: ^mem.Tracking_Allocator) -> bool {
+		fmt.printf("\nMemory leak report:\n")
+		leaks := false
+		for key, value in a.allocation_map {
+		   fmt.printf("%v: Leaked %v bytes\n", value.location, value.size)
+		   leaks = true
+		}
+		mem.tracking_allocator_clear(a)
+		return leaks
+	}
+	defer reset_tracking_allocator(&tracking_allocator)
 
-	// logger := log.create_console_logger()
-	// context.logger = logger
-	// defer log.destroy_console_logger(logger)
+	logger := log.create_console_logger()
+	context.logger = logger
+	defer log.destroy_console_logger(logger)
 
 	// hotv = hotvalue.init("hotvalues")
 

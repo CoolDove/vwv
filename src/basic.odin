@@ -24,6 +24,8 @@ window : glfw.WindowHandle
 
 hwnd : win32.HWND
 
+dc : win32.HDC
+
 @(private="file")
 _opengl_ready := false
 
@@ -127,12 +129,14 @@ wndproc :: proc "system" (hwnd: win32.HWND, msg: win32.UINT, wparam: win32.WPARA
 	case win32.WM_EXITSIZEMOVE:
 		// fmt.printf("Exit sizemove\n")
 	case win32.WM_SIZING:
+		update()
 		// log.debugf("MSG size")
 		// update()
 	case win32.WM_PAINT:
 	case win32.WM_SIZE:
 		// window_size = {auto_cast win32.LOWORD(lparam), auto_cast win32.HIWORD(lparam)}
 	case win32.WM_DESTROY:
+		win32.ReleaseDC(hwnd, dc)
 		win32.PostQuitMessage(0)
 	}
 	return win32.DefWindowProcW(hwnd, msg, wparam, lparam)
