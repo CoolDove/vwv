@@ -71,7 +71,7 @@ main :: proc() {
 	uniform_texture0 :dgl.UniformLocTexture= dgl.uniform_get_location(shader, "texture0")
 
 	white := dgl.texture_create_with_color(1,1, {255,255,255,255})
-
+	init_draw()
 
 	msg: win32.MSG
 	for {
@@ -81,21 +81,17 @@ main :: proc() {
 			win32.DispatchMessageW(&msg)
 		} else {
 			s := time.duration_seconds(time.stopwatch_duration(timer))
-			w, h :f32= auto_cast window_size.x, auto_cast window_size.y
+			begin_draw({0,0, window_size.x, window_size.y})
+			dgl.framebuffer_clear({.Color}, {0,0,0,1})
 
-			gl.Viewport(0,0, auto_cast w, auto_cast h)
-			gl.ClearColor(0.2, 0.2, auto_cast math.sin(s)*0.5+0.5, 1)
-			gl.Clear(gl.COLOR_BUFFER_BIT)
+			draw_rect({20,20, 120, 120}, {255, 255, 0, 255})
+			draw_rect({120,60, 120, 60}, {255, 0, 0, 128})
 
-			mat := glsl.mat4Scale({1.0/w, 1.0/h, 0}) * glsl.mat4Translate({-0.5,-0.5, 0}) * glsl.mat4Scale({2,2,0})
-
-			dgl.shader_bind(shader)
-			dgl.uniform_set_mat4x4(uniform_mvp, glsl.mat4Ortho3d(0,w, h,0, -1,1))
-			dgl.uniform_set_texture(uniform_texture0, white, 0)
-			dgl.draw_mesh(triangle)
-
+			end_draw()
 			win32.SwapBuffers(win32.GetDC(hwnd))
 		}
 	}
+	destroy_draw()
+
 	dgl.release()
 }

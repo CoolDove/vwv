@@ -13,6 +13,7 @@ VERTEX_MAX_CHANNEL :: 8
 VERTEX_FORMAT_P2U2 :: VertexFormat{ 2,2, 0,0,0,0,0,0 } // 4
 VERTEX_FORMAT_P2U2C4 :: VertexFormat{ 2,2,4, 0,0,0,0,0 } // 8
 VERTEX_FORMAT_P3U2N3 :: VertexFormat{ 3,2,3, 0,0,0,0,0 } // 8
+VERTEX_FORMAT_P3U2C4 :: VertexFormat{ 3,2,4, 0,0,0,0,0 } // 9
 
 Mesh :: struct {
     vao, vertex_buffer, index_buffer : u32,

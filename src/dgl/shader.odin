@@ -21,6 +21,10 @@ ShaderComponent :: struct {
     type : ShaderType,
 }
 
+ShaderU :: struct {
+}
+
+
 shader_create_component :: proc (type : ShaderType, source : string) -> ShaderComponent {
     shader: ShaderComponent
 

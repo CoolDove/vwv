@@ -82,10 +82,28 @@ set_vertex_format_PCNU :: proc(shader: u32) {
 Vec2 :: linalg.Vector2f32
 Vec3 :: linalg.Vector3f32
 Vec4 :: linalg.Vector4f32
+Rect :: struct {
+	x,y, w,h : f32
+}
 
 Vec2i :: distinct [2]i32
 Vec3i :: distinct [3]i32
 Vec4i :: distinct [4]i32
+
+Color4u8 :: distinct [4]u8
+
+col_u2f :: proc(color : Color4u8) -> Vec4 {
+    return {(cast(f32)color.x)/255.0, (cast(f32)color.y)/255.0, (cast(f32)color.z)/255.0, (cast(f32)color.w)/255.0}
+}
+col_f2u :: proc(color : Vec4) -> Color4u8 {
+    return {cast(u8)(color.x*255.0), cast(u8)(color.y*255.0), cast(u8)(color.z*255.0), cast(u8)(color.w*255.0)}
+}
+col_i2u :: proc(color: u32) -> Color4u8 {
+    return transmute(Color4u8)color
+}
+col_i2f :: proc(color: u32) -> Vec4 {
+    return col_u2f(transmute(Color4u8)color)
+}
 
 // VertexTypes :: bit_set[VertexType]
 
@@ -105,3 +123,4 @@ VertexPCNU :: struct {
     normal   : Vec3,
     uv       : Vec2,
 }
+

@@ -22,8 +22,6 @@ Texture :: struct {
 
 TextureId :: u32
 
-Color32 :: distinct [4]u8
-
 TextureType :: enum {
 	RGBA, Red,
 }
@@ -122,7 +120,7 @@ texture_create_empty :: proc(width, height : i32, type :TextureType= .RGBA) -> T
 	texture_update_current(width, height, {}, type)
 	return tex
 }
-texture_create_with_color :: proc(width, height : int, color : Color32, gen_mipmap := false) -> TextureId {
+texture_create_with_color :: proc(width, height : int, color : Color4u8, gen_mipmap := false) -> TextureId {
 	tex : u32
 	gl.GenTextures(1, &tex)
 	gl.BindTexture(gl.TEXTURE_2D, tex)
@@ -133,7 +131,7 @@ texture_create_with_color :: proc(width, height : int, color : Color32, gen_mipm
 	gl.TexParameteri(target, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
 	gl.TexParameteri(target, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
 
-	data := make([dynamic]Color32, 0, width * height); defer delete(data)
+	data := make([dynamic]Color4u8, 0, width * height); defer delete(data)
 	for i := 0; i < width * height; i += 1 {
 		append(&data, color)
 	}
@@ -200,6 +198,10 @@ texture_update_current :: #force_inline proc(w,h : i32, buffer: []u8, type: Text
 	}
 }
 
-texture_delete :: proc(id: ^u32) {
+texture_destroy :: proc(id: TextureId) {
+	id := id
+	gl.DeleteTextures(1, &id)
+}
+texture_destroy_multiple :: proc(id: [^]TextureId) {
 	gl.DeleteTextures(1, id)
 }
