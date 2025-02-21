@@ -121,8 +121,15 @@ wndproc :: proc "system" (hwnd: win32.HWND, msg: win32.UINT, wparam: win32.WPARA
 	switch(msg) {
 	case win32.WM_SETFOCUS:
 		hotvalue.update(&hotv)
+	case win32.WM_ENTERSIZEMOVE:
+		// fmt.printf("Enter sizemove\n")
+	case win32.WM_EXITSIZEMOVE:
+		// fmt.printf("Exit sizemove\n")
+	case win32.WM_SIZING:
+		update()
+	case win32.WM_PAINT:
 	case win32.WM_SIZE:
-		window_size = {auto_cast win32.LOWORD(lparam), auto_cast win32.HIWORD(lparam)}
+		// window_size = {auto_cast win32.LOWORD(lparam), auto_cast win32.HIWORD(lparam)}
 	case win32.WM_DESTROY:
 		win32.PostQuitMessage(0)
 	}

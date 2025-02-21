@@ -30,6 +30,12 @@ VERTEX_FORMAT_VWV    :: VERTEX_FORMAT_P3U2C4
 
 hotv : hotvalue.HotValues
 
+font_fallback : int
+font_default : int
+
+timer : time.Stopwatch
+frame_timer : time.Stopwatch
+
 main :: proc() {
 	tracking_allocator : mem.Tracking_Allocator
 	mem.tracking_allocator_init(&tracking_allocator, context.allocator)
@@ -55,19 +61,15 @@ main :: proc() {
 	window_init("VWV - new version", 400, 600)
 	dgl.init()
 
-	timer : time.Stopwatch
 	time.stopwatch_start(&timer); defer time.stopwatch_stop(&timer)
-
-	frame_timer : time.Stopwatch
 	time.stopwatch_start(&frame_timer); defer time.stopwatch_stop(&frame_timer)
 
-	white := dgl.texture_create_with_color(1,1, {255,255,255,255})
 	init_draw()
 	fontstash_init()
 
-	font_default := fontstash.AddFontPath(&fsctx.fs, "default", "C:/Windows/Fonts/bookos.ttf")
-
-	heart := dgl.texture_load("./res/heart-break.png"); defer dgl.texture_destroy(heart)
+	font_fallback = fontstash.AddFontPath(&fsctx.fs, "fallback", "C:/Windows/Fonts/fzytk.ttf")
+	font_default = fontstash.AddFontPath(&fsctx.fs, "default", "C:/Windows/Fonts/bookos.ttf")
+	fontstash.AddFallbackFont(&fsctx.fs, font_default, font_fallback)
 
 	msg: win32.MSG
 
@@ -76,30 +78,7 @@ main :: proc() {
 		win32.DispatchMessageW(&msg)
 
 		if !win32.PeekMessageW(&msg, nil, 0, 0, win32.PM_NOREMOVE) {
-			delta_ms := time.duration_milliseconds(time.stopwatch_duration(frame_timer))
-			if delta_ms < 1000/60 do continue
-			time.stopwatch_reset(&frame_timer)
-			time.stopwatch_start(&frame_timer)
-			// the real update
-
-			begin_draw({0,0, window_size.x, window_size.y})
-			dgl.framebuffer_clear({.Color}, {0,0,0,1})
-
-			draw_rect({20,20, 120,120}, dgl.YELLOW)
-			draw_texture_ex(heart, {0,0,auto_cast heart.size.x, auto_cast heart.size.y}, {10,10, 60,60}, tint={255,255,255,255})
-
-			draw_text(font_default, "Hello, Dove\ntest auto wrap with a very looong line.",
-				{22,22}, 42, {0,0,0, 128}, overflow_width= 200)
-			draw_text(font_default, "Hello, Dove\ntest auto wrap with a very looong line.",
-				{20,20}, 42, dgl.CYAN, overflow_width= 200)
-
-			draw_rect({5,40, 120,60}, {255,0,0, hotv->u8("alpha")})
-
-			draw_text(font_default, fmt.tprintf("delta ms: {:.2f}", delta_ms), {0,0}, 38, dgl.GREEN)
-
-			end_draw()
-			win32.SwapBuffers(win32.GetDC(hwnd))
-			free_all(context.temp_allocator)
+			update()
 		}
 	}
 
@@ -109,4 +88,43 @@ main :: proc() {
 	dgl.release()
 
 	hotvalue.release(&hotv)
+}
+
+update :: proc() {
+	client_rect : win32.RECT
+	win32.GetClientRect(hwnd, &client_rect)
+	window_size = {client_rect.right, client_rect.bottom}
+
+	delta_ms := time.duration_milliseconds(time.stopwatch_duration(frame_timer))
+	if delta_ms < 1000/60 do return
+
+	time.stopwatch_reset(&frame_timer)
+	time.stopwatch_start(&frame_timer)
+
+	begin_draw({0,0, window_size.x, window_size.y})
+	dgl.framebuffer_clear({.Color}, {0,0,0,1})
+
+	draw_rect({20,20, 120,120}, dgl.DARK_GRAY)
+
+	atlas_size := dgl.vec_i2f(fsctx.atlas.size)
+	draw_texture_ex(fsctx.atlas,
+		{0,0, atlas_size.x, atlas_size.y},
+		{0,0, auto_cast window_size.x, (cast(f32)window_size.x/atlas_size.x)*cast(f32)fsctx.atlas.size.y},
+		tint= {255,255,255, 64}
+	)
+
+	draw_text(font_default, "Hello, Dove\ntest auto wrap with a very looong line.",
+		{2,22}, 42, {0,0,0, 128}, overflow_width= auto_cast window_size.x)
+	draw_text(font_default, "Hello, Dove\ntest auto wrap with a very looong line.",
+		{0,20}, 42, dgl.CYAN, overflow_width= auto_cast window_size.x)
+
+	draw_rect({5,40, 120,60}, {60,42,20, hotv->u8("alpha")})
+
+	draw_text(font_default, fmt.tprintf("delta ms: {:.2f}", delta_ms), {0,0}, 38, dgl.GREEN)
+	draw_text(font_default, fmt.tprintf("窗口大小: {}", window_size), {0, 42}, 38, dgl.GREEN)
+
+
+	end_draw()
+	win32.SwapBuffers(win32.GetDC(hwnd))
+	free_all(context.temp_allocator)
 }

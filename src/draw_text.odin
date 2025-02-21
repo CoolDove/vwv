@@ -43,7 +43,6 @@ draw_text :: proc(fontid: int, text: string, position: dgl.Vec2, size: f32, colo
 		w, h := cast(f32)fsctx.atlas.size.x, cast(f32)fsctx.atlas.size.y
 		if !newline {
 			using q
-			// rl.DrawTexturePro(fsctx.atlas, {s0*w, t0*h, (s1-s0)*w, (t1-t0)*h}, {x0+position.x, y0+position.y, x1-x0, y1-y0}, {0,0}, 0, color)
 			draw_texture_ex(fsctx.atlas, {s0*w, t0*h, (s1-s0)*w, (t1-t0)*h}, {x0+position.x, y0+position.y, x1-x0, y1-y0}, {0,0}, 0, color)
 		}
 	}
