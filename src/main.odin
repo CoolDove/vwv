@@ -30,7 +30,6 @@ VERTEX_FORMAT_VWV    :: VERTEX_FORMAT_P3U2C4
 
 hotv : hotvalue.HotValues
 
-
 main :: proc() {
 	tracking_allocator : mem.Tracking_Allocator
 	mem.tracking_allocator_init(&tracking_allocator, context.allocator)
@@ -53,28 +52,14 @@ main :: proc() {
 
 	hotv = hotvalue.init("hotvalues")
 
-	window_init()
+	window_init("VWV - new version", 400, 600)
 	dgl.init()
 
 	timer : time.Stopwatch
-	time.stopwatch_start(&timer)
+	time.stopwatch_start(&timer); defer time.stopwatch_stop(&timer)
 
-	mb : dgl.MeshBuilder
-	dgl.mesh_builder_init(&mb, VERTEX_FORMAT_VWV)
-	defer dgl.mesh_builder_release(&mb)
-
-	dgl.mesh_builder_add_vertices(&mb,
-		{ 0,0,0,    0,0,  1,0,0,1 },
-		{ 300,0,0,  0,0,  0,1,0,1 },
-		{ 0,400,0,   0,0,  0,0,1,1 },
-	)
-	dgl.mesh_builder_add_indices(&mb, 0, 1, 2)
-
-	triangle := dgl.mesh_builder_create(mb)
-
-	shader := dgl.shader_load_from_sources(#load("../res/default.vert"), #load("../res/default.frag"))
-	uniform_mvp :dgl.UniformLocMat4x4= dgl.uniform_get_location(shader, "mvp")
-	uniform_texture0 :dgl.UniformLocTexture= dgl.uniform_get_location(shader, "texture0")
+	frame_timer : time.Stopwatch
+	time.stopwatch_start(&frame_timer); defer time.stopwatch_stop(&frame_timer)
 
 	white := dgl.texture_create_with_color(1,1, {255,255,255,255})
 	init_draw()
@@ -85,13 +70,18 @@ main :: proc() {
 	heart := dgl.texture_load("./res/heart-break.png"); defer dgl.texture_destroy(heart)
 
 	msg: win32.MSG
-	for {
-		if win32.PeekMessageW(&msg, nil, 0,0, win32.PM_REMOVE) {
-			if msg.message == win32.WM_QUIT { break }
-			win32.TranslateMessage(&msg)
-			win32.DispatchMessageW(&msg)
-		} else {
-			s := time.duration_seconds(time.stopwatch_duration(timer))
+
+	for win32.GetMessageW(&msg, nil, 0,0) > 0 {
+		win32.TranslateMessage(&msg)
+		win32.DispatchMessageW(&msg)
+
+		if !win32.PeekMessageW(&msg, nil, 0, 0, win32.PM_NOREMOVE) {
+			delta_ms := time.duration_milliseconds(time.stopwatch_duration(frame_timer))
+			if delta_ms < 1000/60 do continue
+			time.stopwatch_reset(&frame_timer)
+			time.stopwatch_start(&frame_timer)
+			// the real update
+
 			begin_draw({0,0, window_size.x, window_size.y})
 			dgl.framebuffer_clear({.Color}, {0,0,0,1})
 
@@ -103,12 +93,9 @@ main :: proc() {
 			draw_text(font_default, "Hello, Dove\ntest auto wrap with a very looong line.",
 				{20,20}, 42, dgl.CYAN, overflow_width= 200)
 
-			draw_text(font_default, fmt.tprintf("hot values: {}\n", hotv.pairs),
-				{5,5}, 38, dgl.GREEN, overflow_width=auto_cast window_size.x)
-			draw_text(font_default, fmt.tprintf("hot keys: {}\n", hotv.keys),
-				{5,100}, 38, dgl.GREEN, overflow_width=auto_cast window_size.x)
-
 			draw_rect({5,40, 120,60}, {255,0,0, hotv->u8("alpha")})
+
+			draw_text(font_default, fmt.tprintf("delta ms: {:.2f}", delta_ms), {0,0}, 38, dgl.GREEN)
 
 			end_draw()
 			win32.SwapBuffers(win32.GetDC(hwnd))

@@ -27,7 +27,7 @@ hwnd : win32.HWND
 @(private="file")
 _opengl_ready := false
 
-window_init :: proc() {
+window_init :: proc(title: string, width, height: int) {
 	// instance = hInstance
 	instance := win32.HINSTANCE(win32.GetModuleHandleW(nil))
 	// 注册窗口类
@@ -43,12 +43,12 @@ window_init :: proc() {
 	hwnd = win32.CreateWindowExW(
 		0, // dwExStyle
 		wndclass, // lpClassName
-		win32.L("MyWindow"), // lpWindowName
+		win32.utf8_to_wstring(title), // lpWindowName
 		win32.WS_OVERLAPPEDWINDOW | win32.WS_VISIBLE, // dwStyle
 		win32.CW_USEDEFAULT, // x
 		win32.CW_USEDEFAULT, // y
-		600, // nWidth
-		800, // nHeight
+		auto_cast width, // nWidth
+		auto_cast height, // nHeight
 		nil, // hWndParent
 		nil, // hMenu
 		instance, // hInstance
@@ -123,12 +123,8 @@ wndproc :: proc "system" (hwnd: win32.HWND, msg: win32.UINT, wparam: win32.WPARA
 		hotvalue.update(&hotv)
 	case win32.WM_SIZE:
 		window_size = {auto_cast win32.LOWORD(lparam), auto_cast win32.HIWORD(lparam)}
-	case win32.WM_ERASEBKGND:
-		return 1 // paint should fill out the client area so no need to erase the background
-	case win32.WM_PAINT:
 	case win32.WM_DESTROY:
 		win32.PostQuitMessage(0)
-	case win32.WM_KEYFIRST:
 	}
 	return win32.DefWindowProcW(hwnd, msg, wparam, lparam)
 }
