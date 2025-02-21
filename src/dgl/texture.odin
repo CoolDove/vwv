@@ -16,8 +16,10 @@ Image :: struct {
 }
 
 Texture :: struct {
-	size : Vec2i,
 	id : TextureId, 
+	size : Vec2i,
+	// TODO: finish texture format things
+	type : TextureType,
 }
 
 TextureId :: u32
@@ -77,7 +79,7 @@ texture_load_from_mem_png :: proc(data: []byte, gen_mipmap := false) -> Texture 
 	gl.TexImage2D(target, 0, gl.RGBA, img.size.x, img.size.y, 0, gl.RGBA, gl.UNSIGNED_BYTE, img.data)
 	if gen_mipmap do gl.GenerateMipmap(target)
 	gl.BindTexture(gl.TEXTURE_2D, 0)
-	return Texture{img.size, tex}
+	return Texture{tex, img.size, .RGBA}
 }
 
 // Texture
@@ -98,7 +100,7 @@ texture_load_by_path :: proc(path: string, gen_mipmap := false) -> Texture {
 
 	gl.TexImage2D(target, 0, gl.RGBA, img.size.x, img.size.y, 0, gl.RGBA, gl.UNSIGNED_BYTE, img.data)
 	if gen_mipmap do gl.GenerateMipmap(target)
-	return Texture{img.size, tex}
+	return Texture{tex, img.size, .RGBA}
 }
 
 texture_create :: proc {
@@ -106,7 +108,7 @@ texture_create :: proc {
 	texture_create_with_buffer,
 }
 
-texture_create_empty :: proc(width, height : i32, type :TextureType= .RGBA) -> TextureId {
+texture_create_empty :: proc(width, height : i32, type :TextureType= .RGBA) -> Texture {
 	tex : u32
 	gl.GenTextures(1, &tex)
 	gl.BindTexture(gl.TEXTURE_2D, tex)
@@ -118,9 +120,9 @@ texture_create_empty :: proc(width, height : i32, type :TextureType= .RGBA) -> T
 	gl.TexParameteri(target, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
 
 	texture_update_current(width, height, {}, type)
-	return tex
+	return {tex, { width, height }, type}
 }
-texture_create_with_color :: proc(width, height : int, color : Color4u8, gen_mipmap := false) -> TextureId {
+texture_create_with_color :: proc(width, height : int, color : Color4u8, gen_mipmap := false) -> Texture {
 	tex : u32
 	gl.GenTextures(1, &tex)
 	gl.BindTexture(gl.TEXTURE_2D, tex)
@@ -138,7 +140,7 @@ texture_create_with_color :: proc(width, height : int, color : Color4u8, gen_mip
 
 	gl.TexImage2D(target, 0, gl.RGBA, cast(i32)width, cast(i32)height, 0, gl.RGBA, gl.UNSIGNED_BYTE, raw_data(data))
 	if gen_mipmap do gl.GenerateMipmap(target)
-	return tex
+	return {tex, {auto_cast width, auto_cast height}, .RGBA}
 }
 
 texture_create_with_buffer :: proc(width, height : int, buffer : []u8, type:TextureType=.RGBA, gen_mipmap := false) -> TextureId {

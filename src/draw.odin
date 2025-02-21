@@ -29,7 +29,7 @@ _state : DrawState
 init_draw :: proc() {
 	_shader_default = dgl.shader_load_from_sources(#load("../res/default.vert"), #load("../res/default.frag"))
 	dgl.uniform_load(&_shader_default_uniforms, _shader_default)
-	_builtin_texture_white = dgl.texture_create_with_color(1,1, {255,255,255,255})
+	_builtin_texture_white = dgl.texture_create_with_color(1,1, {255,255,255,255}).id
 	dgl.mesh_builder_init(&_state.mesh, dgl.VERTEX_FORMAT_P3U2C4)
 }
 destroy_draw :: proc() {
@@ -65,7 +65,7 @@ draw_rect :: proc(rect: dgl.Rect, color: dgl.Color4u8) {
 	_end()
 }
 
-draw_texture_uv :: proc(texture: dgl.Texture, src, dst: dgl.Rect, origin: dgl.Vec2={0,0}, angle_rad: f32=0, tint: dgl.Color4u8={255,255,255,255}) {
+draw_texture_ex :: proc(texture: dgl.Texture, src, dst: dgl.Rect, origin: dgl.Vec2={0,0}, angle_rad: f32=0, tint: dgl.Color4u8={255,255,255,255}) {
 	_begin(_shader_default, texture.id)
 	size := dgl.vec_i2f(texture.size)
 	color := dgl.col_u2f(tint)
