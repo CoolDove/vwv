@@ -3,6 +3,7 @@ package dgl
 import gl "vendor:OpenGL"
 
 import "core:log"
+import "core:math"
 import "core:math/linalg"
 
 
@@ -91,6 +92,55 @@ Vec3i :: distinct [3]i32
 Vec4i :: distinct [4]i32
 
 Color4u8 :: distinct [4]u8
+
+vec_i2f :: proc {
+    vec_i2f_2,
+    vec_i2f_3,
+    vec_i2f_4,
+}
+vec_f2i :: proc {
+    vec_f2i_2,
+    vec_f2i_3,
+    vec_f2i_4,
+}
+
+vec_i2f_2 :: #force_inline proc "contextless" (input: Vec2i) -> Vec2 {
+    return { cast(f32)input.x, cast(f32)input.y }
+}
+vec_i2f_3 :: #force_inline proc "contextless" (input: Vec3i) -> Vec3 {
+    return { cast(f32)input.x, cast(f32)input.y, cast(f32)input.z }
+}
+vec_i2f_4 :: #force_inline proc "contextless" (input: Vec4i) -> Vec4 {
+    return { cast(f32)input.x, cast(f32)input.y, cast(f32)input.z, cast(f32)input.w }
+}
+
+vec_f2i_2 :: #force_inline proc "contextless" (input: Vec2, method: RoundingMethod = .Floor) -> Vec2i {
+    switch method {
+    case .Floor: return { cast(i32)input.x, cast(i32)input.y }
+    case .Ceil: return { cast(i32)math.ceil(input.x), cast(i32)math.ceil(input.y) }
+    case .Nearest: return { cast(i32)math.round(input.x), cast(i32)math.round(input.y) }
+    }
+    return {}
+}
+vec_f2i_3 :: #force_inline proc "contextless" (input: Vec3, method: RoundingMethod = .Floor) -> Vec3i {
+    switch method {
+    case .Floor: return { cast(i32)input.x, cast(i32)input.y, cast(i32)input.z }
+    case .Ceil: return { cast(i32)math.ceil(input.x), cast(i32)math.ceil(input.y), cast(i32)math.ceil(input.z)}
+    case .Nearest: return { cast(i32)math.round(input.x), cast(i32)math.round(input.y), cast(i32)math.round(input.z) }
+    }
+    return {}
+}
+vec_f2i_4 :: #force_inline proc "contextless" (input: Vec4, method: RoundingMethod = .Floor) -> Vec4i {
+    switch method {
+    case .Floor: return { cast(i32)input.x, cast(i32)input.y, cast(i32)input.z, cast(i32)input.w, }
+    case .Ceil: return { cast(i32)math.ceil(input.x), cast(i32)math.ceil(input.y), cast(i32)math.ceil(input.z), cast(i32)math.ceil(input.w)}
+    case .Nearest: return { cast(i32)math.round(input.x), cast(i32)math.round(input.y), cast(i32)math.round(input.z), cast(i32)math.round(input.w) }
+    }
+    return {}
+}
+RoundingMethod :: enum {
+    Floor, Ceil, Nearest,
+}
 
 col_u2f :: proc(color : Color4u8) -> Vec4 {
     return {(cast(f32)color.x)/255.0, (cast(f32)color.y)/255.0, (cast(f32)color.z)/255.0, (cast(f32)color.w)/255.0}

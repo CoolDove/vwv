@@ -22,7 +22,7 @@ _shader_default_uniforms : struct {
 }
 
 @(private="file")
-_builtin_texture_white : dgl.TextureId
+_builtin_texture_white : dgl.TextureId // 1-pixel white texture
 
 _state : DrawState
 
@@ -34,7 +34,7 @@ init_draw :: proc() {
 }
 destroy_draw :: proc() {
 	dgl.shader_destroy(_shader_default)
-	dgl.texture_destroy(_builtin_texture_white)
+	dgl.texture_destroy_id(_builtin_texture_white)
 	dgl.mesh_builder_release(&_state.mesh)
 }
 
@@ -62,6 +62,24 @@ draw_rect :: proc(rect: dgl.Rect, color: dgl.Color4u8) {
 	)
 	dgl.mesh_builder_add_indices(&_state.mesh, 0+offset,1+offset,2+offset)
 	dgl.mesh_builder_add_indices(&_state.mesh, 0+offset,2+offset,3+offset)
+	_end()
+}
+
+draw_texture_uv :: proc(texture: dgl.Texture, src, dst: dgl.Rect, origin: dgl.Vec2={0,0}, angle_rad: f32=0, tint: dgl.Color4u8={255,255,255,255}) {
+	_begin(_shader_default, texture.id)
+	size := dgl.vec_i2f(texture.size)
+	color := dgl.col_u2f(tint)
+	r,g,b,a := color.r,color.g,color.b,color.a
+	offset := cast(u32)dgl.mesh_builder_count_vertex(&_state.mesh)
+	dgl.mesh_builder_add_vertices(&_state.mesh,
+		{ dst.x,dst.y,0,                src.x/size.x, src.y/size.y,                  r,g,b,a },
+		{ dst.x+dst.w,dst.y,0,          (src.x+src.w)/size.x, src.y/size.y,          r,g,b,a },
+		{ dst.x+dst.w,dst.y+dst.h,0,    (src.x+src.w)/size.x, (src.y+src.h)/size.y,  r,g,b,a },
+		{ dst.x,dst.y+dst.h,0,          src.x/size.x, (src.y+src.h)/size.y,          r,g,b,a },
+	)
+	dgl.mesh_builder_add_indices(&_state.mesh, 0+offset,1+offset,2+offset)
+	dgl.mesh_builder_add_indices(&_state.mesh, 0+offset,2+offset,3+offset)
+
 	_end()
 }
 
@@ -98,4 +116,3 @@ submit_batch :: proc() {
 	_state.texture0 = {}
 	dgl.mesh_builder_clear(&_state.mesh)
 }
-

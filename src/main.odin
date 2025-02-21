@@ -73,6 +73,8 @@ main :: proc() {
 	white := dgl.texture_create_with_color(1,1, {255,255,255,255})
 	init_draw()
 
+	heart := dgl.texture_load("./res/heart-break.png"); defer dgl.texture_destroy(heart)
+
 	msg: win32.MSG
 	for {
 		if win32.PeekMessageW(&msg, nil, 0,0, win32.PM_REMOVE) {
@@ -84,8 +86,11 @@ main :: proc() {
 			begin_draw({0,0, window_size.x, window_size.y})
 			dgl.framebuffer_clear({.Color}, {0,0,0,1})
 
-			draw_rect({20,20, 120, 120}, {255, 255, 0, 255})
-			draw_rect({120,60, 120, 60}, {255, 0, 0, 128})
+			draw_rect({20,20, 120,120}, {255, 255, 0, 255})
+
+			draw_texture_uv(heart, {0,0,auto_cast heart.size.x, auto_cast heart.size.y}, {10,10, 60,60}, tint={255,255,255,255})
+
+			draw_rect({5,40, 120,60}, {255, 0, 0, 128})
 
 			end_draw()
 			win32.SwapBuffers(win32.GetDC(hwnd))

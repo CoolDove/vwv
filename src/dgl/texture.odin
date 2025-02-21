@@ -198,7 +198,11 @@ texture_update_current :: #force_inline proc(w,h : i32, buffer: []u8, type: Text
 	}
 }
 
-texture_destroy :: proc(id: TextureId) {
+texture_destroy :: proc(texture: Texture) {
+	id := texture.id
+	gl.DeleteTextures(1, &id)
+}
+texture_destroy_id :: proc(id: TextureId) {
 	id := id
 	gl.DeleteTextures(1, &id)
 }
