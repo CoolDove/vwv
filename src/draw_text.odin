@@ -22,7 +22,6 @@ draw_text :: proc(fontid: int, text: string, position: dgl.Vec2, size: f32, colo
 	iter.nexty += size
 	prev_iter := iter
 	q: fontstash.Quad
-	height : f32
 	for fontstash.TextIterNext(fs, &iter, &q) {
 		if iter.previousGlyphIndex == -1 { // can not retrieve glyph?
 			iter = prev_iter
@@ -38,7 +37,6 @@ draw_text :: proc(fontid: int, text: string, position: dgl.Vec2, size: f32, colo
 		if newline || overflow {
 			iter.nextx = 0
 			iter.nexty += size
-			height += size
 		}
 		w, h := cast(f32)fsctx.atlas.size.x, cast(f32)fsctx.atlas.size.y
 		if !newline {
@@ -47,5 +45,5 @@ draw_text :: proc(fontid: int, text: string, position: dgl.Vec2, size: f32, colo
 		}
 	}
 	fontstash.EndState(fs)
-	return height
+	return iter.nexty
 }

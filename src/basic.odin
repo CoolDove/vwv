@@ -120,21 +120,15 @@ window_init :: proc(title: string, width, height: int) {
 
 wndproc :: proc "system" (hwnd: win32.HWND, msg: win32.UINT, wparam: win32.WPARAM, lparam: win32.LPARAM) -> win32.LRESULT {
 	context = the_context
-	log.debugf("MSG: {}", msg)
 	switch(msg) {
 	case win32.WM_SETFOCUS:
 		// hotvalue.update(&hotv)
 	case win32.WM_ENTERSIZEMOVE:
-		// fmt.printf("Enter sizemove\n")
 	case win32.WM_EXITSIZEMOVE:
-		// fmt.printf("Exit sizemove\n")
 	case win32.WM_SIZING:
 		update()
-		// log.debugf("MSG size")
-		// update()
 	case win32.WM_PAINT:
 	case win32.WM_SIZE:
-		// window_size = {auto_cast win32.LOWORD(lparam), auto_cast win32.HIWORD(lparam)}
 	case win32.WM_DESTROY:
 		win32.ReleaseDC(hwnd, dc)
 		win32.PostQuitMessage(0)

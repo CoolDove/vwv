@@ -32,8 +32,9 @@ VisualRecord :: struct {
 }
 
 
-debug_draw_data : struct { vertex_count : int, indices_count : int, vbuffer_size : int, update_time : f64}
+debug_draw_data : struct { vertex_count : int, indices_count : int, vbuffer_size : int}
 
+frameid : int
 update :: proc() {
 	update_timer : time.Stopwatch
 	time.stopwatch_start(&update_timer) ; defer time.stopwatch_stop(&update_timer)
@@ -53,22 +54,29 @@ update :: proc() {
 	main_rect = rect_padding({0,0, auto_cast window_size.x, auto_cast window_size.y}, 10, 10, 10, 10)
 	draw_rect(main_rect, dgl.WHITE)
 
-	draw_text(font_default, fmt.tprintf("delta ms: {:.2f}", delta_ms), {0,0}, 24, dgl.GREEN)
-	draw_text(font_default, fmt.tprintf("窗口大小: {}", window_size), {0, 28}, 24, dgl.GREEN)
-	draw_text(font_default, fmt.tprintf("draw state: {}", debug_draw_data), {0, 56}, 24, dgl.GREEN, overflow_width=auto_cast window_size.x)
+	pushlinef :: proc(y: ^f32, fmtter: string, args: ..any) {
+		overflow :f64= auto_cast window_size.x - 10
+		draw_text(font_default, fmt.tprintf(fmtter, ..args), {5+1, y^+1}, 24, {0,0,0, 128}, overflow_width = overflow)
+		h := draw_text(font_default, fmt.tprintf(fmtter, ..args), {5, y^}, 24, dgl.GREEN, overflow_width = overflow)
+		y^ += h + 2
+	}
+	y :f32= 5
+	pushlinef(&y, "delta ms: {:.2f}", delta_ms)
+	pushlinef(&y, "窗口大小: {}", window_size)
+	pushlinef(&y, "draw state: {}", debug_draw_data)
+	pushlinef(&y, "frameid: {}", frameid)
 
 	debug_draw_data = {
 		len(_state.mesh.vertices) / auto_cast dgl.mesh_builder_calc_stride(&_state.mesh),
 		len(_state.mesh.indices),
-		len(_state.mesh.vertices),
-		time.duration_milliseconds(time.stopwatch_duration(update_timer))
+		len(_state.mesh.vertices)
 	}
 
 	end_draw()
 	if dc == {} do dc = win32.GetDC(hwnd)
 	if dc != {} {
-		fmt.printf("dc: {}\n", dc)
 		win32.SwapBuffers(dc)
 	}
 	free_all(context.temp_allocator)
+	frameid += 1
 }
