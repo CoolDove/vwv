@@ -57,6 +57,10 @@ update :: proc() {
 
 	vwv_update()
 
+	@static debug_lines := true
+
+	if is_key_pressed(.F1) do debug_lines = !debug_lines
+
 	pushlinef :: proc(y: ^f32, fmtter: string, args: ..any) {
 		overflow :f64= auto_cast window_size.x - 10
 		draw_text(font_default, fmt.tprintf(fmtter, ..args), {5+1, y^+1}, 24, {0,0,0, 128}, overflow_width = overflow)
@@ -64,13 +68,15 @@ update :: proc() {
 		y^ += h + 2
 	}
 	y :f32= 5
-	pushlinef(&y, "delta ms: {:.2f}", delta_ms)
-	pushlinef(&y, "窗口大小: {}", window_size)
-	pushlinef(&y, "draw state: {}", debug_draw_data)
-	pushlinef(&y, "frameid: {}", frameid)
-	pushlinef(&y, "mouse: {}", input.mouse_position)
-	pushlinef(&y, "button: {}", input.buttons)
-	pushlinef(&y, "button_prev: {}", input.buttons_prev)
+	if debug_lines {
+		pushlinef(&y, "delta ms: {:.2f}", delta_ms)
+		pushlinef(&y, "窗口大小: {}", window_size)
+		pushlinef(&y, "draw state: {}", debug_draw_data)
+		pushlinef(&y, "frameid: {}", frameid)
+		pushlinef(&y, "mouse: {}", input.mouse_position)
+		pushlinef(&y, "button: {}", input.buttons)
+		pushlinef(&y, "button_prev: {}", input.buttons_prev)
+	}
 
 	debug_draw_data = {
 		len(_state.mesh.vertices) / auto_cast dgl.mesh_builder_calc_stride(&_state.mesh),
@@ -94,7 +100,7 @@ vwv_update :: proc() {
 
 	draw_rect(main_rect, dgl.WHITE)
 	for vr, idx in visual_records {
-		draw_rect(vr.rect, dgl.CYAN)
+		draw_rect(vr.rect, {120, 110, 139, 255})
 	}
 	for vr, idx in visual_records {
 		draw_text(font_default, records[idx].text, {vr.rect.x+1.2, vr.rect.y+1.2}, 32, {0,0,0,128})
@@ -110,7 +116,7 @@ vwv_end :: proc() {
 }
 
 layout_records :: proc(vrecords: []VisualRecord) {
-	rect := rect_top(main_rect, 60)
+	rect := rect_padding(rect_top(main_rect, 60), 5,5, 10, 0)
 	for &vr in vrecords {
 		vr.rect = rect
 		rect.y += 70
