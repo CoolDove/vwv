@@ -30,7 +30,10 @@ end :: proc() {
 main_rect : dgl.Rect
 
 VisualRecord :: struct {
-	rect : dgl.Rect
+	rect : dgl.Rect,
+	expand : f64,
+	hovering : bool,
+	clean : bool,
 }
 
 visual_records : []VisualRecord
@@ -46,6 +49,7 @@ update :: proc() {
 	win32.GetClientRect(hwnd, &client_rect)
 	window_size = {client_rect.right, client_rect.bottom}
 
+	delta_s := time.duration_seconds(time.stopwatch_duration(frame_timer))
 	delta_ms := time.duration_milliseconds(time.stopwatch_duration(frame_timer))
 	// if delta_ms < 1000/60 do return
 	time.stopwatch_reset(&frame_timer)
@@ -55,7 +59,7 @@ update :: proc() {
 	dgl.framebuffer_clear({.Color}, {0,0,0,1})
 
 
-	vwv_update()
+	vwv_update(delta_s)
 
 	@static debug_lines := true
 
@@ -94,19 +98,39 @@ update :: proc() {
 	input_process_post_update()
 }
 
-vwv_update :: proc() {
+vwv_update :: proc(delta_s: f64) {
 	main_rect = rect_padding({0,0, auto_cast window_size.x, auto_cast window_size.y}, 10, 10, 10, 10)
 	layout_records(visual_records)
+	window_rect :dgl.Rect= {0,0, auto_cast window_size.x, auto_cast window_size.y}
 
-	draw_rect(main_rect, dgl.WHITE)
+	draw_rect(window_rect, {15,16,23, 255})
+	draw_rect(main_rect, {22,24,33, 255})
+
+	// update records
+	mpos := input.mouse_position
+	hovered := false
+	for &vr, idx in visual_records {
+		vr.hovering = rect_in(vr.rect, mpos) && !hovered
+		if vr.hovering {
+			vr.expand += (8-vr.expand) * 10 * delta_s
+		}
+		else do vr.expand += (0-vr.expand) * 10 * delta_s
+	}
+
+	// draw records
 	for vr, idx in visual_records {
-		// draw_rect(vr.rect, {120, 110, 139, 255})
-		draw_rect_rounded(vr.rect, 10, 2, {120, 110, 139, 255})
+		expand := cast(f32)vr.expand
+		drect := rect_padding(vr.rect, -expand, -expand, -expand, -expand)
+		draw_rect_rounded(drect, 4, 2, {95,95,135, 255})
 	}
 	for vr, idx in visual_records {
-		draw_text(font_default, records[idx].text, {vr.rect.x+4+1.2, vr.rect.y+1.2}, 32, {0,0,0,128})
-		draw_text(font_default, records[idx].text, {vr.rect.x+4, vr.rect.y}, 32, dgl.DARK_GRAY)
+		draw_text(font_default, records[idx].text, {vr.rect.x+4+1.2, vr.rect.y+auto_cast vr.expand*0.4+1.2}, 28, {0,0,0,128})
+		draw_text(font_default, records[idx].text, {vr.rect.x+4, vr.rect.y+auto_cast vr.expand*0.4}, 28, dgl.LIGHT_GRAY)
 	}
+
+	status_bar_rect := rect_split_bottom(window_rect, 46)
+	draw_rect(status_bar_rect, {33,37,61, 255})
+	draw_text(font_default, "Status Bar", {status_bar_rect.x + 5, status_bar_rect.y + 4} , 28, {69,153,49, 255})
 }
 
 vwv_begin :: proc() {

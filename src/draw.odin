@@ -66,7 +66,7 @@ draw_rect :: proc(rect: dgl.Rect, color: dgl.Color4u8) {
 	_end()
 }
 
-draw_rect_rounded :: proc(rect: dgl.Rect, rounded: f32, segments: int, color: dgl.Color4u8) {
+draw_rect_rounded :: proc(rect: dgl.Rect, rounded: f32, segments: int, color: dgl.Color4u8, use_edge_color:= false, edge_color: dgl.Color4u8={}) {
 	_begin(_shader_default, _builtin_texture_white)
 
 	mb := &_state.mesh
@@ -74,6 +74,12 @@ draw_rect_rounded :: proc(rect: dgl.Rect, rounded: f32, segments: int, color: dg
 	offset := cast(u32)dgl.mesh_builder_count_vertex(mb)
 	colorf := dgl.col_u2f(color)
 	r, g, b, a := colorf.r, colorf.g, colorf.b, colorf.a
+
+	edge_color := edge_color
+	if !use_edge_color do edge_color = color
+
+	ecolorf := dgl.col_u2f(edge_color)
+	er, eg, eb, ea := ecolorf.r, ecolorf.g, ecolorf.b, ecolorf.a
 
 	// 四个矩形顶点
 	rad := math.clamp(rounded, 0.0, math.min(rect.w, rect.h) * 0.5)
@@ -89,14 +95,14 @@ draw_rect_rounded :: proc(rect: dgl.Rect, rounded: f32, segments: int, color: dg
 	)
 
 	dgl.mesh_builder_add_vertices(mb, // 4~11
-		{ x0 + rad, y0,       0,  0, 0,  r, g, b, a },
-		{ x1 - rad, y0,       0,  0, 0,  r, g, b, a },
-		{ x1,       y0 + rad, 0,  0, 0,  r, g, b, a },
-		{ x1,       y1 - rad, 0,  0, 0,  r, g, b, a },
-		{ x1 - rad, y1,       0,  0, 0,  r, g, b, a },
-		{ x0 + rad, y1,       0,  0, 0,  r, g, b, a },
-		{ x0,       y1 - rad, 0,  0, 0,  r, g, b, a },
-		{ x0,       y0 + rad, 0,  0, 0,  r, g, b, a },
+		{ x0 + rad, y0,       0,  0, 0,  er, eg, eb, ea },
+		{ x1 - rad, y0,       0,  0, 0,  er, eg, eb, ea },
+		{ x1,       y0 + rad, 0,  0, 0,  er, eg, eb, ea },
+		{ x1,       y1 - rad, 0,  0, 0,  er, eg, eb, ea },
+		{ x1 - rad, y1,       0,  0, 0,  er, eg, eb, ea },
+		{ x0 + rad, y1,       0,  0, 0,  er, eg, eb, ea },
+		{ x0,       y1 - rad, 0,  0, 0,  er, eg, eb, ea },
+		{ x0,       y0 + rad, 0,  0, 0,  er, eg, eb, ea },
 	)
 
 	dgl.mesh_builder_add_indices_with_offset(mb, offset, 0,1,2)
@@ -125,10 +131,10 @@ draw_rect_rounded :: proc(rect: dgl.Rect, rounded: f32, segments: int, color: dg
 		add_arc_vertices(mb, center, vector, step, color, segments, base_offset, icenter, auto_cast idx, auto_cast iend)
 	}
 
-	add_arc_vertices(mb, {x1 - rad, y0 + rad}, {0,-rad}, 90.0/cast(f32)segments, color, segments, cast(int)offset, 1, 5, 6)
-	add_arc_vertices(mb, {x1 - rad, y1 - rad}, {rad,0},  90.0/cast(f32)segments, color, segments, cast(int)offset, 2, 7, 8)
-	add_arc_vertices(mb, {x0 + rad, y1 - rad}, {0,rad},  90.0/cast(f32)segments, color, segments, cast(int)offset, 3, 9, 10)
-	add_arc_vertices(mb, {x0 + rad, y0 + rad}, {-rad,0}, 90.0/cast(f32)segments, color, segments, cast(int)offset, 0, 11, 4)
+	add_arc_vertices(mb, {x1 - rad, y0 + rad}, {0,-rad}, 90.0/cast(f32)segments, edge_color, segments, cast(int)offset, 1, 5, 6)
+	add_arc_vertices(mb, {x1 - rad, y1 - rad}, {rad,0},  90.0/cast(f32)segments, edge_color, segments, cast(int)offset, 2, 7, 8)
+	add_arc_vertices(mb, {x0 + rad, y1 - rad}, {0,rad},  90.0/cast(f32)segments, edge_color, segments, cast(int)offset, 3, 9, 10)
+	add_arc_vertices(mb, {x0 + rad, y0 + rad}, {-rad,0}, 90.0/cast(f32)segments, edge_color, segments, cast(int)offset, 0, 11, 4)
 
 	_end()
 }

@@ -78,7 +78,6 @@ main :: proc() {
 
 	msg: win32.MSG
 	for win32.GetMessageW(&msg, nil, 0,0) > 0 {
-		// log.debugf("get msg: {}", msg.message)
 		win32.TranslateMessage(&msg)
 		the_context = context
 		win32.DispatchMessageW(&msg)
