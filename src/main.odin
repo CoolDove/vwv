@@ -74,7 +74,7 @@ main :: proc() {
 	init_draw()
 	fontstash_init()
 
-	font_fzytk := fontstash.AddFontPath(&fsctx.fs, "fzytk", "./fzytk.ttf")
+	font_default := fontstash.AddFontPath(&fsctx.fs, "default", "C:/Windows/Fonts/harlowsi.ttf")
 
 	heart := dgl.texture_load("./res/heart-break.png"); defer dgl.texture_destroy(heart)
 
@@ -89,12 +89,15 @@ main :: proc() {
 			begin_draw({0,0, window_size.x, window_size.y})
 			dgl.framebuffer_clear({.Color}, {0,0,0,1})
 
-			draw_rect({20,20, 120,120}, {255, 255, 0, 255})
-
+			draw_rect({20,20, 120,120}, dgl.YELLOW)
 			draw_texture_ex(heart, {0,0,auto_cast heart.size.x, auto_cast heart.size.y}, {10,10, 60,60}, tint={255,255,255,255})
 
-			draw_rect({5,40, 120,60}, {255, 0, 0, 128})
-			draw_text(font_fzytk, "Hello, Dove\ntest auto wrap with a very looong line.", {20,20}, 42, {255,0,255, 255}, overflow_width= 200)
+			draw_text(font_default, "Hello, Dove\ntest auto wrap with a very looong line.",
+				{22,22}, 42, {0,0,0, 128}, overflow_width= 200)
+			draw_text(font_default, "Hello, Dove\ntest auto wrap with a very looong line.",
+				{20,20}, 42, dgl.CYAN, overflow_width= 200)
+
+			draw_rect({5,40, 120,60}, {255,0,0,64})
 
 			end_draw()
 			win32.SwapBuffers(win32.GetDC(hwnd))
