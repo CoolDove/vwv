@@ -19,6 +19,7 @@ import gl "vendor:OpenGL"
 import "vendor:fontstash"
 
 import "dgl"
+import "hotvalue"
 
 DEFAULT_WINDOW_TITLE :: "vwv - simple tool for simple soul"
 
@@ -26,6 +27,9 @@ window_size : [2]i32
 
 VERTEX_FORMAT_P3U2C4 :: dgl.VertexFormat{ 3,2,4, 0,0,0,0,0 } // 9
 VERTEX_FORMAT_VWV    :: VERTEX_FORMAT_P3U2C4
+
+hotv : hotvalue.HotValues
+
 
 main :: proc() {
 	tracking_allocator : mem.Tracking_Allocator
@@ -46,6 +50,8 @@ main :: proc() {
 	logger := log.create_console_logger()
 	context.logger = logger
 	defer log.destroy_console_logger(logger)
+
+	hotv = hotvalue.init("hotvalues")
 
 	window_init()
 	dgl.init()
@@ -74,7 +80,7 @@ main :: proc() {
 	init_draw()
 	fontstash_init()
 
-	font_default := fontstash.AddFontPath(&fsctx.fs, "default", "C:/Windows/Fonts/harlowsi.ttf")
+	font_default := fontstash.AddFontPath(&fsctx.fs, "default", "C:/Windows/Fonts/bookos.ttf")
 
 	heart := dgl.texture_load("./res/heart-break.png"); defer dgl.texture_destroy(heart)
 
@@ -97,10 +103,16 @@ main :: proc() {
 			draw_text(font_default, "Hello, Dove\ntest auto wrap with a very looong line.",
 				{20,20}, 42, dgl.CYAN, overflow_width= 200)
 
-			draw_rect({5,40, 120,60}, {255,0,0,64})
+			draw_text(font_default, fmt.tprintf("hot values: {}\n", hotv.pairs),
+				{5,5}, 38, dgl.GREEN, overflow_width=auto_cast window_size.x)
+			draw_text(font_default, fmt.tprintf("hot keys: {}\n", hotv.keys),
+				{5,100}, 38, dgl.GREEN, overflow_width=auto_cast window_size.x)
+
+			draw_rect({5,40, 120,60}, {255,0,0, hotv->u8("newalpha")})
 
 			end_draw()
 			win32.SwapBuffers(win32.GetDC(hwnd))
+			free_all(context.temp_allocator)
 		}
 	}
 
@@ -108,4 +120,6 @@ main :: proc() {
 	destroy_draw()
 
 	dgl.release()
+
+	hotvalue.release(&hotv)
 }

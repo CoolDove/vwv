@@ -15,6 +15,7 @@ import win32 "core:sys/windows"
 // import sdl "vendor:sdl3"
 import gl "vendor:OpenGL"
 import "dgl"
+import "hotvalue"
 
 OPENGL_VERSION_MAJOR :: 4
 OPENGL_VERSION_MINOR :: 4
@@ -118,6 +119,8 @@ window_init :: proc() {
 wndproc :: proc "system" (hwnd: win32.HWND, msg: win32.UINT, wparam: win32.WPARAM, lparam: win32.LPARAM) -> win32.LRESULT {
 	context = runtime.default_context()
 	switch(msg) {
+	case win32.WM_SETFOCUS:
+		hotvalue.update(&hotv)
 	case win32.WM_SIZE:
 		window_size = {auto_cast win32.LOWORD(lparam), auto_cast win32.HIWORD(lparam)}
 	case win32.WM_ERASEBKGND:
