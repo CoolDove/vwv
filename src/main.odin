@@ -108,7 +108,7 @@ main :: proc() {
 			draw_text(font_default, fmt.tprintf("hot keys: {}\n", hotv.keys),
 				{5,100}, 38, dgl.GREEN, overflow_width=auto_cast window_size.x)
 
-			draw_rect({5,40, 120,60}, {255,0,0, hotv->u8("newalpha")})
+			draw_rect({5,40, 120,60}, {255,0,0, hotv->u8("alpha")})
 
 			end_draw()
 			win32.SwapBuffers(win32.GetDC(hwnd))

@@ -3,6 +3,7 @@ package hotvalue
 import "base:runtime"
 import "core:os"
 import "core:strconv"
+import "core:time"
 import "core:log"
 import "core:fmt"
 import "core:strings"
@@ -15,6 +16,8 @@ HotValues :: struct {
 	pairs : map[string]Maybe(Value),
 	keys : [dynamic]string,
 	allocator : runtime.Allocator,
+
+	_modification_time : time.Time,
 }
 
 Value :: union {
@@ -94,10 +97,15 @@ release :: proc(hotv: ^HotValues) {
 	hotv^ = {}
 }
 
-update :: proc(hotv: ^HotValues) {
+update :: proc(hotv: ^HotValues, force:= false) {
 	context.allocator = hotv.allocator
-	_read_file(hotv)
-	_parse(hotv)
+	stat, err := os.stat(hotv.path, context.temp_allocator)
+	if err != nil || time.time_to_unix(stat.modification_time) != time.time_to_unix(hotv._modification_time) {
+		hotv._modification_time = stat.modification_time
+		fmt.printf("hotvalue load\n")
+		_read_file(hotv)
+		_parse(hotv)
+	}
 }
 
 getvalue :: proc(hotv: ^HotValues, key: string) -> Maybe(Value) {
@@ -105,7 +113,6 @@ getvalue :: proc(hotv: ^HotValues, key: string) -> Maybe(Value) {
 		return v
 	} else {
 		_insert(hotv, key, nil)
-		// _write_back(hotv)
 		return nil
 	}
 }
