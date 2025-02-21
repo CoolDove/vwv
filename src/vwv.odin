@@ -100,11 +100,12 @@ vwv_update :: proc() {
 
 	draw_rect(main_rect, dgl.WHITE)
 	for vr, idx in visual_records {
-		draw_rect(vr.rect, {120, 110, 139, 255})
+		// draw_rect(vr.rect, {120, 110, 139, 255})
+		draw_rect_rounded(vr.rect, 10, 2, {120, 110, 139, 255})
 	}
 	for vr, idx in visual_records {
-		draw_text(font_default, records[idx].text, {vr.rect.x+1.2, vr.rect.y+1.2}, 32, {0,0,0,128})
-		draw_text(font_default, records[idx].text, {vr.rect.x, vr.rect.y}, 32, dgl.DARK_GRAY)
+		draw_text(font_default, records[idx].text, {vr.rect.x+4+1.2, vr.rect.y+1.2}, 32, {0,0,0,128})
+		draw_text(font_default, records[idx].text, {vr.rect.x+4, vr.rect.y}, 32, dgl.DARK_GRAY)
 	}
 }
 

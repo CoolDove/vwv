@@ -61,6 +61,11 @@ mesh_builder_add_vertices :: proc(builder: ^MeshBuilder, vertices: ..[]f32) {
 mesh_builder_add_indices :: proc(builder: ^MeshBuilder, indices: ..u32) {
     append_elems(&builder.indices, ..indices)
 }
+mesh_builder_add_indices_with_offset :: proc(builder: ^MeshBuilder, offset: u32, indices: ..u32) {
+	for i in indices {
+		append(&builder.indices, i + offset)
+	}
+}
 
 mesh_builder_init :: proc(builder: ^MeshBuilder, vertex_format: VertexFormat, reserve_vertices:i32=0, reserve_indices:i32=0, allocator:= context.allocator) {
     context.allocator = allocator

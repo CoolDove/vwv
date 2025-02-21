@@ -3,6 +3,7 @@ package main
 
 import la "core:math/linalg"
 import "core:math/linalg/glsl"
+import "core:math"
 import "core:fmt"
 import "dgl"
 
@@ -60,8 +61,75 @@ draw_rect :: proc(rect: dgl.Rect, color: dgl.Color4u8) {
 		{ rect.x+rect.w,rect.y+rect.h,0,  0,0,  r,g,b,a },
 		{ rect.x,rect.y+rect.h,0,         0,0,  r,g,b,a },
 	)
-	dgl.mesh_builder_add_indices(&_state.mesh, 0+offset,1+offset,2+offset)
-	dgl.mesh_builder_add_indices(&_state.mesh, 0+offset,2+offset,3+offset)
+	dgl.mesh_builder_add_indices_with_offset(&_state.mesh, offset, 0,1,2)
+	dgl.mesh_builder_add_indices_with_offset(&_state.mesh, offset, 0,2,3)
+	_end()
+}
+
+draw_rect_rounded :: proc(rect: dgl.Rect, rounded: f32, segments: int, color: dgl.Color4u8) {
+	_begin(_shader_default, _builtin_texture_white)
+
+	mb := &_state.mesh
+
+	offset := cast(u32)dgl.mesh_builder_count_vertex(mb)
+	colorf := dgl.col_u2f(color)
+	r, g, b, a := colorf.r, colorf.g, colorf.b, colorf.a
+
+	// 四个矩形顶点
+	rad := math.clamp(rounded, 0.0, math.min(rect.w, rect.h) * 0.5)
+	x0, y0 := rect.x, rect.y
+	x1, y1 := x0 + rect.w, y0 + rect.h
+
+	// 添加中心矩形的四个顶点
+	dgl.mesh_builder_add_vertices(mb, // 0~3
+		{ x0 + rad, y0 + rad, 0,  0, 0,  r, g, b, a },
+		{ x1 - rad, y0 + rad, 0,  0, 0,  r, g, b, a },
+		{ x1 - rad, y1 - rad, 0,  0, 0,  r, g, b, a },
+		{ x0 + rad, y1 - rad, 0,  0, 0,  r, g, b, a },
+	)
+
+	dgl.mesh_builder_add_vertices(mb, // 4~11
+		{ x0 + rad, y0,       0,  0, 0,  r, g, b, a },
+		{ x1 - rad, y0,       0,  0, 0,  r, g, b, a },
+		{ x1,       y0 + rad, 0,  0, 0,  r, g, b, a },
+		{ x1,       y1 - rad, 0,  0, 0,  r, g, b, a },
+		{ x1 - rad, y1,       0,  0, 0,  r, g, b, a },
+		{ x0 + rad, y1,       0,  0, 0,  r, g, b, a },
+		{ x0,       y1 - rad, 0,  0, 0,  r, g, b, a },
+		{ x0,       y0 + rad, 0,  0, 0,  r, g, b, a },
+	)
+
+	dgl.mesh_builder_add_indices_with_offset(mb, offset, 0,1,2)
+	dgl.mesh_builder_add_indices_with_offset(mb, offset, 0,2,3)
+
+	dgl.mesh_builder_add_indices_with_offset(mb, offset, 4,5,1,  4,1,0)
+	dgl.mesh_builder_add_indices_with_offset(mb, offset, 1,6,7,  1,7,2)
+	dgl.mesh_builder_add_indices_with_offset(mb, offset, 3,2,8,  3,8,9)
+	dgl.mesh_builder_add_indices_with_offset(mb, offset, 11,0,3, 11,3,10)
+
+	arc_offset := cast(u32)dgl.mesh_builder_count_vertex(mb)
+	add_arc_vertices :: proc(mb: ^dgl.MeshBuilder, center, vector: dgl.Vec2, step: f32, color: dgl.Color4u8, segments: int, base_offset, icenter, ifrom, iend: int) {
+		colorf := dgl.col_u2f(color)
+		r, g, b, a := colorf.r, colorf.g, colorf.b, colorf.a
+		segments := segments - 1
+		if segments == 0 {
+			dgl.mesh_builder_add_indices_with_offset(mb, auto_cast base_offset, auto_cast icenter, auto_cast ifrom, auto_cast iend)
+			return
+		}
+
+		vector := la.matrix2_rotate(step*math.RAD_PER_DEG) * vector
+		p := center + vector
+		idx := cast(u32)dgl.mesh_builder_count_vertex(mb)-cast(u32)base_offset
+		dgl.mesh_builder_add_vertices(mb, { p.x, p.y, 0,   0,0,   r,g,b,a })
+		dgl.mesh_builder_add_indices_with_offset(mb, auto_cast base_offset, auto_cast icenter, auto_cast ifrom, auto_cast idx)
+		add_arc_vertices(mb, center, vector, step, color, segments, base_offset, icenter, auto_cast idx, auto_cast iend)
+	}
+
+	add_arc_vertices(mb, {x1 - rad, y0 + rad}, {0,-rad}, 90.0/cast(f32)segments, color, segments, cast(int)offset, 1, 5, 6)
+	add_arc_vertices(mb, {x1 - rad, y1 - rad}, {rad,0},  90.0/cast(f32)segments, color, segments, cast(int)offset, 2, 7, 8)
+	add_arc_vertices(mb, {x0 + rad, y1 - rad}, {0,rad},  90.0/cast(f32)segments, color, segments, cast(int)offset, 3, 9, 10)
+	add_arc_vertices(mb, {x0 + rad, y0 + rad}, {-rad,0}, 90.0/cast(f32)segments, color, segments, cast(int)offset, 0, 11, 4)
+
 	_end()
 }
 
