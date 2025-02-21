@@ -21,8 +21,10 @@ records : []Record= {
 }
 
 begin :: proc() {
+	vwv_begin()
 }
 end :: proc() {
+	vwv_end()
 }
 
 main_rect : dgl.Rect
@@ -31,6 +33,7 @@ VisualRecord :: struct {
 	rect : dgl.Rect
 }
 
+visual_records : []VisualRecord
 
 debug_draw_data : struct { vertex_count : int, indices_count : int, vbuffer_size : int}
 
@@ -51,8 +54,8 @@ update :: proc() {
 	begin_draw({0,0, window_size.x, window_size.y})
 	dgl.framebuffer_clear({.Color}, {0,0,0,1})
 
-	main_rect = rect_padding({0,0, auto_cast window_size.x, auto_cast window_size.y}, 10, 10, 10, 10)
-	draw_rect(main_rect, dgl.WHITE)
+
+	vwv_update()
 
 	pushlinef :: proc(y: ^f32, fmtter: string, args: ..any) {
 		overflow :f64= auto_cast window_size.x - 10
@@ -65,6 +68,9 @@ update :: proc() {
 	pushlinef(&y, "窗口大小: {}", window_size)
 	pushlinef(&y, "draw state: {}", debug_draw_data)
 	pushlinef(&y, "frameid: {}", frameid)
+	pushlinef(&y, "mouse: {}", input.mouse_position)
+	pushlinef(&y, "button: {}", input.buttons)
+	pushlinef(&y, "button_prev: {}", input.buttons_prev)
 
 	debug_draw_data = {
 		len(_state.mesh.vertices) / auto_cast dgl.mesh_builder_calc_stride(&_state.mesh),
@@ -79,4 +85,35 @@ update :: proc() {
 	}
 	free_all(context.temp_allocator)
 	frameid += 1
+	input_process_post_update()
+}
+
+vwv_update :: proc() {
+	main_rect = rect_padding({0,0, auto_cast window_size.x, auto_cast window_size.y}, 10, 10, 10, 10)
+	layout_records(visual_records)
+
+	draw_rect(main_rect, dgl.WHITE)
+	for vr, idx in visual_records {
+		draw_rect(vr.rect, dgl.CYAN)
+	}
+	for vr, idx in visual_records {
+		draw_text(font_default, records[idx].text, {vr.rect.x+1.2, vr.rect.y+1.2}, 32, {0,0,0,128})
+		draw_text(font_default, records[idx].text, {vr.rect.x, vr.rect.y}, 32, dgl.DARK_GRAY)
+	}
+}
+
+vwv_begin :: proc() {
+	visual_records = make([]VisualRecord, len(records))
+}
+vwv_end :: proc() {
+	delete(visual_records)
+}
+
+layout_records :: proc(vrecords: []VisualRecord) {
+	rect := rect_top(main_rect, 60)
+	for &vr in vrecords {
+		vr.rect = rect
+		rect.y += 70
+	}
+
 }

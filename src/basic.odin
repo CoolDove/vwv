@@ -120,6 +120,7 @@ window_init :: proc(title: string, width, height: int) {
 
 wndproc :: proc "system" (hwnd: win32.HWND, msg: win32.UINT, wparam: win32.WPARAM, lparam: win32.LPARAM) -> win32.LRESULT {
 	context = the_context
+	input_process_win32_wndproc({hwnd,msg,wparam,lparam})
 	switch(msg) {
 	case win32.WM_SETFOCUS:
 		// hotvalue.update(&hotv)
@@ -135,91 +136,3 @@ wndproc :: proc "system" (hwnd: win32.HWND, msg: win32.UINT, wparam: win32.WPARA
 	}
 	return win32.DefWindowProcW(hwnd, msg, wparam, lparam)
 }
-
-
-// window_init :: proc(title: string, width, height: int) {
-//	// Initialize glfw, specify OpenGL version.
-//	glfw.Init()
-//	glfw.WindowHint(glfw.CONTEXT_VERSION_MAJOR, 3)
-//	glfw.WindowHint(glfw.CONTEXT_VERSION_MINOR, 3)
-//	glfw.WindowHint(glfw.OPENGL_PROFILE, glfw.OPENGL_CORE_PROFILE)
-//	
-//	// Create render window.
-//	window = glfw.CreateWindow(auto_cast width, auto_cast height, strings.clone_to_cstring(title, context.temp_allocator), nil, nil)
-//	assert(window != nil)
-// 
-//	glfw.MakeContextCurrent(window)
-// 
-//	// Enable Vsync.
-//	glfw.SwapInterval(1)
-// 
-//	// Load OpenGL function pointers.
-//	gl.load_up_to(OPENGL_VERSION_MAJOR, OPENGL_VERSION_MINOR, glfw.gl_set_proc_address)
-// 
-//	// Set normalized device coords to window coords transformation.
-//	w, h := glfw.GetFramebufferSize(window)
-//	gl.Viewport(0,0,w,h)
-// }
-// 
-// window_destroy :: proc() {
-//	glfw.DestroyWindow(window)
-//	glfw.Terminate()
-// }
-
-
-// window : ^sdl.Window
-// renderer : ^sdl.Renderer
-// 
-// window_init :: proc(title: string, width, height: int) {
-//	when ODIN_OS == .Windows do win32.SetConsoleOutputCP(.UTF8)
-//	sdl.SetHint("SDL_IME_SHOW_UI", "1")
-//	sdl.SetHint(sdl.HINT_IME_INTERNAL_EDITING, "1")
-// 
-//	if sdl.Init({.VIDEO, .EVENTS}) != 0 {
-//		fmt.println("failed to init: ", sdl.GetErrorString())
-//		return
-//	}
-// 
-//	sdl.GL_SetAttribute(.CONTEXT_MAJOR_VERSION, OPENGL_VERSION_MAJOR)
-//	sdl.GL_SetAttribute(.CONTEXT_MINOR_VERSION, OPENGL_VERSION_MINOR)
-//	sdl.GL_SetAttribute(.CONTEXT_PROFILE_MASK, cast(i32)sdl.GLprofile.CORE)
-// 
-//	sdl.GL_SetAttribute(.MULTISAMPLEBUFFERS, 1)
-//	sdl.GL_SetAttribute(.MULTISAMPLESAMPLES, 4)
-//	
-//	major, minor, profile : c.int
-//	sdl.GL_GetAttribute(.CONTEXT_MAJOR_VERSION, &major)
-//	sdl.GL_GetAttribute(.CONTEXT_MAJOR_VERSION, &minor)
-//	sdl.GL_GetAttribute(.CONTEXT_PROFILE_MASK, &profile)
-//	log.infof("OpenGL version: {}.{}, profile: {}", major, minor, cast(sdl.GLprofile)profile)
-// 
-//	flags : sdl.WindowFlags = {.OPENGL}
-//	// flags : sdl.WindowFlags = {.OPENGL, .ALLOW_HIGHDPI, .RESIZABLE}
-// 
-//	window := sdl.CreateWindow(
-//		strings.clone_to_cstring(title, context.temp_allocator),
-//		sdl.WINDOWPOS_CENTERED, sdl.WINDOWPOS_CENTERED, auto_cast width, auto_cast height,
-//		flags)
-// 
-//	if window == nil {
-//		log.errorf("Failed to instantiate window")
-//		return
-//	}
-// 
-//	gl_context := sdl.GL_CreateContext(window)
-//	assert(gl_context != nil, fmt.tprintf("Failed to create GLContext for window: {}, because: {}.\n", title, sdl.GetError()))
-// 
-//	sdl.GL_MakeCurrent(window, gl_context)
-//	gl.load_up_to(auto_cast major, auto_cast minor, sdl.gl_set_proc_address)
-//	
-//	// v sync is disabled for event-driven window
-//	// if !config.event_driven do sdl.GL_SetSwapInterval(1)
-//	sdl.GL_SetSwapInterval(1)
-// 
-//	// gl.Enable(gl.MULTISAMPLE)
-// 
-// }
-// 
-// window_destroy :: proc() {
-//	sdl.DestroyWindow(window)
-// }

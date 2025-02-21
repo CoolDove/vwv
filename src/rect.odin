@@ -71,10 +71,11 @@ rect_split_bottom :: proc(r: R, height: f32) -> R {
 	else if height < 0 do return {r.x, r.y-height, r.w, height}
 	return {r.x, r.y, r.w, 0}
 }
-rect_split_top :: proc(r: R, height: f32) -> R {
-	if height > 0 do return {r.x, r.y+r.h-height, r.w, height}
-	else if height < 0 do return {r.x, r.y+r.h, r.w, -height}
-	return {r.x, r.y+r.h, r.w, 0}
+rect_top :: proc(r: R, height: f32) -> R {
+	return {r.x, r.y, r.w, height}
+	// if height > 0 do return {r.x, r.y+r.h-height, r.w, height}
+	// else if height < 0 do return {r.x, r.y+r.h, r.w, -height}
+	// return {r.x, r.y+r.h, r.w, 0}
 }
 
 
