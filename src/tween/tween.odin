@@ -273,3 +273,19 @@ _tween_set_data :: #force_inline proc(tween: ^Tween, value: TweenableValue) {
 	value := value
 	mem.copy(tween.data, &value, cast(int)tween.dimension * size_of(f32))
 }
+
+// ** interpolation
+lerp :: proc(a, b, t: f32) -> f32 {
+	return a + (b - a) * t
+}
+
+smoothstep :: proc(a, b, t: f32) -> f32 {
+	t := math.clamp((t - a) / (b - a), 0.0, 1.0)
+	return t * t * (3 - 2 * t)
+}
+
+hermite :: proc(p0, p1, v0, v1, t: f32) -> f32 {
+	t2, t3 := t * t, t * t * t
+	return (2*t3 - 3*t2 + 1) * p0 + (t3 - 2*t2 + t) * v0 +
+		   (-2*t3 + 3*t2) * p1 + (t3 - t2) * v1
+}

@@ -39,6 +39,8 @@ frame_timer : time.Stopwatch
 
 the_context : runtime.Context
 
+updated_marked : bool
+
 main :: proc() {
 	tracking_allocator : mem.Tracking_Allocator
 	mem.tracking_allocator_init(&tracking_allocator, context.allocator)
@@ -77,10 +79,20 @@ main :: proc() {
 	begin()
 
 	msg: win32.MSG
-	for win32.GetMessageW(&msg, nil, 0,0) > 0 {
-		win32.TranslateMessage(&msg)
-		the_context = context
-		win32.DispatchMessageW(&msg)
+	mainloop: for updated_marked || win32.GetMessageW(&msg, nil, 0,0) > 0 {
+		if updated_marked {
+			for win32.PeekMessageW(&msg, nil, 0,0, win32.PM_REMOVE) {
+				if msg.message == win32.WM_QUIT do break mainloop
+				win32.TranslateMessage(&msg)
+				the_context = context
+				win32.DispatchMessageW(&msg)
+			}
+			updated_marked = false;
+		} else {
+			win32.TranslateMessage(&msg)
+			the_context = context
+			win32.DispatchMessageW(&msg)
+		}
 
 		if !win32.PeekMessageW(&msg, nil, 0, 0, win32.PM_NOREMOVE) {
 			update()
@@ -97,3 +109,6 @@ main :: proc() {
 	// hotvalue.release(&hotv)
 }
 
+mark_update :: proc() {
+	updated_marked = true
+}

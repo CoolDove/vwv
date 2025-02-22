@@ -131,6 +131,7 @@ vwv_update :: proc(delta_s: f64) {
 	status_bar_rect := rect_split_bottom(window_rect, 46)
 	draw_rect(status_bar_rect, {33,37,61, 255})
 	draw_text(font_default, "Status Bar", {status_bar_rect.x + 5, status_bar_rect.y + 4} , 28, {69,153,49, 255})
+	mark_update()
 }
 
 vwv_begin :: proc() {
