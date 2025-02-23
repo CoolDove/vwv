@@ -2,23 +2,25 @@ package main
 
 import "core:time"
 import "core:strings"
+import "core:math/rand"
 import "core:fmt"
+import "core:log"
 import win32 "core:sys/windows"
 
 import "dgl"
 import "hotvalue"
 
 
-
 Record :: struct {
+	id : u64,
 	text : string,
+	// tree
+	parent, child, next: ^Record,
 }
 
-records : []Record= {
-	{"Hello, this is the record"},
-	{"另一条记录"},
-	{"что?"},
-}
+id_used : u64
+records : [dynamic]^Record
+root : ^Record
 
 begin :: proc() {
 	vwv_begin()
@@ -39,6 +41,8 @@ VisualRecord :: struct {
 visual_records : []VisualRecord
 
 debug_draw_data : struct { vertex_count : int, indices_count : int, vbuffer_size : int}
+
+_update_mode : bool
 
 frameid : int
 update :: proc() {
@@ -64,6 +68,7 @@ update :: proc() {
 	@static debug_lines := true
 
 	if is_key_pressed(.F1) do debug_lines = !debug_lines
+	if is_key_pressed(.F2) do _update_mode = !_update_mode
 
 	pushlinef :: proc(y: ^f32, fmtter: string, args: ..any) {
 		overflow :f64= auto_cast window_size.x - 10
@@ -117,27 +122,79 @@ vwv_update :: proc(delta_s: f64) {
 		else do vr.expand += (0-vr.expand) * 10 * delta_s
 	}
 
+	hovering_record : ^Record
+	draw_record :: proc(using r : ^Record, x: f64, y: ^f64, hovering: ^^Record) {
+		draw_text(font_default, text, {auto_cast x, auto_cast y^}, 28, dgl.CYAN)
+		if auto_cast input.mouse_position.y > y^ && auto_cast input.mouse_position.y < y^ + 28.0 {
+			hovering^ = r
+		}
+
+		y_start := y^
+		y^ += 30
+		ptr := child
+		for ptr != nil {
+			draw_record(ptr, x + 40, y, hovering)
+			ptr = ptr.next
+		}
+		if y^ > y_start {
+			draw_rect_rounded({auto_cast x, auto_cast y_start, 2, auto_cast y^-auto_cast y_start}, 1, 2, {255,255,0, 128 })
+		}
+	}
+	y := 60.0
+	hovering : ^Record
+	draw_record(root, 10, &y, &hovering)
+
+	if hovering != nil {
+		if is_key_pressed(.A) {
+			record_add_sibling(hovering).text = "Hello"
+		} else if is_key_pressed(.S) {
+			record_add_child(hovering).text = "Added"
+		} else if is_key_pressed(.D) {
+			record_remove(hovering)
+		}
+	}
+
 	// draw records
-	for vr, idx in visual_records {
-		expand := cast(f32)vr.expand
-		drect := rect_padding(vr.rect, -expand, -expand, -expand, -expand)
-		draw_rect_rounded(drect, 4, 2, {95,95,135, 255})
-	}
-	for vr, idx in visual_records {
-		draw_text(font_default, records[idx].text, {vr.rect.x+4+1.2, vr.rect.y+auto_cast vr.expand*0.4+1.2}, 28, {0,0,0,128})
-		draw_text(font_default, records[idx].text, {vr.rect.x+4, vr.rect.y+auto_cast vr.expand*0.4}, 28, dgl.LIGHT_GRAY)
-	}
+	// for vr, idx in visual_records {
+	// 	expand := cast(f32)vr.expand
+	// 	drect := rect_padding(vr.rect, -expand, -expand, -expand, -expand)
+	// 	draw_rect_rounded(drect, 4, 2, {95,95,135, 255})
+	// }
+	// for vr, idx in visual_records {
+	// 	draw_text(font_default, records[idx].text, {vr.rect.x+4+1.2, vr.rect.y+auto_cast vr.expand*0.4+1.2}, 28, {0,0,0,128})
+	// 	draw_text(font_default, records[idx].text, {vr.rect.x+4, vr.rect.y+auto_cast vr.expand*0.4}, 28, dgl.LIGHT_GRAY)
+	// }
 
 	status_bar_rect := rect_split_bottom(window_rect, 46)
 	draw_rect(status_bar_rect, {33,37,61, 255})
 	draw_text(font_default, "Status Bar", {status_bar_rect.x + 5, status_bar_rect.y + 4} , 28, {69,153,49, 255})
-	mark_update()
+	if vui_button({70, 300, 120, 30}, "hello") do fmt.printf("hello!\n")
+	if _update_mode do mark_update()
 }
 
 vwv_begin :: proc() {
+	records = make([dynamic]^Record)
 	visual_records = make([]VisualRecord, len(records))
+	root = _new_record()
+	root.text = "ROOT"
+	aaa := record_add_child(root)
+	aaa.text = "AAA"
+		a1 := record_add_child(aaa)
+		a1.text = "A1"
+		a2 := record_add_sibling(a1)
+		a2.text = "A2"
+	bbb := record_add_sibling(aaa)
+	bbb.text = "BBB"
+		b1 := record_add_child(bbb)
+		b1.text = "B1"
+		b2 := record_add_sibling(b1)
+		b2.text = "B2"
+		b0 := record_add_child(bbb)
+		b0.text = "B0"
 }
 vwv_end :: proc() {
+	for r in records do free(r)
+	delete(records)
 	delete(visual_records)
 }
 
@@ -147,5 +204,48 @@ layout_records :: proc(vrecords: []VisualRecord) {
 		vr.rect = rect
 		rect.y += 70
 	}
+}
 
+@(private="file")
+_new_record :: proc() -> ^Record {
+	r := new(Record)
+	append(&records, r)
+	id_used += 1
+	r.id = id_used
+	return r
+}
+
+// Add a new record as the first child of `to` node.
+record_add_child :: proc(to: ^Record) -> ^Record {
+	r := _new_record()
+	r.next = to.child
+	to.child = r
+	r.parent = to
+	return r
+}
+
+// Add a new record as the next of `to` node.
+record_add_sibling :: proc(to: ^Record) -> ^Record {
+	assert(to.parent != nil, "Root node can't have siblings.")
+	parent := to.parent
+	r := _new_record()
+	r.next = to.next
+	to.next = r
+	r.parent = to.parent
+	return r
+}
+
+// Remove a record
+record_remove :: proc(r: ^Record) {
+	assert(r.parent != nil, "Cannot remove root node.")
+	assert(r != nil, "Deleting a `nil`")
+	if r == r.parent.child {
+		r.parent.child = r.next
+	} else {
+		prev : ^Record = r.parent.child
+		for prev.next != r {
+			prev = prev.next
+		}
+		prev.next = r.next
+	}
 }

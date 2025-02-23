@@ -8,6 +8,7 @@ import "vendor:fontstash"
 import "./dgl"
 
 draw_text :: proc(fontid: int, text: string, position: dgl.Vec2, size: f32, color: dgl.Color4u8, overflow_width := 0.0) -> f32 {
+	if text == "" do return 0
 	fs := &fsctx.fs
 	fontstash.BeginState(fs)
 	fontstash.ClearState(fs)
