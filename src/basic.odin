@@ -8,7 +8,6 @@ import "core:time"
 import "core:c"
 import "core:log"
 
-import "vendor:glfw"
 import "core:unicode/utf16"
 import win32 "core:sys/windows"
 
@@ -19,8 +18,6 @@ import "dgl"
 
 OPENGL_VERSION_MAJOR :: 4
 OPENGL_VERSION_MINOR :: 4
-
-window : glfw.WindowHandle
 
 hwnd : win32.HWND
 
@@ -39,6 +36,8 @@ window_init :: proc(title: string, width, height: int) {
 	wc.lpfnWndProc = wndproc
 	wc.lpszClassName = wndclass
 	wc.hInstance = instance
+	cursor := win32.LoadCursorA(nil, win32.IDC_ARROW)
+	wc.hCursor = cursor
 	win32.RegisterClassW(&wc)
 
 	// 创建窗口
@@ -122,14 +121,9 @@ wndproc :: proc "system" (hwnd: win32.HWND, msg: win32.UINT, wparam: win32.WPARA
 	context = the_context
 	input_process_win32_wndproc({hwnd,msg,wparam,lparam})
 	switch(msg) {
-	case win32.WM_SETFOCUS:
-		// hotvalue.update(&hotv)
-	case win32.WM_ENTERSIZEMOVE:
-	case win32.WM_EXITSIZEMOVE:
 	case win32.WM_SIZING:
+		
 		update()
-	case win32.WM_PAINT:
-	case win32.WM_SIZE:
 	case win32.WM_DESTROY:
 		win32.ReleaseDC(hwnd, dc)
 		win32.PostQuitMessage(0)
