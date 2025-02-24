@@ -4,12 +4,14 @@ import "core:time"
 import "core:strings"
 import "core:math"
 import "core:math/rand"
+import "core:math/linalg"
 import "core:fmt"
 import "core:log"
 import win32 "core:sys/windows"
 
 import "dgl"
 import "hotvalue"
+import "tween"
 
 
 Record :: struct {
@@ -86,6 +88,7 @@ update :: proc() {
 		pushlinef(&y, "draw state: {}", debug_draw_data)
 		pushlinef(&y, "frameid: {}", frameid)
 		pushlinef(&y, "mouse: {}", input.mouse_position)
+		pushlinef(&y, "wheel delta: {}", input.wheel_delta)
 		pushlinef(&y, "button: {}", input.buttons)
 		pushlinef(&y, "button_prev: {}", input.buttons_prev)
 	}
@@ -106,12 +109,19 @@ update :: proc() {
 	input_process_post_update()
 }
 
+
+scroll_offset : f64
+
 vwv_update :: proc(delta_s: f64) {
 	vui_begin(math.min(delta_s, 1.0/60.0)); defer vui_end()
 
 	main_rect = rect_padding({0,0, auto_cast window_size.x, auto_cast window_size.y}, 10, 10, 10, 10)
 	layout_records(visual_records)
 	window_rect :dgl.Rect= {0,0, auto_cast window_size.x, auto_cast window_size.y}
+
+	if input.wheel_delta != 0 {
+		scroll_offset += 10 * auto_cast input.wheel_delta
+	}
 
 	draw_rect(window_rect, {15,16,23, 255})
 	draw_rect(main_rect, {22,24,33, 255})
@@ -127,9 +137,9 @@ vwv_update :: proc(delta_s: f64) {
 		else do vr.expand += (0-vr.expand) * 10 * delta_s
 	}
 
-	hovering_record : ^Record
 	draw_record :: proc(using r : ^Record, x: f64, y: ^f64, hovering: ^^Record) {
-		draw_text(font_default, text, {auto_cast x, auto_cast y^}, 28, dgl.CYAN)
+		// draw_text(font_default, text, {auto_cast x, auto_cast y^}, 28, dgl.CYAN)
+		card_rect := dgl.Rect{auto_cast x, auto_cast y^, auto_cast window_size.x-auto_cast x, 30}
 		if auto_cast input.mouse_position.y > y^ && auto_cast input.mouse_position.y < y^ + 28.0 {
 			hovering^ = r
 		}
@@ -142,12 +152,17 @@ vwv_update :: proc(delta_s: f64) {
 			ptr = ptr.next
 		}
 		if y^ > y_start {
-			draw_rect_rounded({auto_cast x, auto_cast y_start, 2, auto_cast y^-auto_cast y_start}, 1, 2, {255,255,0, 128 })
+			draw_rect_rounded({auto_cast x, auto_cast y_start, 2, auto_cast y^-auto_cast y_start}, 1, 2, {110,120,128, 64 })
 		}
+
+		card_rect = rect_padding(card_rect, 0,4,2,2)
+		record_card(r, card_rect, text)
 	}
-	y := 60.0
+
+	y := 60.0 + scroll_offset
 	hovering : ^Record
-	draw_record(root, 10, &y, &hovering)
+	draw_record(root, 20, &y, &hovering)
+
 
 	if hovering != nil {
 		if is_key_pressed(.A) {
@@ -176,6 +191,74 @@ vwv_update :: proc(delta_s: f64) {
 	if vui_button(1280, rect_split_right(status_bar_rect, 46), "hello") do fmt.printf("hello!\n")
 	vui_draggable_button(1222, rect_split_left(status_bar_rect, 32), "Drag me")
 	if _update_mode do mark_update()
+}
+
+record_card :: proc(r: ^Record, rect: dgl.Rect, text: string) {
+	ctx := _vui_ctx()
+	id := r.id * 10 + 10000
+	state := _vui_state(id, struct {
+		hover_time:f64,
+		dragging:bool,
+		// In dragging mode, this represents the offset from mouse pos to the anchor.
+		// In nondragging mode, this is the current rect anchor.
+		drag_offset:dgl.Vec2 
+	})
+	// @Temporary:
+	draw_rect(rect, {145,130,140, 64})
+	input_rect := rect
+	rect := rect
+	hovering := false
+	if state.dragging {
+		hovering = true
+		rect.x = input.mouse_position.x-state.drag_offset.x
+		rect.y = input.mouse_position.y-state.drag_offset.y
+
+		if is_button_released(.Left) {
+			if state.dragging {
+				state.dragging = false
+				state.drag_offset = {rect.x, rect.y}
+			}
+		}
+	} else {
+		if state.drag_offset != {} { // drag recovering
+			topos := rect_position(input_rect)
+			state.drag_offset = 40 * cast(f32)ctx.delta_s * (topos - state.drag_offset) + state.drag_offset
+			if linalg.distance(topos, state.drag_offset) < 2 {
+				state.drag_offset = {}
+			} else {
+				rect.x = state.drag_offset.x
+				rect.y = state.drag_offset.y
+			}
+		}
+		hovering = rect_in(rect, input.mouse_position)
+		if hovering && is_button_pressed(.Left) {
+			// start dragging
+			state.dragging = true
+			state.drag_offset = input.mouse_position - {rect.x, rect.y}
+		}
+	}
+
+	state.hover_time += ctx.delta_s if hovering else -ctx.delta_s
+	state.hover_time = math.clamp(state.hover_time, 0, 0.2)
+
+	if is_button_released(.Left) {
+		if state.dragging {
+			state.dragging = false
+			state.drag_offset = {rect.x, rect.y}
+		}
+	}
+
+	color_normal := dgl.col_u2f({195,75,75,   255})
+	color_hover  := dgl.col_u2f({215,105,95,  255})
+	color_flash  := dgl.col_u2f({245,235,235, 255})
+
+	hovert :f32= cast(f32)(math.min(state.hover_time, 0.2)/0.2)
+	hovert = tween.ease_inoutsine(hovert)
+	color := hovert*(color_hover-color_normal) + color_normal
+
+	draw_rect_rounded(rect, 4, 2, dgl.col_f2u(color))
+	text_color := dgl.col_u2f({218,218,218, 255})
+	draw_text(font_default, r.text, {rect.x, rect.y+rect.h*0.5-13-3*hovert}, 22, dgl.col_f2u(text_color))
 }
 
 vwv_begin :: proc() {

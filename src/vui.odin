@@ -29,6 +29,10 @@ _vui_state :: proc(id: u64, $T: typeid) -> ^T {
 	return cast(^T)s
 }
 
+_vui_ctx :: proc() -> ^VuiContext {
+	return &ctx
+}
+
 vui_init :: proc() {
 	ctx.states = make(map[u64]VuiState)
 }

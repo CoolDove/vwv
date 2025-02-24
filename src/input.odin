@@ -6,6 +6,7 @@ Input :: struct {
 	mouse_position : [2]f32,
 	buttons_prev, buttons : [5]bool,
 	keys_prev, keys : [256]bool,
+	wheel_delta : f32,
 }
 
 input : Input
@@ -32,6 +33,8 @@ input_process_win32_wndproc :: proc(msg: Win32Msg) {
 		input.buttons[MouseButton.Right] = true
 	case win32.WM_RBUTTONUP:
 		input.buttons[MouseButton.Right] = false
+	case win32.WM_MOUSEWHEEL:
+		input.wheel_delta = cast(f32)win32.GET_WHEEL_DELTA_WPARAM(msg.wparam)/cast(f32)win32.WHEEL_DELTA
 	case win32.WM_KEYDOWN:
 		if msg.wparam < 256 do input.keys[msg.wparam] = true
 	case win32.WM_KEYUP:
@@ -46,6 +49,7 @@ input_process_post_update :: proc() {
 	for key, idx in input.keys {
 		input.keys_prev[idx] = key
 	}
+	input.wheel_delta = 0
 }
 
 MouseButton :: enum {
