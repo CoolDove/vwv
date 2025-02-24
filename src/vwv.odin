@@ -174,6 +174,7 @@ vwv_update :: proc(delta_s: f64) {
 	draw_rect(status_bar_rect, {33,37,61, 255})
 	draw_text(font_default, "Status Bar", {status_bar_rect.x + 5, status_bar_rect.y + 4} , 28, {69,153,49, 255})
 	if vui_button(1280, rect_split_right(status_bar_rect, 46), "hello") do fmt.printf("hello!\n")
+	vui_draggable_button(1222, rect_split_left(status_bar_rect, 32), "Drag me")
 	if _update_mode do mark_update()
 }
 
