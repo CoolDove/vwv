@@ -102,7 +102,7 @@ vui_draggable_button :: proc(id: u64, rect: dgl.Rect, text: string) {
 	} else {
 		if state.drag_offset != {} { // drag recovering
 			topos := rect_position(input_rect)
-			state.drag_offset = cast(f32)ctx.delta_s * (topos - state.drag_offset) + state.drag_offset
+			state.drag_offset = 40 * cast(f32)ctx.delta_s * (topos - state.drag_offset) + state.drag_offset
 			if linalg.distance(topos, state.drag_offset) < 2 {
 				state.drag_offset = {}
 			} else {
