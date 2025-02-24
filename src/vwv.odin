@@ -2,6 +2,7 @@ package main
 
 import "core:time"
 import "core:strings"
+import "core:math"
 import "core:math/rand"
 import "core:fmt"
 import "core:log"
@@ -23,9 +24,11 @@ records : [dynamic]^Record
 root : ^Record
 
 begin :: proc() {
+	vui_init()
 	vwv_begin()
 }
 end :: proc() {
+	vui_release()
 	vwv_end()
 }
 
@@ -104,6 +107,8 @@ update :: proc() {
 }
 
 vwv_update :: proc(delta_s: f64) {
+	vui_begin(math.min(delta_s, 1.0/60.0)); defer vui_end()
+
 	main_rect = rect_padding({0,0, auto_cast window_size.x, auto_cast window_size.y}, 10, 10, 10, 10)
 	layout_records(visual_records)
 	window_rect :dgl.Rect= {0,0, auto_cast window_size.x, auto_cast window_size.y}
@@ -168,7 +173,7 @@ vwv_update :: proc(delta_s: f64) {
 	status_bar_rect := rect_split_bottom(window_rect, 46)
 	draw_rect(status_bar_rect, {33,37,61, 255})
 	draw_text(font_default, "Status Bar", {status_bar_rect.x + 5, status_bar_rect.y + 4} , 28, {69,153,49, 255})
-	if vui_button({70, 300, 120, 30}, "hello") do fmt.printf("hello!\n")
+	if vui_button(1280, rect_split_right(status_bar_rect, 46), "hello") do fmt.printf("hello!\n")
 	if _update_mode do mark_update()
 }
 
