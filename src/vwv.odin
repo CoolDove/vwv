@@ -139,7 +139,7 @@ vwv_update :: proc(delta_s: f64) {
 
 	draw_record :: proc(using r : ^Record, x: f64, y: ^f64, hovering: ^^Record) {
 		// draw_text(font_default, text, {auto_cast x, auto_cast y^}, 28, dgl.CYAN)
-		card_rect := dgl.Rect{auto_cast x, auto_cast y^, auto_cast window_size.x-auto_cast x, 30}
+		card_rect := dgl.Rect{auto_cast x, auto_cast y^, auto_cast window_size.x-auto_cast x-10, 30}
 		if auto_cast input.mouse_position.y > y^ && auto_cast input.mouse_position.y < y^ + 28.0 {
 			hovering^ = r
 		}
@@ -155,13 +155,13 @@ vwv_update :: proc(delta_s: f64) {
 			draw_rect_rounded({auto_cast x, auto_cast y_start, 2, auto_cast y^-auto_cast y_start}, 1, 2, {110,120,128, 64 })
 		}
 
-		card_rect = rect_padding(card_rect, 0,4,2,2)
+		card_rect = rect_padding(card_rect, 0,0,2,2)
 		record_card(r, card_rect, text)
 	}
 
 	y := 60.0 + scroll_offset
 	hovering : ^Record
-	draw_record(root, 20, &y, &hovering)
+	draw_record(root, 10, &y, &hovering)
 
 
 	if hovering != nil {
@@ -188,7 +188,7 @@ vwv_update :: proc(delta_s: f64) {
 	status_bar_rect := rect_split_bottom(window_rect, 46)
 	draw_rect(status_bar_rect, {33,37,61, 255})
 	draw_text(font_default, "Status Bar", {status_bar_rect.x + 5, status_bar_rect.y + 4} , 28, {69,153,49, 255})
-	if vui_button(1280, rect_split_right(status_bar_rect, 46), "hello") do fmt.printf("hello!\n")
+	if vui_button(1280, rect_padding(rect_split_right(status_bar_rect, 46), 4,4,4,4), "hello") do fmt.printf("hello!\n")
 	vui_draggable_button(1222, rect_split_left(status_bar_rect, 32), "Drag me")
 	if _update_mode do mark_update()
 }
