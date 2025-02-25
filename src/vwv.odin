@@ -36,14 +36,6 @@ end :: proc() {
 
 main_rect : dgl.Rect
 
-VisualRecord :: struct {
-	rect : dgl.Rect,
-	expand : f64,
-	hovering : bool,
-	clean : bool,
-}
-
-visual_records : []VisualRecord
 
 debug_draw_data : struct { vertex_count : int, indices_count : int, vbuffer_size : int}
 
@@ -111,12 +103,17 @@ update :: proc() {
 
 
 scroll_offset : f64
+VisualRecord :: struct {
+	r : ^Record,
+	rect : dgl.Rect,
+}
+visual_records : [dynamic]VisualRecord
 
 vwv_update :: proc(delta_s: f64) {
 	vui_begin(math.min(delta_s, 1.0/60.0)); defer vui_end()
 
 	main_rect = rect_padding({0,0, auto_cast window_size.x, auto_cast window_size.y}, 10, 10, 10, 10)
-	layout_records(visual_records)
+	// layout_records()
 	window_rect :dgl.Rect= {0,0, auto_cast window_size.x, auto_cast window_size.y}
 
 	if input.wheel_delta != 0 {
@@ -127,52 +124,56 @@ vwv_update :: proc(delta_s: f64) {
 	draw_rect(main_rect, {22,24,33, 255})
 
 	// update records
-	mpos := input.mouse_position
-	hovered := false
-	for &vr, idx in visual_records {
-		vr.hovering = rect_in(vr.rect, mpos) && !hovered
-		if vr.hovering {
-			vr.expand += (8-vr.expand) * 10 * delta_s
-		}
-		else do vr.expand += (0-vr.expand) * 10 * delta_s
+	// mpos := input.mouse_position
+	// hovered := false
+	// for &vr, idx in visual_records {
+	// 	vr.hovering = rect_in(vr.rect, mpos) && !hovered
+	// 	if vr.hovering {
+	// 		vr.expand += (8-vr.expand) * 10 * delta_s
+	// 	}
+	// 	else do vr.expand += (0-vr.expand) * 10 * delta_s
+	// }
+
+	// draw_record :: proc(using r : ^Record, x: f64, y: ^f64, hovering: ^^Record) {
+	// 	// draw_text(font_default, text, {auto_cast x, auto_cast y^}, 28, dgl.CYAN)
+	// 	card_rect := dgl.Rect{auto_cast x, auto_cast y^, auto_cast window_size.x-auto_cast x-10, 30}
+	// 	if auto_cast input.mouse_position.y > y^ && auto_cast input.mouse_position.y < y^ + 28.0 {
+	// 		hovering^ = r
+	// 	}
+
+	// 	y_start := y^
+	// 	y^ += 30
+	// 	ptr := child
+	// 	for ptr != nil {
+	// 		draw_record(ptr, x + 40, y, hovering)
+	// 		ptr = ptr.next
+	// 	}
+	// 	if y^ > y_start {
+	// 		draw_rect_rounded({auto_cast x, auto_cast y_start, 2, auto_cast y^-auto_cast y_start}, 1, 2, {110,120,128, 64 })
+	// 	}
+
+	// 	card_rect = rect_padding(card_rect, 0,0,2,2)
+	// 	record_card(r, card_rect, text)
+	// }
+
+	// y := 60.0 + scroll_offset
+	// hovering : ^Record
+	// draw_record(root, 10, &y, &hovering)
+
+	update_visual_records(root)
+	for vr in visual_records {
+		draw_rect(vr.rect, dgl.RED)
 	}
 
-	draw_record :: proc(using r : ^Record, x: f64, y: ^f64, hovering: ^^Record) {
-		// draw_text(font_default, text, {auto_cast x, auto_cast y^}, 28, dgl.CYAN)
-		card_rect := dgl.Rect{auto_cast x, auto_cast y^, auto_cast window_size.x-auto_cast x-10, 30}
-		if auto_cast input.mouse_position.y > y^ && auto_cast input.mouse_position.y < y^ + 28.0 {
-			hovering^ = r
-		}
-
-		y_start := y^
-		y^ += 30
-		ptr := child
-		for ptr != nil {
-			draw_record(ptr, x + 40, y, hovering)
-			ptr = ptr.next
-		}
-		if y^ > y_start {
-			draw_rect_rounded({auto_cast x, auto_cast y_start, 2, auto_cast y^-auto_cast y_start}, 1, 2, {110,120,128, 64 })
-		}
-
-		card_rect = rect_padding(card_rect, 0,0,2,2)
-		record_card(r, card_rect, text)
-	}
-
-	y := 60.0 + scroll_offset
-	hovering : ^Record
-	draw_record(root, 10, &y, &hovering)
-
-
-	if hovering != nil {
-		if is_key_pressed(.A) {
-			record_add_sibling(hovering).text = "Hello"
-		} else if is_key_pressed(.S) {
-			record_add_child(hovering).text = "Added"
-		} else if is_key_pressed(.D) {
-			record_remove(hovering)
-		}
-	}
+	// if hovering != nil {
+	// 	if is_key_pressed(.A) {
+	// 		record_add_sibling(hovering).text = "Hello"
+	// 	} else if is_key_pressed(.S) {
+	// 		record_add_child(hovering).text = "Added"
+	// 	} else if is_key_pressed(.D) {
+	// 		record_remove(hovering)
+	// 	}
+	// }
 
 	// draw records
 	// for vr, idx in visual_records {
@@ -191,6 +192,23 @@ vwv_update :: proc(delta_s: f64) {
 	if vui_button(1280, rect_padding(rect_split_right(status_bar_rect, 46), 4,4,4,4), "hello") do fmt.printf("hello!\n")
 	vui_draggable_button(1222, rect_split_left(status_bar_rect, 32), "Drag me")
 	if _update_mode do mark_update()
+}
+
+update_visual_records :: proc(root: ^Record) {
+	clear(&visual_records)
+
+	x :f32= 10
+	y :f32= 10
+	ite_record :: proc(r: ^Record, to: ^[dynamic]VisualRecord, x: f32, y: ^f32) {
+		append(to, VisualRecord{r, {x, y^, auto_cast window_size.x, 30}})
+		y^ += 30
+		ptr := r.child
+		for ptr != nil {
+			ite_record(ptr, to, x + 40, y)
+			ptr = ptr.next
+		}
+	}
+	ite_record(root, &visual_records, x, &y)
 }
 
 record_card :: proc(r: ^Record, rect: dgl.Rect, text: string) {
@@ -263,7 +281,8 @@ record_card :: proc(r: ^Record, rect: dgl.Rect, text: string) {
 
 vwv_begin :: proc() {
 	records = make([dynamic]^Record)
-	visual_records = make([]VisualRecord, len(records))
+	visual_records = make([dynamic]VisualRecord)
+
 	root = _new_record()
 	root.text = "ROOT"
 	aaa := record_add_child(root)
@@ -280,6 +299,8 @@ vwv_begin :: proc() {
 		b2.text = "B2"
 		b0 := record_add_child(bbb)
 		b0.text = "B0"
+
+	update_visual_records(root)
 }
 vwv_end :: proc() {
 	for r in records do free(r)
