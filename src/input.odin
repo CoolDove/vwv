@@ -1,5 +1,9 @@
 package main
 
+import "core:log"
+import "core:strings"
+import "core:unicode/utf8"
+import "core:mem"
 import win32 "core:sys/windows"
 
 Input :: struct {
@@ -7,6 +11,16 @@ Input :: struct {
 	buttons_prev, buttons : [5]bool,
 	keys_prev, keys : [256]bool,
 	wheel_delta : f32,
+
+
+	// text input stuff
+	ime_text_buffer_raw : [128]u16,
+	ime_text_buffer : [128]u8,
+	ime_composed : string,
+
+	text_input_on : bool,
+	_input_text_buffer : [128]rune,
+	_handled_input_text : []rune,
 }
 
 input : Input
@@ -39,6 +53,24 @@ input_process_win32_wndproc :: proc(msg: Win32Msg) {
 		if msg.wparam < 256 do input.keys[msg.wparam] = true
 	case win32.WM_KEYUP:
 		if msg.wparam < 256 do input.keys[msg.wparam] = false
+	case win32.WM_CHAR:
+		r := cast(rune)msg.wparam
+		if input.text_input_on && r > 31 {
+			length := len(input._handled_input_text)
+			input._input_text_buffer[length] = r
+			input._handled_input_text = input._input_text_buffer[:length+1]
+		}
+	case win32.WM_IME_COMPOSITION: // used to handle compositing text
+		// if (msg.lparam & GCS_RESULTSTR) > 0 {
+		// 	buffer := input.ime_text_buffer_raw
+		// 	himc := ImmGetContext(hwnd); defer ImmReleaseContext(hwnd, himc)
+		// 	size := ImmGetCompositionStringW(himc, GCS_RESULTSTR, nil, 0)
+		// 	ImmGetCompositionStringW(himc, GCS_RESULTSTR, raw_data(buffer[:]), auto_cast size)
+		// 	coded, _ := win32.utf16_to_utf8(buffer[:size], context.temp_allocator)
+		// 	mem.copy(raw_data(input.ime_text_buffer[:]), raw_data(coded), len(coded))
+		// 	input.ime_composed = cast(string)input.ime_text_buffer[:len(coded)]
+		// 	log.debugf("composed: {}", input.ime_composed)
+		// }
 	}
 }
 // put this at the most bottom in the update function
@@ -54,6 +86,18 @@ input_process_post_update :: proc() {
 
 MouseButton :: enum {
 	Left, Right, Middle,
+}
+
+get_input_text :: proc(allocator:= context.allocator) -> string {
+	context.allocator = allocator
+	defer input._handled_input_text = {}
+	return utf8.runes_to_string(input._handled_input_text)
+}
+toggle_text_input :: proc(on: bool) {
+	input.text_input_on = on
+	if on {
+		input._handled_input_text = {}
+	}
 }
 
 is_button_down :: proc(btn: MouseButton) -> bool {
@@ -125,3 +169,33 @@ KeyboardKey :: enum(u8) {
 
 	Enter = win32.VK_RETURN,
 }
+
+// IMM32 binding
+foreign import imm32 "system:Imm32.lib"
+
+HIMC :: win32.DWORD
+
+@(default_calling_convention="system")
+foreign imm32 {
+	ImmGetCompositionStringW :: proc(unnamedParam1: HIMC, unnamedParam2: win32.DWORD, lpBuf: win32.LPVOID, dwBufLen: win32.DWORD,) -> win32.LONG ---
+	ImmGetContext :: proc(unnamedParam1: win32.HWND) -> HIMC ---
+	ImmReleaseContext :: proc(unnamedParam1: win32.HWND, unnamedParam2: HIMC) -> win32.BOOL ---
+}
+
+// parameter of ImmGetCompositionString
+GCS_COMPREADSTR :: 0x0001
+GCS_COMPREADATTR :: 0x0002
+GCS_COMPREADCLAUSE :: 0x0004
+GCS_COMPSTR :: 0x0008
+GCS_COMPATTR :: 0x0010
+GCS_COMPCLAUSE :: 0x0020
+GCS_CURSORPOS :: 0x0080
+GCS_DELTASTART :: 0x0100
+GCS_RESULTREADSTR :: 0x0200
+GCS_RESULTREADCLAUSE :: 0x0400
+GCS_RESULTSTR :: 0x0800
+GCS_RESULTCLAUSE :: 0x1000
+
+// style bit flags for WM_IME_COMPOSITION
+CS_INSERTCHAR :: 0x2000
+CS_NOMOVECARET :: 0x4000

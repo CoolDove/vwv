@@ -83,7 +83,6 @@ update :: proc() {
 		pushlinef(&y, "wheel delta: {}", input.wheel_delta)
 		pushlinef(&y, "button: {}", input.buttons)
 		pushlinef(&y, "button_prev: {}", input.buttons_prev)
-		pushlinef(&y, "edit: {}", editting_record)
 	}
 
 	debug_draw_data = {
@@ -190,22 +189,21 @@ record_card :: proc(vr: ^VisualRecord, hovering: ^^VisualRecord) {
 				textedit_begin(ed, gp)
 				editting_record.record = vr.r
 				state.editting = 1
+				toggle_text_input(true)
 			}
 		}
 	}
 	if editting_record.record == vr.r {
-		if is_key_pressed(.A) {
-			textedit_insert(&editting_record.textedit, "A")
-		}
-		if is_key_pressed(.B) {
-			textedit_insert(&editting_record.textedit, "B")
+		if input_text := get_input_text(context.temp_allocator); input_text != {} {
+			textedit_insert(&editting_record.textedit, input_text)
 		}
 		if is_key_pressed(.Enter) {
 			vr.r.text = gapbuffer_get_string(&editting_record.gapbuffer)
 			// @Temporary:
 			editting_record.record = nil
-			editting_record.textedit = {}
+			textedit_end(&editting_record.textedit)
 			state.editting = 0
+			toggle_text_input(false)
 		}
 	}
 
