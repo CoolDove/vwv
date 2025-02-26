@@ -70,7 +70,7 @@ update :: proc() {
 	pushlinef :: proc(y: ^f32, fmtter: string, args: ..any) {
 		overflow :f64= auto_cast window_size.x - 10
 		draw_text(font_default, fmt.tprintf(fmtter, ..args), {5+1, y^+1}, 24, {0,0,0, 128}, overflow_width = overflow)
-		h := draw_text(font_default, fmt.tprintf(fmtter, ..args), {5, y^}, 24, dgl.GREEN, overflow_width = overflow)
+		_, h := draw_text(font_default, fmt.tprintf(fmtter, ..args), {5, y^}, 24, dgl.GREEN, overflow_width = overflow)
 		y^ += h + 2
 	}
 	y :f32= 5
@@ -157,10 +157,11 @@ update_visual_records :: proc(root: ^Record) {
 record_card :: proc(vr: ^VisualRecord, hovering: ^^VisualRecord) {
 	state := _vui_state(vr.r.id * 10 + 10000, struct {
 		editting : f64, // > 0 means editting, there is an animation bound to this
-		scale : f64
+		cursor : f32,
+		scale : f32
 	})
 	if state.scale < 1 {
-		state.scale += _vui_ctx().delta_s * 6
+		state.scale += auto_cast _vui_ctx().delta_s * 6
 		if state.scale >= 1 do state.scale = 1
 	}
 	is_global_editting := editting_record.record != nil
@@ -194,10 +195,19 @@ record_card :: proc(vr: ^VisualRecord, hovering: ^^VisualRecord) {
 		}
 	}
 	if editting_record.record == vr.r {
+		ed := &editting_record.textedit
 		if input_text := get_input_text(context.temp_allocator); input_text != {} {
-			textedit_insert(&editting_record.textedit, input_text)
+			textedit_insert(ed, input_text)
+		} else if is_key_pressed(.Back) {
+			textedit_remove(ed, -1)
+		} else if is_key_pressed(.Delete) {
+			textedit_remove(ed, 1)
+		} else if is_key_pressed(.Left) {
+			textedit_move(ed, -1)
+		} else if is_key_pressed(.Right) {
+			textedit_move(ed, 1)
 		}
-		if is_key_pressed(.Enter) {
+		if is_key_pressed(.Enter) || is_key_pressed(.Escape) {
 			vr.r.text = gapbuffer_get_string(&editting_record.gapbuffer)
 			// @Temporary:
 			editting_record.record = nil
@@ -217,10 +227,19 @@ record_card :: proc(vr: ^VisualRecord, hovering: ^^VisualRecord) {
 	}
 
 	text := vr.r.text
-	if editting do text = gapbuffer_get_string(&editting_record.gapbuffer, context.temp_allocator)
-
-	draw_text(font_default, text, {rect.x+4+1.2, rect.y-4+1.2}, 28, {0,0,0,cast(u8)(128*state.scale)})
-	draw_text(font_default, text, {rect.x+4,     rect.y-4}, 28, text_color)
+	if editting {
+		ed := &editting_record.textedit
+		text = gapbuffer_get_string(&editting_record.gapbuffer, context.temp_allocator)
+		draw_text(font_default, text, {rect.x+4+1.2, rect.y-4+1.2}, 28, {0,0,0,cast(u8)(128*state.scale)})
+		prevx, _ := draw_text(font_default, text[:ed.selection.x], {rect.x+4,     rect.y-4}, 28, text_color)
+		draw_text(font_default, text[ed.selection.x:], {rect.x+4 + prevx, rect.y-4}, 28, text_color)
+		cursor := rect.x+4 + prevx
+		state.cursor += (cursor - state.cursor) * auto_cast _vui_ctx().delta_s * 12
+		draw_rect({state.cursor, rect.y-4, 2, 28}, dgl.WHITE)
+	} else {
+		draw_text(font_default, text, {rect.x+4+1.2, rect.y-4+1.2}, 28, {0,0,0,cast(u8)(128*state.scale)})
+		draw_text(font_default, text, {rect.x+4,     rect.y-4}, 28, text_color)
+	}
 }
 
 RecordEdit :: struct {

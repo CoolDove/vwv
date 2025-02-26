@@ -167,7 +167,19 @@ KeyboardKey :: enum(u8) {
 	F11 = win32.VK_F11,
 	F12 = win32.VK_F12,
 
-	Enter = win32.VK_RETURN,
+	Delete = win32.VK_DELETE,
+	Back   = win32.VK_BACK,
+	Tab    = win32.VK_TAB,
+	Enter  = win32.VK_RETURN,
+	Escape = win32.VK_ESCAPE,
+
+	End    = win32.VK_END,
+	Home   = win32.VK_HOME,
+
+	Left   = win32.VK_LEFT,
+	Up     = win32.VK_UP,
+	Right  = win32.VK_RIGHT,
+	Down   = win32.VK_DOWN,
 }
 
 // IMM32 binding
