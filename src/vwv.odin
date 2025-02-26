@@ -199,13 +199,17 @@ record_card :: proc(vr: ^VisualRecord, hovering: ^^VisualRecord) {
 		if input_text := get_input_text(context.temp_allocator); input_text != {} {
 			textedit_insert(ed, input_text)
 		} else if is_key_pressed(.Back) {
-			textedit_remove(ed, -1)
+			_, i := textedit_find_previous_rune(ed, ed.selection.x)
+			textedit_remove(ed, i-ed.selection.x)
 		} else if is_key_pressed(.Delete) {
-			textedit_remove(ed, 1)
+			_, i := textedit_find_next_rune(ed, ed.selection.x)
+			textedit_remove(ed, i-ed.selection.x)
 		} else if is_key_pressed(.Left) {
-			textedit_move(ed, -1)
+			_, i := textedit_find_previous_rune(ed, ed.selection.x)
+			textedit_move(ed, i-ed.selection.x)
 		} else if is_key_pressed(.Right) {
-			textedit_move(ed, 1)
+			_, i := textedit_find_next_rune(ed, ed.selection.x)
+			textedit_move(ed, i-ed.selection.x)
 		}
 		if is_key_pressed(.Enter) || is_key_pressed(.Escape) {
 			vr.r.text = gapbuffer_get_string(&editting_record.gapbuffer)
@@ -232,7 +236,7 @@ record_card :: proc(vr: ^VisualRecord, hovering: ^^VisualRecord) {
 		text = gapbuffer_get_string(&editting_record.gapbuffer, context.temp_allocator)
 		draw_text(font_default, text, {rect.x+4+1.2, rect.y-4+1.2}, 28, {0,0,0,cast(u8)(128*state.scale)})
 		prevx, _ := draw_text(font_default, text[:ed.selection.x], {rect.x+4,     rect.y-4}, 28, text_color)
-		draw_text(font_default, text[ed.selection.x:], {rect.x+4 + prevx, rect.y-4}, 28, text_color)
+		draw_text(font_default, text[ed.selection.x:], {rect.x+4 + prevx + 1, rect.y-4}, 28, text_color)
 		cursor := rect.x+4 + prevx
 		state.cursor += (cursor - state.cursor) * auto_cast _vui_ctx().delta_s * 12
 		draw_rect({state.cursor, rect.y-4, 2, 28}, dgl.WHITE)
