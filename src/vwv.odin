@@ -83,6 +83,7 @@ update :: proc() {
 		pushlinef(&y, "wheel delta: {}", input.wheel_delta)
 		pushlinef(&y, "button: {}", input.buttons)
 		pushlinef(&y, "button_prev: {}", input.buttons_prev)
+		pushlinef(&y, "edit: {}", editting_record)
 	}
 
 	debug_draw_data = {
@@ -126,35 +127,7 @@ vwv_update :: proc(delta_s: f64) {
 	update_visual_records(root)
 	hovering : ^VisualRecord
 	for &vr in visual_records {
-		state := _vui_state(vr.r.id * 10 + 10000, struct {
-			scale : f64
-		})
-		if state.scale < 1 {
-			state.scale += _vui_ctx().delta_s * 6
-			if state.scale >= 1 do state.scale = 1
-		}
-		rect := rect_padding(vr.rect, 2,2, 2,2)
-		rect.y += auto_cast scroll_offset
-		rect.w *= tween.ease_outcirc(auto_cast state.scale)
-
-		if hovering == nil && rect_in(rect, input.mouse_position) {
-			hovering = &vr
-		}
-		if hovering == &vr {
-			if is_key_pressed(.A) {
-				record_add_sibling(hovering.r).text = "Hello"
-			} else if is_key_pressed(.S) {
-				record_add_child(hovering.r).text = "Added"
-			} else if is_key_pressed(.D) {
-				record_remove(hovering.r)
-			}
-		}
-
-		alpha := cast(u8)(255 * state.scale)
-		draw_rect_rounded(rect, 4, 2, {95,95,135, alpha} if hovering != &vr else {105,105,145, alpha})
-		draw_text(font_default, vr.r.text, {rect.x+4+1.2, rect.y-4+1.2}, 28, {0,0,0,cast(u8)(128*state.scale)})
-		color :dgl.Color4u8= {220,220,220, alpha}
-		draw_text(font_default, vr.r.text, {rect.x+4,     rect.y-4}, 28, color)
+		record_card(&vr, &hovering)
 	}
 
 	status_bar_rect := rect_split_bottom(window_rect, 46)
@@ -182,77 +155,88 @@ update_visual_records :: proc(root: ^Record) {
 	ite_record(root, &visual_records, x, &y)
 }
 
-record_card :: proc(r: ^Record, rect: dgl.Rect, text: string) {
-	ctx := _vui_ctx()
-	id := r.id * 10 + 10000
-	state := _vui_state(id, struct {
-		hover_time:f64,
-		dragging:bool,
-		// In dragging mode, this represents the offset from mouse pos to the anchor.
-		// In nondragging mode, this is the current rect anchor.
-		drag_offset:dgl.Vec2 
+record_card :: proc(vr: ^VisualRecord, hovering: ^^VisualRecord) {
+	state := _vui_state(vr.r.id * 10 + 10000, struct {
+		editting : f64, // > 0 means editting, there is an animation bound to this
+		scale : f64
 	})
-	// @Temporary:
-	draw_rect(rect, {145,130,140, 64})
-	input_rect := rect
-	rect := rect
-	hovering := false
-	if state.dragging {
-		hovering = true
-		rect.x = input.mouse_position.x-state.drag_offset.x
-		rect.y = input.mouse_position.y-state.drag_offset.y
+	if state.scale < 1 {
+		state.scale += _vui_ctx().delta_s * 6
+		if state.scale >= 1 do state.scale = 1
+	}
+	is_global_editting := editting_record.record != nil
+	rect := rect_padding(vr.rect, 2,2, 2,2)
+	rect.y += auto_cast scroll_offset
+	rect.w *= tween.ease_outcirc(auto_cast state.scale)
 
-		if is_button_released(.Left) {
-			if state.dragging {
-				state.dragging = false
-				state.drag_offset = {rect.x, rect.y}
+	if hovering^ == nil && rect_in(rect, input.mouse_position) {
+		hovering^ = vr
+	}
+	editting := state.editting > 0
+	if hovering^ == vr {
+		if !is_global_editting {
+			if is_key_pressed(.A) {
+				record_add_sibling(hovering^.r).text = "Hello"
+			} else if is_key_pressed(.S) {
+				record_add_child(hovering^.r).text = "Added"
+			} else if is_key_pressed(.D) {
+				record_remove(hovering^.r)
+			}
+			if is_button_pressed(.Left) {
+				ed := &editting_record.textedit
+				gp := &editting_record.gapbuffer
+				gapbuffer_clear(gp)
+				gapbuffer_insert_string(gp, 0, vr.r.text)
+				textedit_begin(ed, gp)
+				editting_record.record = vr.r
+				state.editting = 1
 			}
 		}
+	}
+	if editting_record.record == vr.r {
+		if is_key_pressed(.A) {
+			textedit_insert(&editting_record.textedit, "A")
+		}
+		if is_key_pressed(.B) {
+			textedit_insert(&editting_record.textedit, "B")
+		}
+		if is_key_pressed(.Enter) {
+			vr.r.text = gapbuffer_get_string(&editting_record.gapbuffer)
+			// @Temporary:
+			editting_record.record = nil
+			editting_record.textedit = {}
+			state.editting = 0
+		}
+	}
+
+	alpha := cast(u8)(255 * state.scale)
+	text_color :dgl.Color4u8= {220,220,220, alpha}
+	if editting {
+		draw_rect_rounded(rect, 4, 2, {65,65,95, alpha} if hovering^ != vr else {85,85,115, alpha})
+		draw_rect_rounded(rect_padding(rect, 2,2,2,2), 4, 2, {95,95,135, alpha})
 	} else {
-		if state.drag_offset != {} { // drag recovering
-			topos := rect_position(input_rect)
-			state.drag_offset = 40 * cast(f32)ctx.delta_s * (topos - state.drag_offset) + state.drag_offset
-			if linalg.distance(topos, state.drag_offset) < 2 {
-				state.drag_offset = {}
-			} else {
-				rect.x = state.drag_offset.x
-				rect.y = state.drag_offset.y
-			}
-		}
-		hovering = rect_in(rect, input.mouse_position)
-		if hovering && is_button_pressed(.Left) {
-			// start dragging
-			state.dragging = true
-			state.drag_offset = input.mouse_position - {rect.x, rect.y}
-		}
+		draw_rect_rounded(rect, 4, 2, {95,95,135, alpha} if hovering^ != vr else {105,105,145, alpha})
 	}
 
-	state.hover_time += ctx.delta_s if hovering else -ctx.delta_s
-	state.hover_time = math.clamp(state.hover_time, 0, 0.2)
+	text := vr.r.text
+	if editting do text = gapbuffer_get_string(&editting_record.gapbuffer, context.temp_allocator)
 
-	if is_button_released(.Left) {
-		if state.dragging {
-			state.dragging = false
-			state.drag_offset = {rect.x, rect.y}
-		}
-	}
-
-	color_normal := dgl.col_u2f({195,75,75,   255})
-	color_hover  := dgl.col_u2f({215,105,95,  255})
-	color_flash  := dgl.col_u2f({245,235,235, 255})
-
-	hovert :f32= cast(f32)(math.min(state.hover_time, 0.2)/0.2)
-	hovert = tween.ease_inoutsine(hovert)
-	color := hovert*(color_hover-color_normal) + color_normal
-
-	draw_rect_rounded(rect, 4, 2, dgl.col_f2u(color))
-	text_color := dgl.col_u2f({218,218,218, 255})
-	draw_text(font_default, r.text, {rect.x, rect.y+rect.h*0.5-13-3*hovert}, 22, dgl.col_f2u(text_color))
+	draw_text(font_default, text, {rect.x+4+1.2, rect.y-4+1.2}, 28, {0,0,0,cast(u8)(128*state.scale)})
+	draw_text(font_default, text, {rect.x+4,     rect.y-4}, 28, text_color)
 }
+
+RecordEdit :: struct {
+	record    : ^Record,
+	textedit  : TextEdit,
+	gapbuffer : GapBuffer,
+}
+editting_record : RecordEdit
 
 vwv_begin :: proc() {
 	records = make([dynamic]^Record)
 	visual_records = make([dynamic]VisualRecord)
+
+	gapbuffer_init(&editting_record.gapbuffer, 16)
 
 	root = _new_record()
 	root.text = "ROOT"
@@ -274,6 +258,7 @@ vwv_begin :: proc() {
 	update_visual_records(root)
 }
 vwv_end :: proc() {
+	gapbuffer_release(&editting_record.gapbuffer)
 	for r in records do free(r)
 	delete(records)
 	delete(visual_records)
