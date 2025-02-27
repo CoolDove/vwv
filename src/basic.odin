@@ -120,6 +120,7 @@ window_init :: proc(title: string, width, height: int) {
 wndproc :: proc "system" (hwnd: win32.HWND, msg: win32.UINT, wparam: win32.WPARAM, lparam: win32.LPARAM) -> win32.LRESULT {
 	context = the_context
 	input_process_win32_wndproc({hwnd,msg,wparam,lparam})
+	vwv_wndproc(hwnd,msg,wparam,lparam)
 	switch(msg) {
 	case win32.WM_SIZING:
 		update()

@@ -39,7 +39,6 @@ main_rect : dgl.Rect
 
 debug_draw_data : struct { vertex_count : int, indices_count : int, vbuffer_size : int}
 
-_update_mode := true
 
 frameid : int
 update :: proc() {
@@ -59,13 +58,11 @@ update :: proc() {
 	begin_draw({0,0, window_size.x, window_size.y})
 	dgl.framebuffer_clear({.Color}, {0,0,0,1})
 
-
 	vwv_update(delta_s)
 
 	@static debug_lines := true
 
 	if is_key_pressed(.F1) do debug_lines = !debug_lines
-	if is_key_pressed(.F2) do _update_mode = !_update_mode
 
 	pushlinef :: proc(y: ^f32, fmtter: string, args: ..any) {
 		overflow :f64= auto_cast window_size.x - 10
@@ -83,6 +80,7 @@ update :: proc() {
 		pushlinef(&y, "wheel delta: {}", input.wheel_delta)
 		pushlinef(&y, "button: {}", input.buttons)
 		pushlinef(&y, "button_prev: {}", input.buttons_prev)
+		pushlinef(&y, "update time: {}", _update_time)
 	}
 
 	debug_draw_data = {
@@ -134,8 +132,15 @@ vwv_update :: proc(delta_s: f64) {
 	draw_text(font_default, "Status Bar", {status_bar_rect.x + 5, status_bar_rect.y + 4} , 28, {69,153,49, 255})
 	if vui_button(1280, rect_padding(rect_split_right(status_bar_rect, 46), 4,4,4,4), "hello") do fmt.printf("hello!\n")
 	vui_draggable_button(1222, rect_split_left(status_bar_rect, 32), "Drag me")
-	if _update_mode do mark_update()
+	if _update_time > 0 {
+		_update_time -= delta_s
+		mark_update()
+	}
 }
+vwv_wndproc :: proc(hwnd: win32.HWND, msg: win32.UINT, wparam: win32.WPARAM, lparam: win32.LPARAM) {
+	_update_time = 2
+}
+_update_time : f64
 
 update_visual_records :: proc(root: ^Record) {
 	clear(&visual_records)
@@ -198,18 +203,18 @@ record_card :: proc(vr: ^VisualRecord, hovering: ^^VisualRecord) {
 		ed := &editting_record.textedit
 		if input_text := get_input_text(context.temp_allocator); input_text != {} {
 			textedit_insert(ed, input_text)
-		} else if is_key_pressed(.Back) {
+		} else if is_key_repeated(.Back) {
 			_, i := textedit_find_previous_rune(ed, ed.selection.x)
-			textedit_remove(ed, i-ed.selection.x)
-		} else if is_key_pressed(.Delete) {
+			if i != -1 do textedit_remove(ed, i-ed.selection.x)
+		} else if is_key_repeated(.Delete) {
 			_, i := textedit_find_next_rune(ed, ed.selection.x)
-			textedit_remove(ed, i-ed.selection.x)
-		} else if is_key_pressed(.Left) {
+			if i != -1 do textedit_remove(ed, i-ed.selection.x)
+		} else if is_key_repeated(.Left) {
 			_, i := textedit_find_previous_rune(ed, ed.selection.x)
-			textedit_move(ed, i-ed.selection.x)
-		} else if is_key_pressed(.Right) {
+			if i != -1 do textedit_move(ed, i-ed.selection.x)
+		} else if is_key_repeated(.Right) {
 			_, i := textedit_find_next_rune(ed, ed.selection.x)
-			textedit_move(ed, i-ed.selection.x)
+			if i != -1 do textedit_move(ed, i-ed.selection.x)
 		}
 		if is_key_pressed(.Enter) || is_key_pressed(.Escape) {
 			vr.r.text = gapbuffer_get_string(&editting_record.gapbuffer)
@@ -238,8 +243,10 @@ record_card :: proc(vr: ^VisualRecord, hovering: ^^VisualRecord) {
 		prevx, _ := draw_text(font_default, text[:ed.selection.x], {rect.x+4,     rect.y-4}, 28, text_color)
 		draw_text(font_default, text[ed.selection.x:], {rect.x+4 + prevx + 1, rect.y-4}, 28, text_color)
 		cursor := rect.x+4 + prevx
+		xbefore := state.cursor
 		state.cursor += (cursor - state.cursor) * auto_cast _vui_ctx().delta_s * 12
-		draw_rect({state.cursor, rect.y-4, 2, 28}, dgl.WHITE)
+		// cursor
+		draw_rect({math.min(state.cursor, xbefore), rect.y-4, math.max(2, math.abs(state.cursor-xbefore)), 28}, dgl.WHITE)
 	} else {
 		draw_text(font_default, text, {rect.x+4+1.2, rect.y-4+1.2}, 28, {0,0,0,cast(u8)(128*state.scale)})
 		draw_text(font_default, text, {rect.x+4,     rect.y-4}, 28, text_color)

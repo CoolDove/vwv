@@ -9,7 +9,7 @@ import win32 "core:sys/windows"
 Input :: struct {
 	mouse_position : [2]f32,
 	buttons_prev, buttons : [5]bool,
-	keys_prev, keys : [256]bool,
+	keys_prev, keys, keys_repeat : [256]bool,
 	wheel_delta : f32,
 
 
@@ -50,7 +50,10 @@ input_process_win32_wndproc :: proc(msg: Win32Msg) {
 	case win32.WM_MOUSEWHEEL:
 		input.wheel_delta = cast(f32)win32.GET_WHEEL_DELTA_WPARAM(msg.wparam)/cast(f32)win32.WHEEL_DELTA
 	case win32.WM_KEYDOWN:
-		if msg.wparam < 256 do input.keys[msg.wparam] = true
+		if msg.wparam < 256 {
+			input.keys[msg.wparam]        = true
+			input.keys_repeat[msg.wparam] = true
+		}
 	case win32.WM_KEYUP:
 		if msg.wparam < 256 do input.keys[msg.wparam] = false
 	case win32.WM_CHAR:
@@ -80,6 +83,7 @@ input_process_post_update :: proc() {
 	}
 	for key, idx in input.keys {
 		input.keys_prev[idx] = key
+		input.keys_repeat[idx] = false
 	}
 	input.wheel_delta = 0
 }
@@ -124,6 +128,9 @@ is_key_released :: proc(key: KeyboardKey) -> bool {
 }
 is_key_pressed :: proc(key: KeyboardKey) -> bool {
 	return !input.keys_prev[key] && input.keys[key]
+}
+is_key_repeated :: proc(key: KeyboardKey) -> bool {
+	return input.keys_repeat[key]
 }
 
 KeyboardKey :: enum(u8) {
