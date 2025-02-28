@@ -42,6 +42,8 @@ the_context : runtime.Context
 updated_marked : bool
 
 main :: proc() {
+	time.stopwatch_start(&timer); defer time.stopwatch_stop(&timer)
+
 	tracking_allocator : mem.Tracking_Allocator
 	mem.tracking_allocator_init(&tracking_allocator, context.allocator)
 	context.allocator = mem.tracking_allocator(&tracking_allocator)
@@ -66,7 +68,6 @@ main :: proc() {
 	window_init("VWV - new version", 400, 600)
 	dgl.init()
 
-	time.stopwatch_start(&timer); defer time.stopwatch_stop(&timer)
 	time.stopwatch_start(&frame_timer); defer time.stopwatch_stop(&frame_timer)
 
 	init_draw()

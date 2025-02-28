@@ -42,6 +42,13 @@ debug_draw_data : struct { vertex_count : int, indices_count : int, vbuffer_size
 
 frameid : int
 update :: proc() {
+	@static log_startup_time := true
+	if log_startup_time {
+		duration := time.stopwatch_duration(timer)
+		startup_ms := time.duration_milliseconds(duration)
+		log.debugf("startup time: {} ms", startup_ms)
+		log_startup_time = false
+	}
 	update_timer : time.Stopwatch
 	time.stopwatch_start(&update_timer) ; defer time.stopwatch_stop(&update_timer)
 
@@ -229,7 +236,7 @@ record_card :: proc(vr: ^VisualRecord, hovering: ^^VisualRecord) {
 	alpha := cast(u8)(255 * state.scale)
 	text_color :dgl.Color4u8= {220,220,220, alpha}
 	if editting {
-		draw_rect_rounded(rect, 4, 2, {65,65,95, alpha} if hovering^ != vr else {85,85,115, alpha})
+		draw_rect_rounded(rect, 4, 2, {190,190,190, alpha} if hovering^ != vr else {200,200,200, alpha})
 		draw_rect_rounded(rect_padding(rect, 2,2,2,2), 4, 2, {95,95,135, alpha})
 	} else {
 		draw_rect_rounded(rect, 4, 2, {95,95,135, alpha} if hovering^ != vr else {105,105,145, alpha})
