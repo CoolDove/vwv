@@ -49,6 +49,10 @@ textedit_remove :: proc(using ed: ^TextEdit, offset: int) {// bytes
 	if offset < 0 do selection = {selection.x + offset, selection.x + offset}
 }
 
+textedit_len :: proc(using ed: ^TextEdit) -> int {
+	return gapbuffer_len(buffer)
+}
+
 textedit_find_previous_rune :: proc(using ed: ^TextEdit, cursor: int) -> (rune, int) {
 	cursor := cursor-1
 	r, size := gapbuffer_get_previous_rune(ed.buffer, cursor)

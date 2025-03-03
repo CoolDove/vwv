@@ -222,6 +222,10 @@ record_card :: proc(vr: ^VisualRecord, hovering: ^^VisualRecord) {
 		} else if is_key_repeated(.Right) {
 			_, i := textedit_find_next_rune(ed, ed.selection.x)
 			if i != -1 do textedit_move(ed, i-ed.selection.x)
+		} else if is_key_repeated(.Home) {
+			textedit_move_to(ed, 0)
+		} else if is_key_repeated(.End) {
+			textedit_move_to(ed, textedit_len(ed))
 		}
 		if is_key_pressed(.Enter) || is_key_pressed(.Escape) {
 			vr.r.text = gapbuffer_get_string(&editting_record.gapbuffer)
