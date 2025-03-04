@@ -7,6 +7,46 @@ import "vendor:fontstash"
 
 import "./dgl"
 
+temp_measure_text :: proc(fontid: int, text: string, size: f32, overflow_width := 0.0) -> (f32, f32) {
+	if text == "" do return 0,0
+	fs := &fsctx.fs
+	fontstash.BeginState(fs)
+	fontstash.ClearState(fs)
+	fontstash.SetSize(fs, size)
+	fontstash.SetSpacing(fs, 1)
+	fontstash.SetBlur(fs, 0)
+	fontstash.SetAlignHorizontal(fs, .LEFT)
+	fontstash.SetAlignVertical(fs, .BASELINE)
+	fontstash.SetFont(fs, fontid)
+
+	iter := fontstash.TextIterInit(fs, 0, 0, text)
+	iter.nexty += size
+	prev_iter := iter
+	q: fontstash.Quad
+	for fontstash.TextIterNext(fs, &iter, &q) {
+		if iter.previousGlyphIndex == -1 { // can not retrieve glyph?
+			iter = prev_iter
+			fontstash.TextIterNext(fs, &iter, &q) // try again
+			if iter.previousGlyphIndex == -1 {
+				break
+			}
+		}
+		prev_iter = iter
+		newline := iter.codepoint == '\n'
+
+		overflow := (overflow_width > 0 && (iter.nextx + (q.x1-q.x0)) > cast(f32)overflow_width)
+		if newline || overflow {
+			iter.nextx = 0
+			iter.nexty += size
+		}
+		w, h := cast(f32)fsctx.atlas.size.x, cast(f32)fsctx.atlas.size.y
+		if !newline {
+			using q
+		}
+	}
+	fontstash.EndState(fs)
+	return iter.nextx, iter.nexty
+}
 draw_text :: proc(fontid: int, text: string, position: dgl.Vec2, size: f32, color: dgl.Color4u8, overflow_width := 0.0) -> (f32, f32) {
 	if text == "" do return 0,0
 	fs := &fsctx.fs

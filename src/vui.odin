@@ -10,8 +10,29 @@ import "tween"
 VuiContext :: struct {
 	hovering, active : int,
 	delta_s : f64,
+	current_layout : ^VuiLayout,
 	states : map[u64]VuiState,
 }
+
+VuiLayout :: struct {
+	// Set these functions if you want to create a custom layout type.
+	_push : proc(layout: ^VuiLayout, width, height: f32, process : VuiLayoutElemProcessor, data: rawptr), // called when layout_push
+	_process : proc(layout: ^VuiLayout), // called before drawing in layout_end
+
+	rect : dgl.Rect,
+	next : dgl.Vec2,
+	elems : [dynamic]VuiLayoutElem,
+}
+
+
+VuiLayoutElemProcessor :: #type proc(rect: dgl.Rect, data: rawptr)
+
+VuiLayoutElem :: struct {
+	process : VuiLayoutElemProcessor,
+	rect : dgl.Rect,
+	data : rawptr,
+}
+
 
 VuiState :: struct {
 	_space : [64]u8,
@@ -19,6 +40,18 @@ VuiState :: struct {
 
 @(private="file")
 ctx : VuiContext
+
+@(private="file")
+_builtin_layout_vertical : VuiLayout={
+	_push = proc(layout: ^VuiLayout, width, height: f32, process : VuiLayoutElemProcessor, data: rawptr) {
+		rect :dgl.Rect= {layout.next.x, layout.next.y, width, height}
+		append(&layout.elems, VuiLayoutElem{ process, rect, data })
+		layout.next.y += height
+	},
+	_process = proc(layout: ^VuiLayout) {
+		// TODO:
+	},
+}
 
 _vui_state :: proc(id: u64, $T: typeid) -> ^T {
 	s, ok := &ctx.states[id] 
@@ -46,6 +79,42 @@ vui_begin :: proc(delta_s: f64) {
 vui_end :: proc() {
 	// do nothing now
 }
+
+vui_begin_layoutv :: proc(rect: dgl.Rect) {
+	vui_begin_layout(&_builtin_layout_vertical, rect)
+}
+
+vui_begin_layout :: proc(layout: ^VuiLayout, rect: dgl.Rect) {
+	assert(_vui_get_layout() == nil)
+	layout.rect = rect
+	layout.next = {rect.x, rect.y}
+	ctx.current_layout = layout
+	layout.elems = make([dynamic]VuiLayoutElem)
+}
+vui_end_layout :: proc() {
+	layout := _vui_get_layout()
+	assert(layout != nil)
+
+	for e in layout.elems {
+		if e.process == nil do continue
+		e.process(e.rect, e.data)
+	}
+
+	delete(layout.elems)
+	ctx.current_layout = nil
+}
+
+_vui_get_layout :: proc() -> ^VuiLayout {
+	return ctx.current_layout
+}
+
+_vui_layout_push :: proc(width, height: f32, process : proc(rect: dgl.Rect, data: rawptr), data: rawptr=nil) {
+	layout := _vui_get_layout()
+	if layout == nil do return
+	layout->_push(width, height, process, data)
+}
+
+// ... as examples ...
 
 vui_button :: proc(id: u64, rect: dgl.Rect, text: string) -> bool {
 	state := _vui_state(id, struct { hover_time:f64, clicked_flash:f64 })

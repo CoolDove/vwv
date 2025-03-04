@@ -110,6 +110,7 @@ update :: proc() {
 scroll_offset : f64
 VisualRecord :: struct {
 	r : ^Record,
+	indent : int,
 	rect : dgl.Rect,
 }
 visual_records : [dynamic]VisualRecord
@@ -129,10 +130,24 @@ vwv_update :: proc(delta_s: f64) {
 	draw_rect(main_rect, {22,24,33, 255})
 
 	update_visual_records(root)
-	hovering : ^VisualRecord
-	for &vr in visual_records {
-		record_card(&vr, &hovering)
+	
+	vui_begin_layoutv({20, cast(f32)scroll_offset, cast(f32)window_size.x- 40, 600})
+	{
+		for &vr in visual_records {
+			record_card(&vr)
+		}
+		for i in 0..<6 {
+			_vui_layout_push(120.0, cast(f32)i*10.0,
+				proc(rect: dgl.Rect, data: rawptr) {
+					rect := rect
+					rect.h -= 2
+					draw_rect(rect, dgl.RED)
+				}
+			)
+		}
 	}
+	vui_end_layout()
+
 
 	status_bar_rect := rect_split_bottom(window_rect, 46)
 	draw_rect(status_bar_rect, {33,37,61, 255})
@@ -154,113 +169,136 @@ update_visual_records :: proc(root: ^Record) {
 
 	x :f32= 10
 	y :f32= 10
-	ite_record :: proc(r: ^Record, to: ^[dynamic]VisualRecord, x: f32, y: ^f32) {
-		append(to, VisualRecord{r, {x, y^, auto_cast window_size.x-x-10, 30}})
+	indent : int
+	ite_record :: proc(r: ^Record, to: ^[dynamic]VisualRecord, x: f32, y: ^f32, indent: int) {
+		append(to, VisualRecord{r, indent, {x, y^, auto_cast window_size.x-x-10, 30}})
 		y^ += 30
 		ptr := r.child
 		for ptr != nil {
-			ite_record(ptr, to, x + 40, y)
+			ite_record(ptr, to, x + 40, y, indent + 1)
 			ptr = ptr.next
 		}
 	}
-	ite_record(root, &visual_records, x, &y)
+	ite_record(root, &visual_records, x, &y, indent)
 }
 
-record_card :: proc(vr: ^VisualRecord, hovering: ^^VisualRecord) {
-	state := _vui_state(vr.r.id * 10 + 10000, struct {
+record_card :: proc(vr: ^VisualRecord) {
+	_EState :: struct {
 		editting : f64, // > 0 means editting, there is an animation bound to this
 		cursor : f32,
 		scale : f32
-	})
+	}
+	state := _vui_state(vr.r.id * 10 + 10000, _EState)
 	if state.scale < 1 {
 		state.scale += auto_cast _vui_ctx().delta_s * 6
 		if state.scale >= 1 do state.scale = 1
 	}
-	is_global_editting := editting_record.record != nil
-	rect := rect_padding(vr.rect, 2,2, 2,2)
-	rect.y += auto_cast scroll_offset
-	rect.w *= tween.ease_outcirc(auto_cast state.scale)
+	layout := _vui_get_layout()
+	assert(layout != nil)
+	width := layout.rect.w - cast(f32)(vr.indent * 12) * tween.ease_outcirc(auto_cast state.scale)
+	_, height := temp_measure_text(font_default, vr.r.text, 28, cast(f64)width)
 
-	if hovering^ == nil && rect_in(rect, input.mouse_position) {
-		hovering^ = vr
+	_DrawData :: struct {
+		vr : ^VisualRecord,
 	}
-	editting := state.editting > 0
-	if hovering^ == vr {
-		if !is_global_editting {
-			if is_key_pressed(.A) {
-				record_add_sibling(hovering^.r).text = "Hello"
-			} else if is_key_pressed(.S) {
-				record_add_child(hovering^.r).text = "Added"
-			} else if is_key_pressed(.D) {
-				record_remove(hovering^.r)
+
+	draw_data := _DrawData{ vr }
+	data := new(_DrawData, context.temp_allocator)
+	data^ = draw_data
+	_vui_layout_push(width, height, draw, data)
+	_vui_layout_push(0, 10, nil)
+
+	draw :: proc(rect: dgl.Rect, data: rawptr) {
+		data := cast(^_DrawData)data
+		state := _vui_state(data.vr.r.id * 10 + 10000, _EState)
+		rect := rect
+		rect.x += cast(f32)(data.vr.indent * 12)
+		using data
+		hovering := rect_in(rect, input.mouse_position)
+		if hovering {
+			if editting_record.record == nil {
+				if is_key_pressed(.A) {
+					record_add_sibling(vr.r).text = "Hello"
+				} else if is_key_pressed(.S) {
+					record_add_child(vr.r).text = "Added"
+				} else if is_key_pressed(.D) {
+					record_remove(vr.r)
+				}
+				if is_button_pressed(.Left) {
+					log.debugf("Press r: {}", vr.r.text)
+					ed := &editting_record.textedit
+					gp := &editting_record.gapbuffer
+					gapbuffer_clear(gp)
+					gapbuffer_insert_string(gp, 0, vr.r.text)
+					textedit_begin(ed, gp)
+					editting_record.record = vr.r
+					state.editting = 1
+					toggle_text_input(true)
+				}
 			}
-			if is_button_pressed(.Left) {
-				ed := &editting_record.textedit
-				gp := &editting_record.gapbuffer
-				gapbuffer_clear(gp)
-				gapbuffer_insert_string(gp, 0, vr.r.text)
-				textedit_begin(ed, gp)
-				editting_record.record = vr.r
-				state.editting = 1
-				toggle_text_input(true)
+		}
+
+		editting := state.editting > 0
+		if editting {
+			ed := &editting_record.textedit
+			if input_text := get_input_text(context.temp_allocator); input_text != {} {
+				textedit_insert(ed, input_text)
+			} else if is_key_repeated(.Back) {
+				_, i := textedit_find_previous_rune(ed, ed.selection.x)
+				if i != -1 do textedit_remove(ed, i-ed.selection.x)
+			} else if is_key_repeated(.Delete) {
+				_, i := textedit_find_next_rune(ed, ed.selection.x)
+				if i != -1 do textedit_remove(ed, i-ed.selection.x)
+			} else if is_key_repeated(.Left) {
+				_, i := textedit_find_previous_rune(ed, ed.selection.x)
+				if i != -1 do textedit_move(ed, i-ed.selection.x)
+			} else if is_key_repeated(.Right) {
+				_, i := textedit_find_next_rune(ed, ed.selection.x)
+				if i != -1 do textedit_move(ed, i-ed.selection.x)
+			} else if is_key_repeated(.Home) {
+				textedit_move_to(ed, 0)
+			} else if is_key_repeated(.End) {
+				textedit_move_to(ed, textedit_len(ed))
+			}
+			if is_key_pressed(.Enter) || is_key_pressed(.Escape) {
+				vr.r.text = gapbuffer_get_string(&editting_record.gapbuffer)
+				// @Temporary:
+				editting_record.record = nil
+				textedit_end(&editting_record.textedit)
+				state.editting = 0
+				toggle_text_input(false)
 			}
 		}
-	}
-	if editting_record.record == vr.r {
-		ed := &editting_record.textedit
-		if input_text := get_input_text(context.temp_allocator); input_text != {} {
-			textedit_insert(ed, input_text)
-		} else if is_key_repeated(.Back) {
-			_, i := textedit_find_previous_rune(ed, ed.selection.x)
-			if i != -1 do textedit_remove(ed, i-ed.selection.x)
-		} else if is_key_repeated(.Delete) {
-			_, i := textedit_find_next_rune(ed, ed.selection.x)
-			if i != -1 do textedit_remove(ed, i-ed.selection.x)
-		} else if is_key_repeated(.Left) {
-			_, i := textedit_find_previous_rune(ed, ed.selection.x)
-			if i != -1 do textedit_move(ed, i-ed.selection.x)
-		} else if is_key_repeated(.Right) {
-			_, i := textedit_find_next_rune(ed, ed.selection.x)
-			if i != -1 do textedit_move(ed, i-ed.selection.x)
-		} else if is_key_repeated(.Home) {
-			textedit_move_to(ed, 0)
-		} else if is_key_repeated(.End) {
-			textedit_move_to(ed, textedit_len(ed))
-		}
-		if is_key_pressed(.Enter) || is_key_pressed(.Escape) {
-			vr.r.text = gapbuffer_get_string(&editting_record.gapbuffer)
-			// @Temporary:
-			editting_record.record = nil
-			textedit_end(&editting_record.textedit)
-			state.editting = 0
-			toggle_text_input(false)
-		}
-	}
 
-	alpha := cast(u8)(255 * state.scale)
-	text_color :dgl.Color4u8= {220,220,220, alpha}
-	if editting {
-		draw_rect_rounded(rect, 4, 2, {190,190,190, alpha} if hovering^ != vr else {200,200,200, alpha})
-		draw_rect_rounded(rect_padding(rect, 2,2,2,2), 4, 2, {95,95,135, alpha})
-	} else {
-		draw_rect_rounded(rect, 4, 2, {95,95,135, alpha} if hovering^ != vr else {105,105,145, alpha})
-	}
+		scale, cursor := state.scale, state.cursor
 
-	text := vr.r.text
-	if editting {
-		ed := &editting_record.textedit
-		text = gapbuffer_get_string(&editting_record.gapbuffer, context.temp_allocator)
-		draw_text(font_default, text, {rect.x+4+1.2, rect.y-4+1.2}, 28, {0,0,0,cast(u8)(128*state.scale)})
-		prevx, _ := draw_text(font_default, text[:ed.selection.x], {rect.x+4,     rect.y-4}, 28, text_color)
-		draw_text(font_default, text[ed.selection.x:], {rect.x+4 + prevx + 1, rect.y-4}, 28, text_color)
-		cursor := rect.x+4 + prevx
-		xbefore := state.cursor
-		state.cursor += (cursor - state.cursor) * auto_cast _vui_ctx().delta_s * 12
-		// cursor
-		draw_rect({math.min(state.cursor, xbefore), rect.y-4, math.max(2, math.abs(state.cursor-xbefore)), 28}, dgl.WHITE)
-	} else {
-		draw_text(font_default, text, {rect.x+4+1.2, rect.y-4+1.2}, 28, {0,0,0,cast(u8)(128*state.scale)})
-		draw_text(font_default, text, {rect.x+4,     rect.y-4}, 28, text_color)
+		alpha := cast(u8)(255 * scale)
+		text_color :dgl.Color4u8= {220,220,220, alpha}
+		if editting {
+			draw_rect_rounded(rect, 4, 2, {190,190,190, alpha} if !hovering else {200,200,200, alpha})
+			draw_rect_rounded(rect_padding(rect, 2,2,2,2), 4, 2, {95,95,135, alpha})
+		} else {
+			draw_rect_rounded(rect, 4, 2, {95,95,135, alpha} if !hovering else {105,105,145, alpha})
+		}
+
+		text := vr.r.text
+		width := cast(f64)rect.w
+		if editting {
+			// TODO: Use textbro to fix this
+			ed := &editting_record.textedit
+			text = gapbuffer_get_string(&editting_record.gapbuffer, context.temp_allocator)
+			draw_text(font_default, text, {rect.x+4+1.2, rect.y-4+1.2}, 28, {0,0,0,cast(u8)(128*scale)})
+			prevx, _ := draw_text(font_default, text[:ed.selection.x], {rect.x+4,     rect.y-4}, 28, text_color)
+			draw_text(font_default, text[ed.selection.x:], {rect.x+4 + prevx + 1, rect.y-4}, 28, text_color)
+			cursor := rect.x+4 + prevx
+			xbefore := cursor
+			cursor += (cursor - cursor) * auto_cast _vui_ctx().delta_s * 12
+			// cursor
+			draw_rect({math.min(cursor, xbefore), rect.y-4, math.max(2, math.abs(cursor-xbefore)), 28}, dgl.WHITE)
+		} else {
+			draw_text(font_default, text, {rect.x+4+1.2, rect.y-4+1.2}, 28, {0,0,0,cast(u8)(128*scale)}, overflow_width=width)
+			draw_text(font_default, text, {rect.x+4,     rect.y-4}, 28, text_color, overflow_width=width)
+		}
 	}
 }
 
