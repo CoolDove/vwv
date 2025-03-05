@@ -136,10 +136,8 @@ vwv_update :: proc(delta_s: f64) {
 	update_visual_records(root)
 	
 	vui_begin_layoutv({20, cast(f32)scroll_offset, cast(f32)window_size.x- 40, 600})
-	{
-		for &vr in visual_records {
-			record_card(&vr)
-		}
+	for &vr in visual_records {
+		record_card(&vr)
 	}
 	vui_end_layout()
 
@@ -219,6 +217,7 @@ record_card :: proc(vr: ^VisualRecord) {
 	data^ = { vr, tbro, cursoridx }
 
 	_vui_layout_push(width, height, draw, data)
+	// add a spacing
 	_vui_layout_push(0, 10, nil)
 
 	draw :: proc(rect: dgl.Rect, data: rawptr) {
