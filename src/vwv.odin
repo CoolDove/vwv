@@ -9,6 +9,8 @@ import "core:fmt"
 import "core:log"
 import win32 "core:sys/windows"
 
+import "vendor:fontstash"
+
 import "dgl"
 import "hotvalue"
 import "tween"
@@ -307,8 +309,10 @@ record_card :: proc(vr: ^VisualRecord) {
 			draw_texture_ex(fsctx.atlas, e.quad_src, {d.x+textpos.x, d.y+textpos.y, d.w, d.h}, {0,0}, 0, e.color)
 		}
 		if editting {
+			font := fontstash.__getFont(&fsctx.fs, font_default)
 			cursor := tbro.elems[cursoridx-1].next if cursoridx > 0 else {0,28}
-			draw_rect({cursor.x+textpos.x, cursor.y+textpos.y-28, 2, 28}, dgl.WHITE)
+			height := font.lineHeight*28
+			draw_rect({cursor.x+textpos.x, cursor.y+textpos.y-font.descender*28 - height, 2, height}, dgl.WHITE)
 		}
 		tbro_release(tbro)
 	}
