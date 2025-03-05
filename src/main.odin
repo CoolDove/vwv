@@ -20,7 +20,7 @@ import gl "vendor:OpenGL"
 import "vendor:fontstash"
 
 import "dgl"
-// import "hotvalue"
+import "hotvalue"
 
 DEFAULT_WINDOW_TITLE :: "vwv - simple tool for simple soul"
 
@@ -29,7 +29,7 @@ window_size : [2]i32
 VERTEX_FORMAT_P3U2C4 :: dgl.VertexFormat{ 3,2,4, 0,0,0,0,0 } // 9
 VERTEX_FORMAT_VWV    :: VERTEX_FORMAT_P3U2C4
 
-// hotv : hotvalue.HotValues
+hotv : hotvalue.HotValues
 
 font_fallback : int
 font_default : int
@@ -63,7 +63,7 @@ main :: proc() {
 	context.logger = logger
 	defer log.destroy_console_logger(logger)
 
-	// hotv = hotvalue.init("hotvalues")
+	hotv = hotvalue.init("hotvalues")
 
 	window_init("VWV - new version", 400, 600)
 	dgl.init()
@@ -107,7 +107,7 @@ main :: proc() {
 
 	dgl.release()
 
-	// hotvalue.release(&hotv)
+	hotvalue.release(&hotv)
 }
 
 mark_update :: proc() {

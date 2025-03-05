@@ -1,1 +1,7 @@
-alpha 64
+background_color       0x282828ff
+status_bar_bg_color    0x3C3836ff
+record_color_outline   0x504945ff
+record_color_normal    0x3C3836ff
+record_color_highlight 0xD79921ff
+record_text_color      0xEBDBB2ff
+record_cursor_color    0xFABD2Eff

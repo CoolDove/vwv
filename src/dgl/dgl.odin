@@ -87,11 +87,11 @@ Rect :: struct {
 	x,y, w,h : f32
 }
 
-Vec2i :: distinct [2]i32
-Vec3i :: distinct [3]i32
-Vec4i :: distinct [4]i32
+Vec2i :: [2]i32
+Vec3i :: [3]i32
+Vec4i :: [4]i32
 
-Color4u8 :: distinct [4]u8
+Color4u8 :: [4]u8
 
 CYAN	   :Color4u8: {0, 255, 255, 255}
 MAGENTA    :Color4u8: {255, 0, 255, 255}
@@ -166,6 +166,11 @@ col_f2u :: proc(color : Vec4) -> Color4u8 {
 }
 col_i2u :: proc(color: u32) -> Color4u8 {
 	return transmute(Color4u8)color
+}
+col_i2u_inv :: proc(color: u32) -> Color4u8 {
+	color := transmute(Color4u8)color
+	color[0], color[1], color[2], color[3] = color[3], color[2], color[1], color[0] 
+	return color
 }
 col_i2f :: proc(color: u32) -> Vec4 {
 	return col_u2f(transmute(Color4u8)color)

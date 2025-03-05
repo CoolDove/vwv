@@ -35,13 +35,17 @@ Value :: union {
 	string,
 }
 
+@private
 _Table :: struct {
-	f32 : proc(hotv: ^HotValues, key: string) -> f32,
-	f64 : proc(hotv: ^HotValues, key: string) -> f64,
+	f32  : proc(hotv: ^HotValues, key: string) -> f32,
+	f64  : proc(hotv: ^HotValues, key: string) -> f64,
 
-	u8  : proc(hotv: ^HotValues, key: string) -> u8,
-	i32 : proc(hotv: ^HotValues, key: string) -> i32,
-	i64 : proc(hotv: ^HotValues, key: string) -> i64,
+	u8       : proc(hotv: ^HotValues, key: string) -> u8,
+	u32      : proc(hotv: ^HotValues, key: string) -> u32,
+	u8x4     : proc(hotv: ^HotValues, key: string) -> [4]u8,
+	u8x4_inv : proc(hotv: ^HotValues, key: string) -> [4]u8,
+	i32      : proc(hotv: ^HotValues, key: string) -> i32,
+	i64      : proc(hotv: ^HotValues, key: string) -> i64,
 }
 
 @private
@@ -69,6 +73,17 @@ _table :_Table= {
 	},
 	i32 = proc(hotv: ^HotValues, key: string) -> i32 {
 		return cast(i32)hotv->i64(key)
+	},
+	u32 = proc(hotv: ^HotValues, key: string) -> u32 {
+		return cast(u32)hotv->i64(key)
+	},
+	u8x4 = proc(hotv: ^HotValues, key: string) -> [4]u8 {
+		return transmute([4]u8)hotv->u32(key)
+	},
+	u8x4_inv = proc(hotv: ^HotValues, key: string) -> [4]u8 {
+		result := transmute([4]u8)hotv->u32(key)
+		result[0], result[1], result[2], result[3] = result[3], result[2], result[1], result[0] 
+		return result
 	},
 	u8  = proc(hotv: ^HotValues, key: string) -> u8 {
 		return cast(u8)hotv->i64(key)

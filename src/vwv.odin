@@ -118,6 +118,8 @@ VisualRecord :: struct {
 visual_records : [dynamic]VisualRecord
 
 vwv_update :: proc(delta_s: f64) {
+	hotvalue.update(&hotv)
+
 	vui_begin(math.min(delta_s, 1.0/60.0)); defer vui_end()
 
 	main_rect = rect_padding({0,0, auto_cast window_size.x, auto_cast window_size.y}, 10, 10, 10, 10)
@@ -129,7 +131,7 @@ vwv_update :: proc(delta_s: f64) {
 	}
 
 	draw_rect(window_rect, {15,16,23, 255})
-	draw_rect(main_rect, {22,24,33, 255})
+	draw_rect(main_rect, hotv->u8x4_inv("background_color"))
 
 	update_visual_records(root)
 	
@@ -138,21 +140,12 @@ vwv_update :: proc(delta_s: f64) {
 		for &vr in visual_records {
 			record_card(&vr)
 		}
-		for i in 0..<6 {
-			_vui_layout_push(120.0, cast(f32)i*10.0,
-				proc(rect: dgl.Rect, data: rawptr) {
-					rect := rect
-					rect.h -= 2
-					draw_rect(rect, dgl.RED)
-				}
-			)
-		}
 	}
 	vui_end_layout()
 
 
 	status_bar_rect := rect_split_bottom(window_rect, 46)
-	draw_rect(status_bar_rect, {33,37,61, 255})
+	draw_rect(status_bar_rect, hotv->u8x4_inv("status_bar_bg_color"))
 	draw_text(font_default, "Status Bar", {status_bar_rect.x + 5, status_bar_rect.y + 4} , 28, {69,153,49, 255})
 	if vui_button(1280, rect_padding(rect_split_right(status_bar_rect, 46), 4,4,4,4), "hello") do fmt.printf("hello!\n")
 	vui_draggable_button(1222, rect_split_left(status_bar_rect, 32), "Drag me")
@@ -202,7 +195,9 @@ record_card :: proc(vr: ^VisualRecord) {
 	tbro := new(TextBro, context.temp_allocator)
 	cursoridx : int
 	tbro_init(tbro, font_default, 28, auto_cast width-12)
-	text_color :dgl.Color4u8= {220,220,220, 255}
+	text_color := dgl.col_i2u_inv(hotv->u32("record_text_color"))
+	text_color.a = cast(u8)(cast(f32)text_color.a*state.scale)
+
 	if state.editting > 0 {
 		ed := &editting_record.textedit
 		text := strings.to_string(vr.r.text) if state.editting <= 0 else gapbuffer_get_string(&editting_record.gapbuffer, context.temp_allocator)
@@ -293,11 +288,14 @@ record_card :: proc(vr: ^VisualRecord) {
 		scale, cursor := state.scale, state.cursor
 
 		alpha := cast(u8)(255 * scale)
+		record_color_outline := dgl.col_i2u_inv(hotv->u32("record_color_outline")); record_color_outline.a = alpha
+		record_color_normal := dgl.col_i2u_inv(hotv->u32("record_color_normal")); record_color_normal.a = alpha
+		record_color_highlight := dgl.col_i2u_inv(hotv->u32("record_color_highlight")); record_color_highlight.a = alpha
 		if editting {
-			draw_rect_rounded(rect, 4, 2, {190,190,190, alpha} if !hovering else {200,200,200, alpha})
-			draw_rect_rounded(rect_padding(rect, 2,2,2,2), 4, 2, {95,95,135, alpha})
+			draw_rect_rounded(rect, 4, 2, record_color_outline if !hovering else record_color_highlight)
+			draw_rect_rounded(rect_padding(rect, 2,2,2,2), 4, 2, record_color_normal)
 		} else {
-			draw_rect_rounded(rect, 4, 2, {95,95,135, alpha} if !hovering else {105,105,145, alpha})
+			draw_rect_rounded(rect, 4, 2, record_color_normal if !hovering else record_color_highlight)
 		}
 
 		text := vr.r.text
@@ -313,7 +311,7 @@ record_card :: proc(vr: ^VisualRecord) {
 			font := fontstash.__getFont(&fsctx.fs, font_default)
 			cursor := tbro.elems[cursoridx-1].next if cursoridx > 0 else {0,28}
 			height := font.lineHeight*28
-			draw_rect({cursor.x+textpos.x, cursor.y+textpos.y-font.descender*28 - height, 2, height}, dgl.WHITE)
+			draw_rect({cursor.x+textpos.x, cursor.y+textpos.y-font.descender*28 - height, 2, height}, dgl.col_i2u_inv(hotv->u32("record_cursor_color")))
 		}
 		tbro_release(tbro)
 	}
