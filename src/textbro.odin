@@ -63,7 +63,7 @@ tbro_write_string :: proc(tbro: ^TextBro, text: string, color: dgl.Color4u8) -> 
 
 	iter := fontstash.TextIterInit(fs, 0, 0, text)
 	if last := tbro_last(tbro); last != nil {
-		iter.nextx = last.next.x
+		iter.nextx = last.next.x+1
 		iter.nexty = last.next.y
 	} else {
 		iter.nexty += size
