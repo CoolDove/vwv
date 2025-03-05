@@ -120,6 +120,13 @@ visual_records : [dynamic]VisualRecord
 vwv_update :: proc(delta_s: f64) {
 	hotvalue.update(&hotv)
 
+
+	if is_key_pressed(.S) && is_key_down(.Ctrl) {
+		doc_write()
+	}
+
+
+
 	vui_begin(math.min(delta_s, 1.0/60.0)); defer vui_end()
 
 	main_rect = rect_padding({0,0, auto_cast window_size.x, auto_cast window_size.y}, 10, 10, 10, 10)
@@ -188,7 +195,7 @@ record_card :: proc(vr: ^VisualRecord) {
 	}
 	layout := _vui_get_layout()
 	assert(layout != nil)
-	width := layout.rect.w - cast(f32)(vr.indent * 12) * tween.ease_outcirc(auto_cast state.scale)
+	width := layout.rect.w - cast(f32)(vr.indent * 20) * tween.ease_outcirc(auto_cast state.scale)
 
 	tbro := new(TextBro, context.temp_allocator)
 	cursoridx : int
@@ -225,20 +232,19 @@ record_card :: proc(vr: ^VisualRecord) {
 		defer free(data)
 		state := _vui_state(data.vr.r.id * 10 + 10000, _EState)
 		rect := rect
-		rect.x += cast(f32)(data.vr.indent * 12)
+		rect.x += cast(f32)(data.vr.indent * 20)
 		using data
 		hovering := rect_in(rect, input.mouse_position)
 		if hovering {
 			if editting_record.record == nil {
 				if is_key_pressed(.A) {
-					record_add_sibling(vr.r)
+					if vr.r != root do record_add_sibling(vr.r)
 				} else if is_key_pressed(.S) {
 					record_add_child(vr.r)
 				} else if is_key_pressed(.D) {
 					record_remove(vr.r)
 				}
 				if is_button_pressed(.Left) {
-					log.debugf("Press r: {}", vr.r.text)
 					ed := &editting_record.textedit
 					gp := &editting_record.gapbuffer
 					gapbuffer_clear(gp)
@@ -334,20 +340,23 @@ vwv_begin :: proc() {
 	using strings
 	root = _new_record()
 	write_string(&root.text, "ROOT")
-	aaa := record_add_child(root)
-	write_string(&aaa.text, "AAA")
-		a1 := record_add_child(aaa)
-		write_string(&a1.text, "A1")
-		a2 := record_add_sibling(a1)
-		write_string(&a2.text, "A2")
-	bbb := record_add_sibling(aaa)
-	write_string(&bbb.text, "BBB")
-		b1 := record_add_child(bbb)
-		write_string(&b1.text, "B1")
-		b2 := record_add_sibling(b1)
-		write_string(&b2.text, "B2")
-		b0 := record_add_child(bbb)
-		write_string(&b0.text, "B0")
+
+	doc_read()
+
+	// aaa := record_add_child(root)
+	// write_string(&aaa.text, "AAA")
+	// 	a1 := record_add_child(aaa)
+	// 	write_string(&a1.text, "A1")
+	// 	a2 := record_add_sibling(a1)
+	// 	write_string(&a2.text, "A2")
+	// bbb := record_add_sibling(aaa)
+	// write_string(&bbb.text, "BBB")
+	// 	b1 := record_add_child(bbb)
+	// 	write_string(&b1.text, "B1")
+	// 	b2 := record_add_sibling(b1)
+	// 	write_string(&b2.text, "B2")
+	// 	b0 := record_add_child(bbb)
+	// 	write_string(&b0.text, "B0")
 
 	update_visual_records(root)
 }
@@ -385,6 +394,21 @@ record_add_child :: proc(to: ^Record) -> ^Record {
 	r.next = to.child
 	to.child = r
 	r.parent = to
+	return r
+}
+// Add a new record as the last child of `to` node.
+record_append_child :: proc(to: ^Record) -> ^Record {
+	r := _new_record()
+	r.parent = to
+	if to.child == nil {
+		to.child = r
+	} else {
+		prev := to.child
+		for prev.next != nil {
+			prev = prev.next
+		}
+		prev.next = r
+	}
 	return r
 }
 

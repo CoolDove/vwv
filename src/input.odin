@@ -174,6 +174,9 @@ KeyboardKey :: enum(u8) {
 	F11 = win32.VK_F11,
 	F12 = win32.VK_F12,
 
+	Shift  = win32.VK_SHIFT,
+	Ctrl   = win32.VK_CONTROL,
+
 	Delete = win32.VK_DELETE,
 	Back   = win32.VK_BACK,
 	Tab    = win32.VK_TAB,
