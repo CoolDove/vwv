@@ -141,7 +141,7 @@ vui_button :: proc(id: u64, rect: dgl.Rect, text: string) -> bool {
 	hovert = tween.ease_inoutsine(hovert)
 	color := hovert*(color_hover-color_normal) + color_normal
 	if state.clicked_flash > 0 do color = cast(f32)(state.clicked_flash/0.2)*(color_flash-color) + color
-	draw_rect(rect, dgl.col_f2u(color))
+	draw_rect_rounded(rect, 8+hovert*4, 4, dgl.col_f2u(color))
 
 	text_color := dgl.col_u2f({218,218,218, 255})
 	clickt := math.clamp(cast(f32)(state.clicked_flash/0.2), 0,1)
