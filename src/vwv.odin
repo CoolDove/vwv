@@ -18,7 +18,7 @@ import "tween"
 
 Record :: struct {
 	id : u64,
-	text : string,
+	text : strings.Builder,
 	// tree
 	parent, child, next: ^Record,
 }
@@ -205,11 +205,11 @@ record_card :: proc(vr: ^VisualRecord) {
 	text_color :dgl.Color4u8= {220,220,220, 255}
 	if state.editting > 0 {
 		ed := &editting_record.textedit
-		text := vr.r.text if state.editting <= 0 else gapbuffer_get_string(&editting_record.gapbuffer, context.temp_allocator)
+		text := strings.to_string(vr.r.text) if state.editting <= 0 else gapbuffer_get_string(&editting_record.gapbuffer, context.temp_allocator)
 		cursoridx = tbro_write_string(tbro, text[:ed.selection.x], text_color)
 		tbro_write_string(tbro, text[ed.selection.x:], text_color)
 	} else {
-		tbro_write_string(tbro, vr.r.text, text_color)
+		tbro_write_string(tbro, strings.to_string(vr.r.text), text_color)
 	}
 	height :f32= 32.0
 	if last := tbro_last(tbro); last != nil do height = last.next.y + 4
@@ -237,9 +237,9 @@ record_card :: proc(vr: ^VisualRecord) {
 		if hovering {
 			if editting_record.record == nil {
 				if is_key_pressed(.A) {
-					record_add_sibling(vr.r).text = "Hello"
+					record_add_sibling(vr.r)
 				} else if is_key_pressed(.S) {
-					record_add_child(vr.r).text = "Added"
+					record_add_child(vr.r)
 				} else if is_key_pressed(.D) {
 					record_remove(vr.r)
 				}
@@ -248,7 +248,7 @@ record_card :: proc(vr: ^VisualRecord) {
 					ed := &editting_record.textedit
 					gp := &editting_record.gapbuffer
 					gapbuffer_clear(gp)
-					gapbuffer_insert_string(gp, 0, vr.r.text)
+					gapbuffer_insert_string(gp, 0, strings.to_string(vr.r.text))
 					textedit_begin(ed, gp)
 					editting_record.record = vr.r
 					state.editting = 1
@@ -280,7 +280,8 @@ record_card :: proc(vr: ^VisualRecord) {
 				textedit_move_to(ed, textedit_len(ed))
 			}
 			if is_key_pressed(.Enter) || is_key_pressed(.Escape) {
-				vr.r.text = gapbuffer_get_string(&editting_record.gapbuffer)
+				strings.builder_reset(&vr.r.text)
+				strings.write_string(&vr.r.text, gapbuffer_get_string(&editting_record.gapbuffer, context.temp_allocator))
 				// @Temporary:
 				editting_record.record = nil
 				textedit_end(&editting_record.textedit)
@@ -331,28 +332,32 @@ vwv_begin :: proc() {
 
 	gapbuffer_init(&editting_record.gapbuffer, 16)
 
+	using strings
 	root = _new_record()
-	root.text = "ROOT"
+	write_string(&root.text, "ROOT")
 	aaa := record_add_child(root)
-	aaa.text = "AAA"
+	write_string(&aaa.text, "AAA")
 		a1 := record_add_child(aaa)
-		a1.text = "A1"
+		write_string(&a1.text, "A1")
 		a2 := record_add_sibling(a1)
-		a2.text = "A2"
+		write_string(&a2.text, "A2")
 	bbb := record_add_sibling(aaa)
-	bbb.text = "BBB"
+	write_string(&bbb.text, "BBB")
 		b1 := record_add_child(bbb)
-		b1.text = "B1"
+		write_string(&b1.text, "B1")
 		b2 := record_add_sibling(b1)
-		b2.text = "B2"
+		write_string(&b2.text, "B2")
 		b0 := record_add_child(bbb)
-		b0.text = "B0"
+		write_string(&b0.text, "B0")
 
 	update_visual_records(root)
 }
 vwv_end :: proc() {
 	gapbuffer_release(&editting_record.gapbuffer)
-	for r in records do free(r)
+	for r in records {
+		strings.builder_destroy(&r.text)
+		free(r)
+	}
 	delete(records)
 	delete(visual_records)
 }
@@ -371,6 +376,7 @@ _new_record :: proc() -> ^Record {
 	append(&records, r)
 	id_used += 1
 	r.id = id_used
+	strings.builder_init(&r.text)
 	return r
 }
 
