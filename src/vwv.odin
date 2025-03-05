@@ -300,10 +300,12 @@ record_card :: proc(vr: ^VisualRecord) {
 		text := vr.r.text
 		width := cast(f64)rect.w
 
+		text_shadow_color := dgl.col_i2u_inv(hotv->u32("record_text_shadow_color"))
+		text_shadow_color.a = cast(u8)(cast(f32)text_shadow_color.a*state.scale)
 		textpos := dgl.Vec2{rect.x+4, rect.y-4}
 		for e in tbro.elems {
 			d := e.quad_dst
-			draw_texture_ex(fsctx.atlas, e.quad_src, {d.x+textpos.x+1.2, d.y+textpos.y+1.2, d.w, d.h}, {0,0}, 0, {0,0,0,cast(u8)(128*scale)})
+			draw_texture_ex(fsctx.atlas, e.quad_src, {d.x+textpos.x+1.2, d.y+textpos.y+1.2, d.w, d.h}, {0,0}, 0, text_shadow_color)
 			draw_texture_ex(fsctx.atlas, e.quad_src, {d.x+textpos.x, d.y+textpos.y, d.w, d.h}, {0,0}, 0, e.color)
 		}
 		if editting {
