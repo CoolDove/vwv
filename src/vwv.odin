@@ -196,20 +196,37 @@ record_card :: proc(vr: ^VisualRecord) {
 	layout := _vui_get_layout()
 	assert(layout != nil)
 	width := layout.rect.w - cast(f32)(vr.indent * 12) * tween.ease_outcirc(auto_cast state.scale)
-	_, height := temp_measure_text(font_default, vr.r.text, 28, cast(f64)width)
+
+	tbro := new(TextBro, context.temp_allocator)
+	cursoridx : int
+	tbro_init(tbro, font_default, 28, auto_cast width-12)
+	text_color :dgl.Color4u8= {220,220,220, 255}
+	if state.editting > 0 {
+		ed := &editting_record.textedit
+		text := vr.r.text if state.editting <= 0 else gapbuffer_get_string(&editting_record.gapbuffer, context.temp_allocator)
+		cursoridx = tbro_write_string(tbro, text[:ed.selection.x], text_color)
+		tbro_write_string(tbro, text[ed.selection.x:], text_color)
+	} else {
+		tbro_write_string(tbro, vr.r.text, text_color)
+	}
+	height :f32= 32.0
+	if last := tbro_last(tbro); last != nil do height = last.next.y + 4
 
 	_DrawData :: struct {
 		vr : ^VisualRecord,
+		tbro : ^TextBro,
+		cursoridx : int,
 	}
 
-	draw_data := _DrawData{ vr }
-	data := new(_DrawData, context.temp_allocator)
-	data^ = draw_data
+	data := new(_DrawData)
+	data^ = { vr, tbro, cursoridx }
+
 	_vui_layout_push(width, height, draw, data)
 	_vui_layout_push(0, 10, nil)
 
 	draw :: proc(rect: dgl.Rect, data: rawptr) {
 		data := cast(^_DrawData)data
+		defer free(data)
 		state := _vui_state(data.vr.r.id * 10 + 10000, _EState)
 		rect := rect
 		rect.x += cast(f32)(data.vr.indent * 12)
@@ -273,7 +290,6 @@ record_card :: proc(vr: ^VisualRecord) {
 		scale, cursor := state.scale, state.cursor
 
 		alpha := cast(u8)(255 * scale)
-		text_color :dgl.Color4u8= {220,220,220, alpha}
 		if editting {
 			draw_rect_rounded(rect, 4, 2, {190,190,190, alpha} if !hovering else {200,200,200, alpha})
 			draw_rect_rounded(rect_padding(rect, 2,2,2,2), 4, 2, {95,95,135, alpha})
@@ -283,22 +299,18 @@ record_card :: proc(vr: ^VisualRecord) {
 
 		text := vr.r.text
 		width := cast(f64)rect.w
-		if editting {
-			// TODO: Use textbro to fix this
-			ed := &editting_record.textedit
-			text = gapbuffer_get_string(&editting_record.gapbuffer, context.temp_allocator)
-			draw_text(font_default, text, {rect.x+4+1.2, rect.y-4+1.2}, 28, {0,0,0,cast(u8)(128*scale)})
-			prevx, _ := draw_text(font_default, text[:ed.selection.x], {rect.x+4,     rect.y-4}, 28, text_color)
-			draw_text(font_default, text[ed.selection.x:], {rect.x+4 + prevx + 1, rect.y-4}, 28, text_color)
-			cursor := rect.x+4 + prevx
-			xbefore := cursor
-			cursor += (cursor - cursor) * auto_cast _vui_ctx().delta_s * 12
-			// cursor
-			draw_rect({math.min(cursor, xbefore), rect.y-4, math.max(2, math.abs(cursor-xbefore)), 28}, dgl.WHITE)
-		} else {
-			draw_text(font_default, text, {rect.x+4+1.2, rect.y-4+1.2}, 28, {0,0,0,cast(u8)(128*scale)}, overflow_width=width)
-			draw_text(font_default, text, {rect.x+4,     rect.y-4}, 28, text_color, overflow_width=width)
+
+		textpos := dgl.Vec2{rect.x+4, rect.y-4}
+		for e in tbro.elems {
+			d := e.quad_dst
+			draw_texture_ex(fsctx.atlas, e.quad_src, {d.x+textpos.x+1.2, d.y+textpos.y+1.2, d.w, d.h}, {0,0}, 0, {0,0,0,cast(u8)(128*scale)})
+			draw_texture_ex(fsctx.atlas, e.quad_src, {d.x+textpos.x, d.y+textpos.y, d.w, d.h}, {0,0}, 0, e.color)
 		}
+		if editting {
+			cursor := tbro.elems[cursoridx-1].next if cursoridx > 0 else {0,28}
+			draw_rect({cursor.x+textpos.x, cursor.y+textpos.y-28, 2, 28}, dgl.WHITE)
+		}
+		tbro_release(tbro)
 	}
 }
 
