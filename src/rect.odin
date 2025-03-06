@@ -11,6 +11,8 @@ import "dgl"
 R :: dgl.Rect
 @(private="file")
 V2 :: dgl.Vec2
+@(private="file")
+V4 :: dgl.Vec4
 
 rect_in :: proc(r: R, p: V2) -> bool {
 	return !(p.x<r.x || p.y<r.y || p.x>r.x+r.w || p.y>r.y+r.h)
@@ -43,14 +45,22 @@ rect_require :: proc(r: R, width:f32=0, height:f32=0, anchor:V2={0,0}) -> R {
 	return {min.x, min.y, max.x-min.x, max.y-min.y}
 }
 
-rect_padding :: proc(r: R, left, right, top, bottom: f32, loc:=#caller_location) -> R {
+rect_padding :: proc(r: R, left, right, top, bottom: f32) -> R {
 	return {r.x+left, r.y+top, r.w-right-left, r.h-top-bottom}
 }
 
+rect_anchor :: proc(r: R, anchor, offset: V4 /*left, top, right, bottom*/) -> R {
+	new_x := r.x + anchor.x * r.w + offset.x
+	new_y := r.y + anchor.y * r.h + offset.y
+	new_w := r.w * (anchor.z - anchor.x) + (offset.z - offset.x)
+	new_h := r.h * (anchor.w - anchor.y) + (offset.w - offset.y)
+	return R{new_x, new_y, new_w, new_h}
+}
+
 /*
-                 width
+				 width
 *-------------*---------*
-|             |/////////|
+|			  |/////////|
 *-------------*---------*
 */
 rect_split_right :: proc(r: R, width: f32) -> R {
@@ -61,7 +71,7 @@ rect_split_right :: proc(r: R, width: f32) -> R {
 /*
    width
 *---------*-------------*
-|/////////|             |
+|/////////|				|
 *---------*-------------*
 */
 rect_split_left :: proc(r: R, width: f32) -> R {
@@ -82,5 +92,5 @@ rect_top :: proc(r: R, height: f32) -> R {
 
 // ***
 rect_from_position_size :: proc(p,s: V2) -> R {
-    return {p.x, p.y, s.x, s.y}
+	return {p.x, p.y, s.x, s.y}
 }

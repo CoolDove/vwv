@@ -12,15 +12,18 @@ Color :: dgl.Color4u8
 Rect :: dgl.Rect
 Vec2 :: dgl.Vec2
 
+
+VuiWidgetHandle :: #type hla.HollowArrayHandle(VuiWidget)
+
 VuiContext :: struct {
 	hot, active : u64,
 	delta_s : f64,
 	current_layout : ^VuiLayout,
-	// states : map[u64]VuiState,
-	states : map[u64]hla.HollowArrayHandle(VuiWidget),
+
+	states : map[u64]VuiWidgetHandle,
 	_state_pool : hla.HollowArray(VuiWidget),
 
-	widget_stack : [dynamic]u64,
+	widget_stack : [dynamic]VuiWidgetHandle,
 
 	_temp_tbro : TextBro,
 }
@@ -62,22 +65,14 @@ _builtin_layout_vertical : VuiLayout={
 	},
 }
 
-_vui_state :: proc(id: u64) -> ^VuiWidget {
+_vui_state :: proc(id: u64) -> (VuiWidgetHandle, ^VuiWidget) {
 	s, ok := ctx.states[id] 
 	if !ok {
 		ctx.states[id] = hla.hla_append(&ctx._state_pool, VuiWidget{})
 		s = ctx.states[id]
 	}
-	return hla.hla_get_pointer(s)
+	return s, hla.hla_get_pointer(s)
 }
-// _vui_state :: proc(id: u64, $T: typeid) -> ^T {
-// 	s, ok := &ctx.states[id] 
-// 	if !ok {
-// 		ctx.states[id] = hla.hla_append(&ctx._state_pool, VuiWidget{})
-// 		s = &ctx.states[id]
-// 	}
-// 	return cast(^T)s
-// }
 
 _vui_ctx :: proc() -> ^VuiContext {
 	return &ctx
@@ -87,7 +82,7 @@ vui_init :: proc() {
 	ctx._state_pool = hla.hla_make(VuiWidget, 256)
 	ctx.states = make(map[u64]hla.HollowArrayHandle(VuiWidget))
 	tbro_init(&ctx._temp_tbro, font_default, 28)
-	ctx.widget_stack = make([dynamic]u64, 16)
+	ctx.widget_stack = make([dynamic]VuiWidgetHandle, 16)
 }
 vui_release :: proc() {
 	tbro_release(&ctx._temp_tbro)
@@ -100,10 +95,8 @@ vui_begin :: proc(delta_s: f64, rect: Rect) {
 	ctx.delta_s = delta_s
 	ctx.hot = 0
 	clear(&ctx.widget_stack)
-	_vuibd_begin(1, rect)
 }
 vui_end :: proc() {
-	_vuibd_end()
 }
 
 VuiWidget :: struct {
@@ -111,7 +104,10 @@ VuiWidget :: struct {
 
 	clickable : VuiWidget_Clickable,
 
-	draw_rect : VuiWidget_DrawRect,
+	draw_rect               : VuiWidget_DrawRect,
+	draw_rect_hot           : VuiWidget_DrawRectHot,
+	draw_rect_hot_animation : VuiWidget_DrawRectHotAnimation,
+	draw_rect_active        : VuiWidget_DrawRectActive,
 	draw_text : VuiWidget_DrawText,
 	draw_custom : VuiWidget_DrawCustom,
 
@@ -122,8 +118,7 @@ VuiWidget_Basic :: struct {
 	id : u64,
 	rect : Rect,
 
-	widget_draw : proc(id: u64, interact: VuiInteract),
-	children : [dynamic]u64,
+	parent, child, next, last : VuiWidgetHandle,
 	interact : VuiInteract,
 }
 VuiWidget_Clickable :: struct {
@@ -135,6 +130,19 @@ VuiWidget_DrawRect :: struct {
 	round : f64,
 	round_segment : int,
 }
+VuiWidget_DrawRectHot :: struct {
+	enable : bool,
+	color : Color,
+}
+VuiWidget_DrawRectHotAnimation :: struct {
+	enable : bool,
+	duration, time : f64,
+}
+VuiWidget_DrawRectActive :: struct {
+	enable : bool,
+	color : Color,
+}
+
 VuiWidget_DrawText :: struct {
 	enable : bool,
 	size : f64,
@@ -143,8 +151,7 @@ VuiWidget_DrawText :: struct {
 }
 VuiWidget_DrawCustom :: struct {
 	enable : bool,
-	drawer : proc(state: ^VuiWidget, data: rawptr),
-	data : rawptr,
+	drawer : proc(state: VuiWidgetHandle),
 }
 
 VuiWidget_LayoutContainer :: struct {
@@ -163,37 +170,80 @@ VuiInteract :: struct {
 }
 
 @(private="file")
-_peek_state :: #force_inline proc() -> ^VuiWidget {
-	if len(ctx.widget_stack) == 0 do return nil
-	return _vui_state(ctx.widget_stack[len(ctx.widget_stack)-1])
+_peek_state :: #force_inline proc() -> (VuiWidgetHandle, ^VuiWidget) {
+	if len(ctx.widget_stack) == 0 do return {}, nil
+	handle := ctx.widget_stack[len(ctx.widget_stack)-1]
+	return handle, hla.hla_get_pointer(handle)
 }
 
+_vuibd_helper_get_current :: _peek_state
+
 _vuibd_begin :: proc(id: u64, rect: Rect) {
-	state := _vui_state(id)
+	h, state := _vui_state(id)
 	state.basic = {
 		id   = id,
 		rect = rect,
-		children = make([dynamic]u64),
 	}
 	state.clickable.enable = false
 	state.draw_rect.enable = false
 	state.draw_text.enable = false
 	state.draw_custom.enable = false
 	state.layout.enable = false
-	append(&ctx.widget_stack, id)
+
+	if parenth, parent := _peek_state(); parent != nil {
+		__widget_append_child(parenth, h)
+
+		if layout:= &parent.layout; layout.enable {
+			layout_size := rect_size(parent.basic.rect)
+			using state.basic
+			switch layout.direction {
+			case .Vertical:
+				rect.x = layout.next.x
+				rect.y = layout.next.y
+				if rect.w < 0 do rect.w = layout_size.x
+				layout.next.y += rect.h + cast(f32)layout.padding
+			case .Horizontal:
+				rect.x = layout.next.x
+				rect.y = layout.next.y
+				if rect.h < 0 do rect.h = layout_size.y
+				layout.next.x += rect.w + cast(f32)layout.padding
+			}
+		}
+	}
+
+	append(&ctx.widget_stack, h)
 }
 _vuibd_end :: proc() -> VuiInteract {
-	state := _vui_state(pop(&ctx.widget_stack))
-	defer delete(state.basic.children)
+	state := pop(&ctx.widget_stack)
 	return _vui_widget(state)
 }
-_vuibd_draw_rect :: proc(color: Color) {
-	state := _peek_state()
+_vuibd_draw_rect :: proc(color: Color, round := 0.0, seg: int=2) -> ^VuiWidget_DrawRect {
+	_, state := _peek_state()
 	state.draw_rect.enable = true
 	state.draw_rect.color = color
+	state.draw_rect.round = round
+	state.draw_rect.round_segment = seg
+	return &state.draw_rect
 }
+_vuibd_draw_rect_hot :: proc(color: Color) -> ^VuiWidget_DrawRectHot {
+	_, state := _peek_state()
+	state.draw_rect_hot.enable = true
+	state.draw_rect_hot.color = color
+	return &state.draw_rect_hot
+}
+_vuibd_draw_rect_hot_animation :: proc(duration: f64) {
+	_, state := _peek_state()
+	state.draw_rect_hot_animation.enable = true
+	state.draw_rect_hot_animation.duration = duration
+}
+_vuibd_draw_rect_active :: proc(color: Color) {
+	_, state := _peek_state()
+	state.draw_rect_active.enable = true
+	state.draw_rect_active.color = color
+}
+
 _vuibd_draw_text :: proc(color: Color, text: string, size: f64) {
-	state := _peek_state()
+	_, state := _peek_state()
 	draw := &state.draw_text
 	draw.enable = true
 	draw.color = color
@@ -201,12 +251,12 @@ _vuibd_draw_text :: proc(color: Color, text: string, size: f64) {
 	draw.text = text
 }
 _vuibd_clickable :: proc() {
-	state := _peek_state()
+	_, state := _peek_state()
 	state.clickable.enable = true
 }
 
 _vuibd_layout :: proc(direction: VuiLayoutDirection) -> ^VuiWidget_LayoutContainer {
-	state := _peek_state()
+	_, state := _peek_state()
 	layout := &state.layout
 	layout.enable = true
 	layout.direction = direction
@@ -214,47 +264,47 @@ _vuibd_layout :: proc(direction: VuiLayoutDirection) -> ^VuiWidget_LayoutContain
 	return layout
 }
 
-vui_test_button :: proc(id: u64, rect: Rect) -> VuiInteract {
+vui_test_button :: proc(id: u64, rect: Rect, text: string) -> VuiInteract {
 	_vuibd_begin(id, rect)
-	_vuibd_draw_rect(dgl.RED)
+	_vuibd_draw_rect({140, 180, 190, 255})
+	_vuibd_draw_rect_hot({165, 210, 226, 255})
+	_vuibd_draw_rect_hot_animation(0.3)
 	_vuibd_clickable()
-	_vuibd_draw_text(dgl.WHITE, "Hello", 20)
+	_vuibd_draw_text(dgl.WHITE, text, 20)
 	return _vuibd_end()
 }
 
-vui_layout_begin :: proc(id: u64, rect: Rect, direction: VuiLayoutDirection, padding: f64) {
+vui_layout_begin :: proc(id: u64, rect: Rect, direction: VuiLayoutDirection, padding: f64, color: Color={}) {
 	_vuibd_begin(id, rect)
-	_vuibd_draw_rect({0,0,0, 128})
+	if color != {} do _vuibd_draw_rect(color)
 	_vuibd_layout(direction).padding = padding
 }
 vui_layout_end :: proc() {
 	_vuibd_end()
 }
 
-_vui_widget :: proc(state: ^VuiWidget) -> VuiInteract {
-	using state.basic
-
-	if parent := _peek_state(); parent != nil {
-		append(&parent.basic.children, id)
-
-		if layout:= &parent.layout; layout.enable {
-			switch layout.direction {
-			case .Vertical:
-				rect.x = layout.next.x
-				rect.y = layout.next.y
-				layout.next.y += rect.h + cast(f32)layout.padding
-			case .Horizontal:
-				rect.x = layout.next.x
-				rect.y = layout.next.y
-				layout.next.x += rect.w + cast(f32)layout.padding
-			}
-		}
+@(private="file")
+__widget_append_child :: proc(parent, child: VuiWidgetHandle) {
+	parenth := parent
+	parent := hla.hla_get_pointer(parent)
+	if parent.basic.child == {} {
+		parent.basic.child = child
+	} else {
+		hla.hla_get_pointer(parent.basic.last).basic.next = child
 	}
+	hla.hla_get_pointer(child).basic.parent = parenth
+	parent.basic.last = child
+}
+
+_vui_widget :: proc(state: VuiWidgetHandle) -> VuiInteract {
+	stateh := state
+	state := hla.hla_get_pointer(state)
+	using state.basic
 
 	if state.clickable.enable {
 		inrect := rect_in(state.basic.rect, input.mouse_position)
 		if inrect {
-			if ctx.active == 0 && ctx.hot == 0 {
+			if ctx.active == id || (ctx.active == 0 && ctx.hot == 0) {
 				ctx.hot = id
 				if is_button_pressed(.Left) {
 					ctx.active = id
@@ -269,13 +319,46 @@ _vui_widget :: proc(state: ^VuiWidget) -> VuiInteract {
 		}
 	}
 
-	state.basic.widget_draw = proc(id: u64, interact: VuiInteract) {
-		state := _vui_state(id)
-		log.debugf("draw: {}", id)
+	_draw_widget :: proc(state: VuiWidgetHandle) {
+		state := hla.hla_get_pointer(state)
 		using state.basic
+
 		if state.draw_rect.enable {
 			using state.draw_rect
-			draw_rect(rect, color)
+			c := color
+			if state.draw_rect_hot.enable {
+				if ctx.hot == id {
+					if state.draw_rect_hot_animation.enable {
+						anim := &state.draw_rect_hot_animation
+						anim.time += ctx.delta_s
+						anim.time = math.min(anim.time, anim.duration)
+						t := anim.time/anim.duration
+						fromc, toc := dgl.col_u2f(color), dgl.col_u2f(state.draw_rect_hot.color)
+						c = dgl.col_f2u(cast(f32)t * (toc - fromc) + fromc)
+					} else {
+						c = state.draw_rect_hot.color
+					}
+				} else {
+					if state.draw_rect_hot_animation.enable {
+						anim := &state.draw_rect_hot_animation
+						anim.time -= ctx.delta_s
+						anim.time = math.max(anim.time, 0)
+						t := anim.time/anim.duration
+						fromc, toc := dgl.col_u2f(color), dgl.col_u2f(state.draw_rect_hot.color)
+						c = dgl.col_f2u(cast(f32)t * (toc - fromc) + fromc)
+					}
+				}
+				if ctx.active == id {
+					if state.draw_rect_active.enable {
+						c = state.draw_rect_active.color
+					}
+				}
+			}
+			if round <= 0 {
+				draw_rect(rect, c)
+			} else {
+				draw_rect_rounded(rect, cast(f32)round, round_segment, c)
+			}
 		}
 		if state.draw_text.enable {
 			using state.draw_text
@@ -291,13 +374,20 @@ _vui_widget :: proc(state: ^VuiWidget) -> VuiInteract {
 			}
 		}
 
-		for c in children {
-			cstate := _vui_state(c)
-			cstate.basic.widget_draw(c, cstate.basic.interact)
+		// draw child tree
+		if hla.hla_get_pointer(child) != nil {
+			p := child
+			for true {
+				s := hla.hla_get_pointer(p)
+				if s == nil do break
+				_draw_widget(p)
+				p = s.basic.next
+			}
 		}
 	}
-	if parent := _peek_state(); parent == nil {
-		widget_draw(id, interact)
+
+	if _, parent := _peek_state(); parent == nil {
+		_draw_widget(stateh)
 	}
 
 	return interact

@@ -6,6 +6,7 @@ import "core:math"
 import "core:math/rand"
 import "core:math/linalg"
 import "core:fmt"
+import "core:strconv"
 import "core:log"
 import win32 "core:sys/windows"
 
@@ -82,14 +83,15 @@ update :: proc() {
 	y :f32= 5
 	if debug_lines {
 		pushlinef(&y, "delta ms: {:.2f}", delta_ms)
-		pushlinef(&y, "窗口大小: {}", window_size)
+		// pushlinef(&y, "窗口大小: {}", window_size)
 		pushlinef(&y, "draw state: {}", debug_draw_data)
 		pushlinef(&y, "frameid: {}", frameid)
-		pushlinef(&y, "mouse: {}", input.mouse_position)
-		pushlinef(&y, "wheel delta: {}", input.wheel_delta)
-		pushlinef(&y, "button: {}", input.buttons)
-		pushlinef(&y, "button_prev: {}", input.buttons_prev)
-		pushlinef(&y, "update time: {}", _update_time)
+		// pushlinef(&y, "mouse: {}", input.mouse_position)
+		// pushlinef(&y, "wheel delta: {}", input.wheel_delta)
+		// pushlinef(&y, "button: {}", input.buttons)
+		// pushlinef(&y, "button_prev: {}", input.buttons_prev)
+		// pushlinef(&y, "update time: {}", _update_time)
+		pushlinef(&y, "vui hot: {}, active: {}", _vui_ctx().hot, _vui_ctx().active)
 	}
 
 	debug_draw_data = {
@@ -139,35 +141,58 @@ vwv_update :: proc(delta_s: f64) {
 
 	update_visual_records(root)
 
-	vui_begin_layoutv({20, cast(f32)scroll_offset, cast(f32)window_size.x- 40, 600})
-	for &vr in visual_records {
-		record_card(&vr)
+	// vui_begin_layoutv({20, cast(f32)scroll_offset, cast(f32)window_size.x- 40, 600})
+	vui_layout_begin(6789, {20, cast(f32)scroll_offset, cast(f32)window_size.x- 40, 600}, .Vertical, 10); {
+		for &vr in visual_records {
+			record_card(&vr, {0,0, -1, 30})
+		}
+		vui_layout_end()
 	}
-	vui_end_layout()
+	// vui_end_layout()
 
-	log.debugf("begin")
-	vui_layout_begin(6, {60,60, 200, 600}, .Vertical, 6)
-	// if vui_test_button(16, {60,60, 100, 60}).clicked {
-	// 	log.debugf("clicked1")
-	// }
-	if vui_test_button(17, {60,60, 100, 40}).clicked {
-		log.debugf("clicked2")
-	}
-	// 	vui_layout_begin(7, {0,0, 200, 60}, .Horizontal, 10)
-	// 	for i in 0..<5 {
-	// 		if vui_test_button(20+auto_cast i, {0,0, 30, 40}).clicked {
-	// 			log.debugf("clicked h {}", i)
+	// vui_layout_begin(6, {60,60, 200, 400}, .Vertical, 6); {
+	// 	if vui_test_button(16, {60,60, -1, 60}, "A").clicked {
+	// 		log.debugf("clicked A")
+	// 	}
+	// 	if vui_test_button(17, {60,60, 100, 40}, "B").clicked {
+	// 		log.debugf("clicked B")
+	// 	}
+
+	// 	vui_layout_begin(7, {0,0, 200, 60}, .Horizontal, 10, {0,0,0,32}); {
+	// 		for i in 0..<5 {
+	// 			if vui_test_button(20+auto_cast i, {0,0, 30, 60}, "o").clicked {
+	// 				log.debugf("clicked h {}", i)
+	// 			}
 	// 		}
+	// 		vui_layout_end()
+	// 	}
+
+	// 	if vui_test_button(18, {60,60, 100, 40}, "C").clicked {
+	// 		log.debugf("clicked C")
 	// 	}
 	// 	vui_layout_end()
-	// if vui_test_button(18, {60,60, 100, 40}).clicked {
-	// 	log.debugf("clicked3")
 	// }
-	vui_layout_end()
 
 	status_bar_rect := rect_split_bottom(window_rect, 46)
-	draw_rect(status_bar_rect, hotv->u8x4_inv("status_bar_bg_color"))
-	draw_text(font_default, "Status Bar", {status_bar_rect.x + 5, status_bar_rect.y + 4} , 28, {69,153,49, 255})
+	_vuibd_begin(500, status_bar_rect)
+	_vuibd_draw_rect(hotv->u8x4_inv("status_bar_bg_color"))
+	_vuibd_layout(.Horizontal).padding = 6
+	for i in 0..<5 {
+		// vui_test_button(60+auto_cast i, {0,0, 60, 60}, "do")
+		_vuibd_begin(60+auto_cast i, {0,0, 60, 60})
+		_vuibd_clickable()
+		_vuibd_draw_rect({233, 90, 80, 255})
+		_vuibd_draw_rect_hot({255, 100, 70, 255})
+		_vuibd_draw_rect_hot_animation(0.2)
+		_vuibd_draw_rect_active({255, 244, 255, 255})
+		if _vuibd_end().clicked {
+			log.debugf("status bar button")
+		}
+	}
+	_vuibd_end()
+
+	// draw_rect(status_bar_rect, )
+	// draw_text(font_default, "Status Bar", {status_bar_rect.x + 5, status_bar_rect.y + 4} , 28, {69,153,49, 255})
 	// if vui_button(1280, rect_padding(rect_split_right(status_bar_rect, 46), 4,4,4,4), "hello") do fmt.printf("hello!\n")
 	// vui_draggable_button(1222, rect_split_left(status_bar_rect, 32), "Drag me")
 	if _update_time > 0 {
@@ -200,7 +225,37 @@ update_visual_records :: proc(root: ^Record) {
 	ite_record(root, &visual_records, x, &y, indent)
 }
 
-record_card :: proc(vr: ^VisualRecord) {
+record_card :: proc(vr: ^VisualRecord, rect: dgl.Rect) {
+	baseid :u64= vr.r.id * 10 + 10000
+	_vuibd_begin(baseid, rect)
+	record_color_normal := dgl.col_i2u_inv(hotv->u32("record_color_normal"))
+	record_color_highlight := dgl.col_i2u_inv(hotv->u32("record_color_highlight"))
+
+	_vuibd_clickable()
+	_vuibd_draw_rect(record_color_normal, 8, 4)
+	_vuibd_draw_rect_hot(record_color_highlight)
+	_vuibd_draw_rect_hot_animation(0.2)
+	_vuibd_draw_rect_active({255, 244, 255, 255})
+	_vuibd_draw_text(dgl.col_i2u_inv(hotv->u32("record_text_color")), strings.to_string(vr.r.text), 26)
+
+	_, current := _vuibd_helper_get_current()
+
+	{
+		_vuibd_begin(baseid+1, rect_anchor(current.basic.rect, {1,1,1,1}, {-25, -25, -5, -5}))
+		_vuibd_clickable()
+		_vuibd_draw_rect({233, 90, 80, 255}, 4)
+		_vuibd_draw_rect_hot({255, 100, 70, 255})
+		_vuibd_draw_rect_hot_animation(0.2)
+		_vuibd_draw_rect_active({255, 244, 255, 255})
+		if _vuibd_end().clicked {
+			log.debugf("You clicked the mini button of {}", strings.to_string(vr.r.text))
+		}
+	}
+	{
+		vui_test_button(baseid+2, rect_anchor(current.basic.rect, {0,0,0,0}, {5,5, 25,25}), "sub node")
+	}
+
+	_vuibd_end()
 	// _EState :: struct {
 	// 	editting : f64, // > 0 means editting, there is an animation bound to this
 	// 	cursor : f32,
