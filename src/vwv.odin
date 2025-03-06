@@ -32,8 +32,8 @@ begin :: proc() {
 	vwv_begin()
 }
 end :: proc() {
-	vui_release()
 	vwv_end()
+	vui_release()
 }
 
 main_rect : dgl.Rect
@@ -120,18 +120,15 @@ visual_records : [dynamic]VisualRecord
 vwv_update :: proc(delta_s: f64) {
 	hotvalue.update(&hotv)
 
-
 	if is_key_pressed(.S) && is_key_down(.Ctrl) {
 		doc_write()
 	}
 
-
-
-	vui_begin(math.min(delta_s, 1.0/60.0)); defer vui_end()
-
 	main_rect = rect_padding({0,0, auto_cast window_size.x, auto_cast window_size.y}, 10, 10, 10, 10)
 	// layout_records()
 	window_rect :dgl.Rect= {0,0, auto_cast window_size.x, auto_cast window_size.y}
+
+	vui_begin(math.min(delta_s, 1.0/60.0), window_rect)
 
 	if input.wheel_delta != 0 {
 		scroll_offset += 10 * auto_cast input.wheel_delta
@@ -141,23 +138,44 @@ vwv_update :: proc(delta_s: f64) {
 	draw_rect(main_rect, hotv->u8x4_inv("background_color"))
 
 	update_visual_records(root)
-	
+
 	vui_begin_layoutv({20, cast(f32)scroll_offset, cast(f32)window_size.x- 40, 600})
 	for &vr in visual_records {
 		record_card(&vr)
 	}
 	vui_end_layout()
 
+	log.debugf("begin")
+	vui_layout_begin(6, {60,60, 200, 600}, .Vertical, 6)
+	// if vui_test_button(16, {60,60, 100, 60}).clicked {
+	// 	log.debugf("clicked1")
+	// }
+	if vui_test_button(17, {60,60, 100, 40}).clicked {
+		log.debugf("clicked2")
+	}
+	// 	vui_layout_begin(7, {0,0, 200, 60}, .Horizontal, 10)
+	// 	for i in 0..<5 {
+	// 		if vui_test_button(20+auto_cast i, {0,0, 30, 40}).clicked {
+	// 			log.debugf("clicked h {}", i)
+	// 		}
+	// 	}
+	// 	vui_layout_end()
+	// if vui_test_button(18, {60,60, 100, 40}).clicked {
+	// 	log.debugf("clicked3")
+	// }
+	vui_layout_end()
 
 	status_bar_rect := rect_split_bottom(window_rect, 46)
 	draw_rect(status_bar_rect, hotv->u8x4_inv("status_bar_bg_color"))
 	draw_text(font_default, "Status Bar", {status_bar_rect.x + 5, status_bar_rect.y + 4} , 28, {69,153,49, 255})
-	if vui_button(1280, rect_padding(rect_split_right(status_bar_rect, 46), 4,4,4,4), "hello") do fmt.printf("hello!\n")
-	vui_draggable_button(1222, rect_split_left(status_bar_rect, 32), "Drag me")
+	// if vui_button(1280, rect_padding(rect_split_right(status_bar_rect, 46), 4,4,4,4), "hello") do fmt.printf("hello!\n")
+	// vui_draggable_button(1222, rect_split_left(status_bar_rect, 32), "Drag me")
 	if _update_time > 0 {
 		_update_time -= delta_s
 		mark_update()
 	}
+
+	vui_end()
 }
 vwv_wndproc :: proc(hwnd: win32.HWND, msg: win32.UINT, wparam: win32.WPARAM, lparam: win32.LPARAM) {
 	_update_time = 2
@@ -183,145 +201,145 @@ update_visual_records :: proc(root: ^Record) {
 }
 
 record_card :: proc(vr: ^VisualRecord) {
-	_EState :: struct {
-		editting : f64, // > 0 means editting, there is an animation bound to this
-		cursor : f32,
-		scale : f32
-	}
-	state := _vui_state(vr.r.id * 10 + 10000, _EState)
-	if state.scale < 1 {
-		state.scale += auto_cast _vui_ctx().delta_s * 6
-		if state.scale >= 1 do state.scale = 1
-	}
-	layout := _vui_get_layout()
-	assert(layout != nil)
-	width := layout.rect.w - cast(f32)(vr.indent * 20) * tween.ease_outcirc(auto_cast state.scale)
+	// _EState :: struct {
+	// 	editting : f64, // > 0 means editting, there is an animation bound to this
+	// 	cursor : f32,
+	// 	scale : f32
+	// }
+	// state := _vui_state(vr.r.id * 10 + 10000, _EState)
+	// if state.scale < 1 {
+	// 	state.scale += auto_cast _vui_ctx().delta_s * 6
+	// 	if state.scale >= 1 do state.scale = 1
+	// }
+	// layout := _vui_get_layout()
+	// assert(layout != nil)
+	// width := layout.rect.w - cast(f32)(vr.indent * 20) * tween.ease_outcirc(auto_cast state.scale)
 
-	tbro := new(TextBro, context.temp_allocator)
-	cursoridx : int
-	tbro_init(tbro, font_default, 28, auto_cast width-12)
-	text_color := dgl.col_i2u_inv(hotv->u32("record_text_color"))
-	text_color.a = cast(u8)(cast(f32)text_color.a*state.scale)
+	// tbro := new(TextBro, context.temp_allocator)
+	// cursoridx : int
+	// tbro_init(tbro, font_default, 28, auto_cast width-12)
+	// text_color := dgl.col_i2u_inv(hotv->u32("record_text_color"))
+	// text_color.a = cast(u8)(cast(f32)text_color.a*state.scale)
 
-	if state.editting > 0 {
-		ed := &editting_record.textedit
-		text := strings.to_string(vr.r.text) if state.editting <= 0 else gapbuffer_get_string(&editting_record.gapbuffer, context.temp_allocator)
-		cursoridx = tbro_write_string(tbro, text[:ed.selection.x], text_color)
-		tbro_write_string(tbro, text[ed.selection.x:], text_color)
-	} else {
-		tbro_write_string(tbro, strings.to_string(vr.r.text), text_color)
-	}
-	height :f32= 32.0
-	if last := tbro_last(tbro); last != nil do height = last.next.y + 4
+	// if state.editting > 0 {
+	// 	ed := &editting_record.textedit
+	// 	text := strings.to_string(vr.r.text) if state.editting <= 0 else gapbuffer_get_string(&editting_record.gapbuffer, context.temp_allocator)
+	// 	cursoridx = tbro_write_string(tbro, text[:ed.selection.x], text_color)
+	// 	tbro_write_string(tbro, text[ed.selection.x:], text_color)
+	// } else {
+	// 	tbro_write_string(tbro, strings.to_string(vr.r.text), text_color)
+	// }
+	// height :f32= 32.0
+	// if last := tbro_last(tbro); last != nil do height = last.next.y + 4
 
-	_DrawData :: struct {
-		vr : ^VisualRecord,
-		tbro : ^TextBro,
-		cursoridx : int,
-	}
+	// _DrawData :: struct {
+	// 	vr : ^VisualRecord,
+	// 	tbro : ^TextBro,
+	// 	cursoridx : int,
+	// }
 
-	data := new(_DrawData)
-	data^ = { vr, tbro, cursoridx }
+	// data := new(_DrawData)
+	// data^ = { vr, tbro, cursoridx }
 
-	_vui_layout_push(width, height, draw, data)
-	// add a spacing
-	_vui_layout_push(0, 10, nil)
+	// _vui_layout_push(width, height, draw, data)
+	// // add a spacing
+	// _vui_layout_push(0, 10, nil)
 
-	draw :: proc(rect: dgl.Rect, data: rawptr) {
-		data := cast(^_DrawData)data
-		defer free(data)
-		state := _vui_state(data.vr.r.id * 10 + 10000, _EState)
-		rect := rect
-		rect.x += cast(f32)(data.vr.indent * 20)
-		using data
-		hovering := rect_in(rect, input.mouse_position)
-		if hovering {
-			if editting_record.record == nil {
-				if is_key_pressed(.A) {
-					if vr.r != root do record_add_sibling(vr.r)
-				} else if is_key_pressed(.S) {
-					record_add_child(vr.r)
-				} else if is_key_pressed(.D) {
-					record_remove(vr.r)
-				}
-				if is_button_pressed(.Left) {
-					ed := &editting_record.textedit
-					gp := &editting_record.gapbuffer
-					gapbuffer_clear(gp)
-					gapbuffer_insert_string(gp, 0, strings.to_string(vr.r.text))
-					textedit_begin(ed, gp)
-					editting_record.record = vr.r
-					state.editting = 1
-					toggle_text_input(true)
-				}
-			}
-		}
+	// draw :: proc(rect: dgl.Rect, data: rawptr) {
+	// 	data := cast(^_DrawData)data
+	// 	defer free(data)
+	// 	state := _vui_state(data.vr.r.id * 10 + 10000, _EState)
+	// 	rect := rect
+	// 	rect.x += cast(f32)(data.vr.indent * 20)
+	// 	using data
+	// 	hovering := rect_in(rect, input.mouse_position)
+	// 	if hovering {
+	// 		if editting_record.record == nil {
+	// 			if is_key_pressed(.A) {
+	// 				if vr.r != root do record_add_sibling(vr.r)
+	// 			} else if is_key_pressed(.S) {
+	// 				record_add_child(vr.r)
+	// 			} else if is_key_pressed(.D) {
+	// 				record_remove(vr.r)
+	// 			}
+	// 			if is_button_pressed(.Left) {
+	// 				ed := &editting_record.textedit
+	// 				gp := &editting_record.gapbuffer
+	// 				gapbuffer_clear(gp)
+	// 				gapbuffer_insert_string(gp, 0, strings.to_string(vr.r.text))
+	// 				textedit_begin(ed, gp)
+	// 				editting_record.record = vr.r
+	// 				state.editting = 1
+	// 				toggle_text_input(true)
+	// 			}
+	// 		}
+	// 	}
 
-		editting := state.editting > 0
-		if editting {
-			ed := &editting_record.textedit
-			if input_text := get_input_text(context.temp_allocator); input_text != {} {
-				textedit_insert(ed, input_text)
-			} else if is_key_repeated(.Back) {
-				_, i := textedit_find_previous_rune(ed, ed.selection.x)
-				if i != -1 do textedit_remove(ed, i-ed.selection.x)
-			} else if is_key_repeated(.Delete) {
-				_, i := textedit_find_next_rune(ed, ed.selection.x)
-				if i != -1 do textedit_remove(ed, i-ed.selection.x)
-			} else if is_key_repeated(.Left) {
-				_, i := textedit_find_previous_rune(ed, ed.selection.x)
-				if i != -1 do textedit_move(ed, i-ed.selection.x)
-			} else if is_key_repeated(.Right) {
-				_, i := textedit_find_next_rune(ed, ed.selection.x)
-				if i != -1 do textedit_move(ed, i-ed.selection.x)
-			} else if is_key_repeated(.Home) {
-				textedit_move_to(ed, 0)
-			} else if is_key_repeated(.End) {
-				textedit_move_to(ed, textedit_len(ed))
-			}
-			if is_key_pressed(.Enter) || is_key_pressed(.Escape) {
-				strings.builder_reset(&vr.r.text)
-				strings.write_string(&vr.r.text, gapbuffer_get_string(&editting_record.gapbuffer, context.temp_allocator))
-				// @Temporary:
-				editting_record.record = nil
-				textedit_end(&editting_record.textedit)
-				state.editting = 0
-				toggle_text_input(false)
-			}
-		}
+	// 	editting := state.editting > 0
+	// 	if editting {
+	// 		ed := &editting_record.textedit
+	// 		if input_text := get_input_text(context.temp_allocator); input_text != {} {
+	// 			textedit_insert(ed, input_text)
+	// 		} else if is_key_repeated(.Back) {
+	// 			_, i := textedit_find_previous_rune(ed, ed.selection.x)
+	// 			if i != -1 do textedit_remove(ed, i-ed.selection.x)
+	// 		} else if is_key_repeated(.Delete) {
+	// 			_, i := textedit_find_next_rune(ed, ed.selection.x)
+	// 			if i != -1 do textedit_remove(ed, i-ed.selection.x)
+	// 		} else if is_key_repeated(.Left) {
+	// 			_, i := textedit_find_previous_rune(ed, ed.selection.x)
+	// 			if i != -1 do textedit_move(ed, i-ed.selection.x)
+	// 		} else if is_key_repeated(.Right) {
+	// 			_, i := textedit_find_next_rune(ed, ed.selection.x)
+	// 			if i != -1 do textedit_move(ed, i-ed.selection.x)
+	// 		} else if is_key_repeated(.Home) {
+	// 			textedit_move_to(ed, 0)
+	// 		} else if is_key_repeated(.End) {
+	// 			textedit_move_to(ed, textedit_len(ed))
+	// 		}
+	// 		if is_key_pressed(.Enter) || is_key_pressed(.Escape) {
+	// 			strings.builder_reset(&vr.r.text)
+	// 			strings.write_string(&vr.r.text, gapbuffer_get_string(&editting_record.gapbuffer, context.temp_allocator))
+	// 			// @Temporary:
+	// 			editting_record.record = nil
+	// 			textedit_end(&editting_record.textedit)
+	// 			state.editting = 0
+	// 			toggle_text_input(false)
+	// 		}
+	// 	}
 
-		scale, cursor := state.scale, state.cursor
+	// 	scale, cursor := state.scale, state.cursor
 
-		alpha := cast(u8)(255 * scale)
-		record_color_outline := dgl.col_i2u_inv(hotv->u32("record_color_outline")); record_color_outline.a = alpha
-		record_color_normal := dgl.col_i2u_inv(hotv->u32("record_color_normal")); record_color_normal.a = alpha
-		record_color_highlight := dgl.col_i2u_inv(hotv->u32("record_color_highlight")); record_color_highlight.a = alpha
-		if editting {
-			draw_rect_rounded(rect, 4, 2, record_color_outline if !hovering else record_color_highlight)
-			draw_rect_rounded(rect_padding(rect, 2,2,2,2), 4, 2, record_color_normal)
-		} else {
-			draw_rect_rounded(rect, 4, 2, record_color_normal if !hovering else record_color_highlight)
-		}
+	// 	alpha := cast(u8)(255 * scale)
+	// 	record_color_outline := dgl.col_i2u_inv(hotv->u32("record_color_outline")); record_color_outline.a = alpha
+	// 	record_color_normal := dgl.col_i2u_inv(hotv->u32("record_color_normal")); record_color_normal.a = alpha
+	// 	record_color_highlight := dgl.col_i2u_inv(hotv->u32("record_color_highlight")); record_color_highlight.a = alpha
+	// 	if editting {
+	// 		draw_rect_rounded(rect, 4, 2, record_color_outline if !hovering else record_color_highlight)
+	// 		draw_rect_rounded(rect_padding(rect, 2,2,2,2), 4, 2, record_color_normal)
+	// 	} else {
+	// 		draw_rect_rounded(rect, 4, 2, record_color_normal if !hovering else record_color_highlight)
+	// 	}
 
-		text := vr.r.text
-		width := cast(f64)rect.w
+	// 	text := vr.r.text
+	// 	width := cast(f64)rect.w
 
-		text_shadow_color := dgl.col_i2u_inv(hotv->u32("record_text_shadow_color"))
-		text_shadow_color.a = cast(u8)(cast(f32)text_shadow_color.a*state.scale)
-		textpos := dgl.Vec2{rect.x+4, rect.y-4}
-		for e in tbro.elems {
-			d := e.quad_dst
-			draw_texture_ex(fsctx.atlas, e.quad_src, {d.x+textpos.x+1.2, d.y+textpos.y+1.2, d.w, d.h}, {0,0}, 0, text_shadow_color)
-			draw_texture_ex(fsctx.atlas, e.quad_src, {d.x+textpos.x, d.y+textpos.y, d.w, d.h}, {0,0}, 0, e.color)
-		}
-		if editting {
-			font := fontstash.__getFont(&fsctx.fs, font_default)
-			cursor := tbro.elems[cursoridx-1].next if cursoridx > 0 else {0,28}
-			height := font.lineHeight*28
-			draw_rect({cursor.x+textpos.x, cursor.y+textpos.y-font.descender*28 - height, 2, height}, dgl.col_i2u_inv(hotv->u32("record_cursor_color")))
-		}
-		tbro_release(tbro)
-	}
+	// 	text_shadow_color := dgl.col_i2u_inv(hotv->u32("record_text_shadow_color"))
+	// 	text_shadow_color.a = cast(u8)(cast(f32)text_shadow_color.a*state.scale)
+	// 	textpos := dgl.Vec2{rect.x+4, rect.y-4}
+	// 	for e in tbro.elems {
+	// 		d := e.quad_dst
+	// 		draw_texture_ex(fsctx.atlas, e.quad_src, {d.x+textpos.x+1.2, d.y+textpos.y+1.2, d.w, d.h}, {0,0}, 0, text_shadow_color)
+	// 		draw_texture_ex(fsctx.atlas, e.quad_src, {d.x+textpos.x, d.y+textpos.y, d.w, d.h}, {0,0}, 0, e.color)
+	// 	}
+	// 	if editting {
+	// 		font := fontstash.__getFont(&fsctx.fs, font_default)
+	// 		cursor := tbro.elems[cursoridx-1].next if cursoridx > 0 else {0,28}
+	// 		height := font.lineHeight*28
+	// 		draw_rect({cursor.x+textpos.x, cursor.y+textpos.y-font.descender*28 - height, 2, height}, dgl.col_i2u_inv(hotv->u32("record_cursor_color")))
+	// 	}
+	// 	tbro_release(tbro)
+	// }
 }
 
 RecordEdit :: struct {

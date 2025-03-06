@@ -34,6 +34,12 @@ tbro_init :: proc(tbro: ^TextBro, fontid: int, size: f64, overflow_width := -1.0
 	tbro.size = size
 	tbro.overflow_width = overflow_width
 }
+tbro_reset :: proc(tbro: ^TextBro, fontid: int, size: f64, overflow_width := -1.0) {
+	clear(&tbro.elems)
+	tbro.fontid = fontid
+	tbro.size = size
+	tbro.overflow_width = overflow_width
+}
 tbro_release :: proc(tbro: ^TextBro) {
 	delete(tbro.elems)
 }
