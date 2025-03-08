@@ -144,7 +144,7 @@ vwv_update :: proc(delta_s: f64) {
 	// vui_begin_layoutv({20, cast(f32)scroll_offset, cast(f32)window_size.x- 40, 600})
 	vui_layout_begin(6789, {20, cast(f32)scroll_offset, cast(f32)window_size.x- 40, 600}, .Vertical, 10); {
 		for &vr in visual_records {
-			record_card(&vr, {0,0, -1, 30})
+			record_card(&vr)
 		}
 		vui_layout_end()
 	}
@@ -225,18 +225,43 @@ update_visual_records :: proc(root: ^Record) {
 	ite_record(root, &visual_records, x, &y, indent)
 }
 
-record_card :: proc(vr: ^VisualRecord, rect: dgl.Rect) {
+record_card :: proc(vr: ^VisualRecord) {
 	baseid :u64= vr.r.id * 10 + 10000
-	_vuibd_begin(baseid, rect)
-	record_color_normal := dgl.col_i2u_inv(hotv->u32("record_color_normal"))
-	record_color_highlight := dgl.col_i2u_inv(hotv->u32("record_color_highlight"))
+
+	_, parent := _vuibd_helper_get_current()
+	assert(parent != nil && parent.layout.enable, "Record card must be under a layout")
+	if parent == nil || !parent.layout.enable do return
+
+	tbro := new(TextBro)
+	width := cast(f64)parent.basic.rect.w - 8 - 25 - 4
+	tbro_init(tbro, font_default, 22, width)
+	tbro_write_string(tbro, strings.to_string(vr.r.text), hotv->u8x4_inv("record_text_color"))
+
+	_vuibd_begin(baseid, {0,0, -1, tbro_last(tbro).next.y + 8})
+
+	record_color_normal := hotv->u8x4_inv("record_color_normal")
+	record_color_highlight := hotv->u8x4_inv("record_color_highlight")
+	record_color_active := hotv->u8x4_inv("record_color_active")
 
 	_vuibd_clickable()
 	_vuibd_draw_rect(record_color_normal, 8, 4)
 	_vuibd_draw_rect_hot(record_color_highlight)
-	_vuibd_draw_rect_hot_animation(0.2)
-	_vuibd_draw_rect_active({255, 244, 255, 255})
-	_vuibd_draw_text(dgl.col_i2u_inv(hotv->u32("record_text_color")), strings.to_string(vr.r.text), 26)
+	_vuibd_draw_rect_hot_animation(0.25)
+	_vuibd_draw_rect_active(record_color_active)
+
+	_vuibd_draw_custom(proc(w: VuiWidgetHandle) {
+		state := _vuibd_helper_get_pointer_from_handle(w)
+		tbro := cast(^TextBro)state.draw_custom.data
+		textpos := rect_position(state.basic.rect) + {8, 0}
+		text_shadow_color := hotv->u8x4_inv("record_text_shadow_color")
+		for e in tbro.elems {
+			d := e.quad_dst
+			draw_texture_ex(fsctx.atlas, e.quad_src, {d.x+textpos.x+1.2, d.y+textpos.y+1.2, d.w, d.h}, {0,0}, 0, text_shadow_color)
+			draw_texture_ex(fsctx.atlas, e.quad_src, {d.x+textpos.x, d.y+textpos.y, d.w, d.h}, {0,0}, 0, e.color)
+		}
+		tbro_release(tbro)
+		free(tbro)
+	}, tbro)
 
 	_, current := _vuibd_helper_get_current()
 
@@ -250,9 +275,6 @@ record_card :: proc(vr: ^VisualRecord, rect: dgl.Rect) {
 		if _vuibd_end().clicked {
 			log.debugf("You clicked the mini button of {}", strings.to_string(vr.r.text))
 		}
-	}
-	{
-		vui_test_button(baseid+2, rect_anchor(current.basic.rect, {0,0,0,0}, {5,5, 25,25}), "sub node")
 	}
 
 	_vuibd_end()

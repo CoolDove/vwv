@@ -151,7 +151,8 @@ VuiWidget_DrawText :: struct {
 }
 VuiWidget_DrawCustom :: struct {
 	enable : bool,
-	drawer : proc(state: VuiWidgetHandle),
+	draw : proc(state: VuiWidgetHandle),
+	data : rawptr,
 }
 
 VuiWidget_LayoutContainer :: struct {
@@ -177,6 +178,9 @@ _peek_state :: #force_inline proc() -> (VuiWidgetHandle, ^VuiWidget) {
 }
 
 _vuibd_helper_get_current :: _peek_state
+_vuibd_helper_get_pointer_from_handle :: proc(h: VuiWidgetHandle) -> ^VuiWidget {
+	return hla.hla_get_pointer(h)
+}
 
 _vuibd_begin :: proc(id: u64, rect: Rect) {
 	h, state := _vui_state(id)
@@ -241,7 +245,6 @@ _vuibd_draw_rect_active :: proc(color: Color) {
 	state.draw_rect_active.enable = true
 	state.draw_rect_active.color = color
 }
-
 _vuibd_draw_text :: proc(color: Color, text: string, size: f64) {
 	_, state := _peek_state()
 	draw := &state.draw_text
@@ -250,6 +253,15 @@ _vuibd_draw_text :: proc(color: Color, text: string, size: f64) {
 	draw.size = size
 	draw.text = text
 }
+_vuibd_draw_custom :: proc(draw: proc(w: VuiWidgetHandle), data: rawptr) {
+	stateh, state := _peek_state()
+	state.draw_custom = {
+		true,
+		draw,
+		data
+	}
+}
+
 _vuibd_clickable :: proc() {
 	_, state := _peek_state()
 	state.clickable.enable = true
@@ -320,6 +332,7 @@ _vui_widget :: proc(state: VuiWidgetHandle) -> VuiInteract {
 	}
 
 	_draw_widget :: proc(state: VuiWidgetHandle) {
+		stateh := state
 		state := hla.hla_get_pointer(state)
 		using state.basic
 
@@ -372,6 +385,10 @@ _vui_widget :: proc(state: VuiWidgetHandle) -> VuiInteract {
 				d := e.quad_dst
 				draw_texture_ex(fsctx.atlas, e.quad_src, {d.x+x, d.y+y, d.w, d.h}, {0,0}, 0, e.color)
 			}
+		}
+		if state.draw_custom.enable {
+			using state.draw_custom
+			draw(stateh)
 		}
 
 		// draw child tree

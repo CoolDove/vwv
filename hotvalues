@@ -3,6 +3,7 @@ status_bar_bg_color      0xFFE8A1ff
 record_color_outline     0xE0B354ff
 record_color_normal      0xF5D37Dff
 record_color_highlight   0xFFB400ff
+record_color_active      0xFFD4B0ff
 record_text_color        0x705A2Eff
 record_text_shadow_color 0x00000045
 record_cursor_color      0x705A2Eff
