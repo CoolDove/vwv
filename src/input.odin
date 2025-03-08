@@ -58,7 +58,8 @@ input_process_win32_wndproc :: proc(msg: Win32Msg) {
 		if msg.wparam < 256 do input.keys[msg.wparam] = false
 	case win32.WM_CHAR:
 		r := cast(rune)msg.wparam
-		if input.text_input_on && r > 31 {
+		// if input.text_input_on && r > 31 {
+		if r > 31 {
 			length := len(input._handled_input_text)
 			input._input_text_buffer[length] = r
 			input._handled_input_text = input._input_text_buffer[:length+1]

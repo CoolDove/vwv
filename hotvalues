@@ -1,9 +1,9 @@
-background_color         0xFAF3E0ff
-status_bar_bg_color      0xFFE8A1ff
-record_color_outline     0xE0B354ff
-record_color_normal      0xF5D37Dff
-record_color_highlight   0xFFB400ff
-record_color_active      0xFFD4B0ff
-record_text_color        0x705A2Eff
+background_color         0xfaf3e0ff
+status_bar_bg_color      0xffe8a1ff
+record_color_outline     0xe0b354ff
+record_color_normal      0xf5d37dff
+record_color_highlight   0xefb400ff
+record_color_active      0xffd4b0ff
+record_text_color        0x705a2eff
 record_text_shadow_color 0x00000045
-record_cursor_color      0x705A2Eff
+record_cursor_color      0x705a2eff

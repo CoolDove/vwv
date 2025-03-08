@@ -104,12 +104,14 @@ VuiWidget :: struct {
 
 	clickable : VuiWidget_Clickable,
 
+	update_custom           : VuiWidget_UpdateCustom,
+
 	draw_rect               : VuiWidget_DrawRect,
 	draw_rect_hot           : VuiWidget_DrawRectHot,
 	draw_rect_hot_animation : VuiWidget_DrawRectHotAnimation,
 	draw_rect_active        : VuiWidget_DrawRectActive,
-	draw_text : VuiWidget_DrawText,
-	draw_custom : VuiWidget_DrawCustom,
+	draw_text               : VuiWidget_DrawText,
+	draw_custom             : VuiWidget_DrawCustom,
 
 	layout : VuiWidget_LayoutContainer,
 }
@@ -124,6 +126,12 @@ VuiWidget_Basic :: struct {
 VuiWidget_Clickable :: struct {
 	enable : bool,
 }
+VuiWidget_UpdateCustom :: struct {
+	enable : bool,
+	update : proc(w: VuiWidgetHandle),
+	data : [8*8]u8,
+}
+
 VuiWidget_DrawRect :: struct {
 	enable : bool,
 	color : Color,
@@ -167,6 +175,7 @@ VuiLayoutDirection :: enum {
 
 VuiInteract :: struct {
 	clicked : bool,
+	clicked_outside : bool,
 	_require_size : Vec2,
 }
 
@@ -188,11 +197,17 @@ _vuibd_begin :: proc(id: u64, rect: Rect) {
 		id   = id,
 		rect = rect,
 	}
-	state.clickable.enable = false
-	state.draw_rect.enable = false
-	state.draw_text.enable = false
-	state.draw_custom.enable = false
-	state.layout.enable = false
+	state.clickable.enable               = false
+	state.update_custom.enable           = false
+
+	state.draw_rect.enable               = false
+	state.draw_text.enable               = false
+	state.draw_rect_hot.enable           = false
+	state.draw_rect_hot_animation.enable = false
+	state.draw_rect_active.enable        = false
+	state.draw_custom.enable             = false
+
+	state.layout.enable                  = false
 
 	if parenth, parent := _peek_state(); parent != nil {
 		__widget_append_child(parenth, h)
@@ -255,16 +270,19 @@ _vuibd_draw_text :: proc(color: Color, text: string, size: f64) {
 }
 _vuibd_draw_custom :: proc(draw: proc(w: VuiWidgetHandle), data: rawptr) {
 	stateh, state := _peek_state()
-	state.draw_custom = {
-		true,
-		draw,
-		data
-	}
+	state.draw_custom = { true, draw, data }
 }
 
 _vuibd_clickable :: proc() {
 	_, state := _peek_state()
 	state.clickable.enable = true
+}
+
+_vuibd_update_custom :: proc(update: proc(w: VuiWidgetHandle)) -> rawptr {
+	_, state := _peek_state()
+	state.update_custom.enable = true
+	state.update_custom.update = update
+	return &state.update_custom.data
 }
 
 _vuibd_layout :: proc(direction: VuiLayoutDirection) -> ^VuiWidget_LayoutContainer {
@@ -323,12 +341,21 @@ _vui_widget :: proc(state: VuiWidgetHandle) -> VuiInteract {
 				}
 			}
 		}
-		if is_button_released(.Left) && ctx.active == id {
-			if inrect {
-				interact.clicked = true
+		if is_button_released(.Left) {
+			if ctx.active == id {
+				if inrect {
+					interact.clicked = true
+				}
+				ctx.active = 0
 			}
-			ctx.active = 0
+			if !inrect {
+				interact.clicked_outside = true
+			}
 		}
+	}
+
+	if state.update_custom.enable {
+		state.update_custom.update(stateh)
 	}
 
 	_draw_widget :: proc(state: VuiWidgetHandle) {

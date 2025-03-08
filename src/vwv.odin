@@ -20,6 +20,7 @@ import "tween"
 Record :: struct {
 	id : u64,
 	text : strings.Builder,
+	editbuffer : GapBuffer,
 	// tree
 	parent, child, next: ^Record,
 }
@@ -225,8 +226,12 @@ update_visual_records :: proc(root: ^Record) {
 	ite_record(root, &visual_records, x, &y, indent)
 }
 
+get_record_id :: proc(r: ^Record) -> u64 {
+	return r.id * 10 + 10000
+}
+
 record_card :: proc(vr: ^VisualRecord) {
-	baseid :u64= vr.r.id * 10 + 10000
+	baseid :u64= get_record_id(vr.r)
 
 	_, parent := _vuibd_helper_get_current()
 	assert(parent != nil && parent.layout.enable, "Record card must be under a layout")
@@ -239,9 +244,9 @@ record_card :: proc(vr: ^VisualRecord) {
 
 	_vuibd_begin(baseid, {0,0, -1, tbro_last(tbro).next.y + 8})
 
-	record_color_normal := hotv->u8x4_inv("record_color_normal")
+	record_color_normal    := hotv->u8x4_inv("record_color_normal")
 	record_color_highlight := hotv->u8x4_inv("record_color_highlight")
-	record_color_active := hotv->u8x4_inv("record_color_active")
+	record_color_active    := hotv->u8x4_inv("record_color_active")
 
 	_vuibd_clickable()
 	_vuibd_draw_rect(record_color_normal, 8, 4)
@@ -249,15 +254,54 @@ record_card :: proc(vr: ^VisualRecord) {
 	_vuibd_draw_rect_hot_animation(0.25)
 	_vuibd_draw_rect_active(record_color_active)
 
+	RecordWidget :: struct {
+		record   : ^Record,
+		editting : bool,
+	}
+	get_record_wjt :: proc(state: ^VuiWidget) -> ^RecordWidget {
+		return auto_cast &state.update_custom.data
+	}
+	wjt := cast(^RecordWidget)_vuibd_update_custom(proc(w: VuiWidgetHandle) {
+		state := _vuibd_helper_get_pointer_from_handle(w)
+		recordwjt := get_record_wjt(state)
+
+		interact := &state.basic.interact
+		if recordwjt.editting {
+			ed := &editting_record.textedit
+			if interact.clicked_outside || is_key_released(.Escape) {
+				recordwjt.editting = false
+				strings.builder_reset(&recordwjt.record.text)
+				strings.write_string(&recordwjt.record.text, gapbuffer_get_string(&editting_record.gapbuffer, context.temp_allocator))
+				textedit_end(ed)
+				return
+			}
+			if input_text := get_input_text(context.temp_allocator); input_text != {} {
+				textedit_insert(ed, input_text)
+			}
+		} else {
+			if interact.clicked {
+				recordwjt.editting = true
+				gapbuffer_clear(&editting_record.gapbuffer)
+				gapbuffer_insert_string(&editting_record.gapbuffer, 0, strings.to_string(recordwjt.record.text))
+				textedit_begin(&editting_record.textedit, &editting_record.gapbuffer, 0)
+				return
+			}
+		}
+	})
+	wjt.record = vr.r
+
 	_vuibd_draw_custom(proc(w: VuiWidgetHandle) {
 		state := _vuibd_helper_get_pointer_from_handle(w)
+		recordwjt := get_record_wjt(state)
 		tbro := cast(^TextBro)state.draw_custom.data
 		textpos := rect_position(state.basic.rect) + {8, 0}
 		text_shadow_color := hotv->u8x4_inv("record_text_shadow_color")
 		for e in tbro.elems {
 			d := e.quad_dst
-			draw_texture_ex(fsctx.atlas, e.quad_src, {d.x+textpos.x+1.2, d.y+textpos.y+1.2, d.w, d.h}, {0,0}, 0, text_shadow_color)
-			draw_texture_ex(fsctx.atlas, e.quad_src, {d.x+textpos.x, d.y+textpos.y, d.w, d.h}, {0,0}, 0, e.color)
+			x, y := textpos.x, textpos.y
+			color := e.color if !recordwjt.editting else {180,180,180,255}
+			draw_texture_ex(fsctx.atlas, e.quad_src, {d.x+x+1.2, d.y+y+1.2, d.w, d.h}, {0,0}, 0, text_shadow_color)
+			draw_texture_ex(fsctx.atlas, e.quad_src, {d.x+x, d.y+y, d.w, d.h}, {0,0}, 0, color)
 		}
 		tbro_release(tbro)
 		free(tbro)
@@ -269,7 +313,7 @@ record_card :: proc(vr: ^VisualRecord) {
 		_vuibd_begin(baseid+1, rect_anchor(current.basic.rect, {1,1,1,1}, {-25, -25, -5, -5}))
 		_vuibd_clickable()
 		_vuibd_draw_rect({233, 90, 80, 255}, 4)
-		_vuibd_draw_rect_hot({255, 100, 70, 255})
+		_vuibd_draw_rect_hot({255, 120, 90, 255})
 		_vuibd_draw_rect_hot_animation(0.2)
 		_vuibd_draw_rect_active({255, 244, 255, 255})
 		if _vuibd_end().clicked {
