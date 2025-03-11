@@ -269,19 +269,43 @@ record_card :: proc(vr: ^VisualRecord) {
 	RecordWidget :: struct {
 		record   : ^Record,
 		editting : bool,
-		cursor   : Vec2,
+		cursor, visual_cursor   : Vec2,
 	}
+	assert(size_of(RecordWidget) < 8*8)
+
 	get_record_wjt :: proc(state: ^VuiWidget) -> ^RecordWidget {
 		return auto_cast &state.update_custom.data
 	}
+	// TODO: make a size safe check
 	wjt := cast(^RecordWidget)_vuibd_update_custom(proc(w: VuiWidgetHandle) {
 		state := _vuibd_helper_get_pointer_from_handle(w)
 		recordwjt := get_record_wjt(state)
+		recordwjt.visual_cursor = (recordwjt.cursor - recordwjt.visual_cursor) * cast(f32)_vui_ctx().delta_s * 12 + recordwjt.visual_cursor
 
 		interact := &state.basic.interact
 		if recordwjt.editting {
 			ed := &editting_record.textedit
-			if interact.pressed_outside || is_key_released(.Escape) {
+			if input_text := get_input_text(context.temp_allocator); input_text != {} {
+				textedit_insert(ed, input_text)
+			} else if is_key_repeated(.Back) {
+				_, i := textedit_find_previous_rune(ed, ed.selection.x)
+				if i != -1 do textedit_remove(ed, i-ed.selection.x)
+			} else if is_key_repeated(.Delete) {
+				_, i := textedit_find_next_rune(ed, ed.selection.x)
+				if i != -1 do textedit_remove(ed, i-ed.selection.x)
+			} else if is_key_repeated(.Left) {
+				_, i := textedit_find_previous_rune(ed, ed.selection.x)
+				if i != -1 do textedit_move(ed, i-ed.selection.x)
+			} else if is_key_repeated(.Right) {
+				_, i := textedit_find_next_rune(ed, ed.selection.x)
+				if i != -1 do textedit_move(ed, i-ed.selection.x)
+			} else if is_key_repeated(.Home) {
+				textedit_move_to(ed, 0)
+			} else if is_key_repeated(.End) {
+				textedit_move_to(ed, textedit_len(ed))
+			}
+
+			if interact.pressed_outside || is_key_released(.Escape) || is_key_released(.Enter) {
 				recordwjt.editting = false
 				strings.builder_reset(&recordwjt.record.text)
 				strings.write_string(&recordwjt.record.text, gapbuffer_get_string(&editting_record.gapbuffer, context.temp_allocator))
@@ -320,7 +344,7 @@ record_card :: proc(vr: ^VisualRecord) {
 			draw_texture_ex(fsctx.atlas, e.quad_src, {d.x+x+1.2, d.y+y+1.2, d.w, d.h}, {0,0}, 0, text_shadow_color)
 			draw_texture_ex(fsctx.atlas, e.quad_src, {d.x+x, d.y+y, d.w, d.h}, {0,0}, 0, e.color)
 			if recordwjt.editting {
-				cursor := recordwjt.cursor
+				cursor := recordwjt.visual_cursor
 				draw_rect(rect_from_position_size(textpos+cursor-{0, 22}, {2, 22}), dgl.BLACK)
 			}
 		}
