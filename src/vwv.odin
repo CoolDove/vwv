@@ -255,7 +255,7 @@ record_card :: proc(vr: ^VisualRecord) {
 		tbro_write_string(tbro, strings.to_string(vr.r.text), hotv->u8x4_inv("record_text_color"))
 	}
 
-	_vuibd_begin(baseid, {cast(f32)indent, 0, cast(f32)width, tbro_last(tbro).next.y + 8})
+	_vuibd_begin(baseid, {cast(f32)indent, 0, cast(f32)width, (tbro_last(tbro).next.y if len(tbro.elems)>0 else 22) + 8})
 
 	record_color_normal    := hotv->u8x4_inv("record_color_normal")
 	record_color_highlight := hotv->u8x4_inv("record_color_highlight")
@@ -319,6 +319,16 @@ record_card :: proc(vr: ^VisualRecord) {
 				textedit_insert(ed, input_text)
 			}
 		} else {
+			r := recordwjt.record
+			if editting_record.record == nil && (_vui_ctx().hot == state.basic.id || _vui_ctx().active == state.basic.id) {
+				if is_key_pressed(.A) {
+					if r != root do record_add_sibling(r)
+				} else if is_key_pressed(.S) {
+					record_add_child(r)
+				} else if is_key_pressed(.D) {
+					record_remove(r)
+				}
+			}
 			if interact.clicked {
 				recordwjt.editting = true
 				gpb := &editting_record.gapbuffer
