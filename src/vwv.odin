@@ -240,7 +240,19 @@ record_card :: proc(vr: ^VisualRecord) {
 	tbro := new(TextBro)
 	width := cast(f64)parent.basic.rect.w - 8 - 25 - 4
 	tbro_init(tbro, font_default, 22, width)
-	tbro_write_string(tbro, strings.to_string(vr.r.text), hotv->u8x4_inv("record_text_color"))
+	cursor_offset :Vec2= {0, 22}
+	if editting_record.record == vr.r {
+		text := gapbuffer_get_string(&editting_record.gapbuffer, context.temp_allocator)
+		ed := &editting_record.textedit
+		tbro_write_string(tbro, text[:ed.selection.x], hotv->u8x4_inv("record_text_color"))
+		if last := tbro_last(tbro); last != nil {
+			cursor_offset = last.next
+		}
+		tbro_write_string(tbro, text[ed.selection.x:], hotv->u8x4_inv("record_text_color"))
+	} else {
+		tbro_write_string(tbro, strings.to_string(vr.r.text), hotv->u8x4_inv("record_text_color"))
+	}
+
 
 	_vuibd_begin(baseid, {0,0, -1, tbro_last(tbro).next.y + 8})
 
@@ -257,6 +269,7 @@ record_card :: proc(vr: ^VisualRecord) {
 	RecordWidget :: struct {
 		record   : ^Record,
 		editting : bool,
+		cursor   : Vec2,
 	}
 	get_record_wjt :: proc(state: ^VuiWidget) -> ^RecordWidget {
 		return auto_cast &state.update_custom.data
@@ -268,11 +281,12 @@ record_card :: proc(vr: ^VisualRecord) {
 		interact := &state.basic.interact
 		if recordwjt.editting {
 			ed := &editting_record.textedit
-			if interact.clicked_outside || is_key_released(.Escape) {
+			if interact.pressed_outside || is_key_released(.Escape) {
 				recordwjt.editting = false
 				strings.builder_reset(&recordwjt.record.text)
 				strings.write_string(&recordwjt.record.text, gapbuffer_get_string(&editting_record.gapbuffer, context.temp_allocator))
 				textedit_end(ed)
+				editting_record.record = nil
 				return
 			}
 			if input_text := get_input_text(context.temp_allocator); input_text != {} {
@@ -281,14 +295,17 @@ record_card :: proc(vr: ^VisualRecord) {
 		} else {
 			if interact.clicked {
 				recordwjt.editting = true
-				gapbuffer_clear(&editting_record.gapbuffer)
-				gapbuffer_insert_string(&editting_record.gapbuffer, 0, strings.to_string(recordwjt.record.text))
+				gpb := &editting_record.gapbuffer
+				gapbuffer_clear(gpb)
+				gapbuffer_insert_string(gpb, 0, strings.to_string(recordwjt.record.text))
 				textedit_begin(&editting_record.textedit, &editting_record.gapbuffer, 0)
+				editting_record.record = recordwjt.record
 				return
 			}
 		}
 	})
 	wjt.record = vr.r
+	wjt.cursor = cursor_offset
 
 	_vuibd_draw_custom(proc(w: VuiWidgetHandle) {
 		state := _vuibd_helper_get_pointer_from_handle(w)
@@ -299,9 +316,13 @@ record_card :: proc(vr: ^VisualRecord) {
 		for e in tbro.elems {
 			d := e.quad_dst
 			x, y := textpos.x, textpos.y
-			color := e.color if !recordwjt.editting else {180,180,180,255}
+
 			draw_texture_ex(fsctx.atlas, e.quad_src, {d.x+x+1.2, d.y+y+1.2, d.w, d.h}, {0,0}, 0, text_shadow_color)
-			draw_texture_ex(fsctx.atlas, e.quad_src, {d.x+x, d.y+y, d.w, d.h}, {0,0}, 0, color)
+			draw_texture_ex(fsctx.atlas, e.quad_src, {d.x+x, d.y+y, d.w, d.h}, {0,0}, 0, e.color)
+			if recordwjt.editting {
+				cursor := recordwjt.cursor
+				draw_rect(rect_from_position_size(textpos+cursor-{0, 22}, {2, 22}), dgl.BLACK)
+			}
 		}
 		tbro_release(tbro)
 		free(tbro)

@@ -174,6 +174,8 @@ VuiLayoutDirection :: enum {
 }
 
 VuiInteract :: struct {
+	pressed : bool,
+	pressed_outside : bool,
 	clicked : bool,
 	clicked_outside : bool,
 	_require_size : Vec2,
@@ -339,6 +341,16 @@ _vui_widget :: proc(state: VuiWidgetHandle) -> VuiInteract {
 				if is_button_pressed(.Left) {
 					ctx.active = id
 				}
+			}
+		}
+		if is_button_pressed(.Left) {
+			if ctx.active == id {
+				if inrect {
+					interact.pressed = true
+				}
+			}
+			if !inrect {
+				interact.pressed_outside = true
 			}
 		}
 		if is_button_released(.Left) {
