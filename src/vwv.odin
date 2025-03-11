@@ -238,8 +238,10 @@ record_card :: proc(vr: ^VisualRecord) {
 	if parent == nil || !parent.layout.enable do return
 
 	tbro := new(TextBro)
-	width := cast(f64)parent.basic.rect.w - 8 - 25 - 4
-	tbro_init(tbro, font_default, 22, width)
+	indent := cast(f64)vr.indent * 18.0
+	width := cast(f64)parent.basic.rect.w - 4 - indent
+
+	tbro_init(tbro, font_default, 22, width - 25 - 4)
 	cursor_offset :Vec2= {0, 22}
 	if editting_record.record == vr.r {
 		text := gapbuffer_get_string(&editting_record.gapbuffer, context.temp_allocator)
@@ -253,8 +255,7 @@ record_card :: proc(vr: ^VisualRecord) {
 		tbro_write_string(tbro, strings.to_string(vr.r.text), hotv->u8x4_inv("record_text_color"))
 	}
 
-
-	_vuibd_begin(baseid, {0,0, -1, tbro_last(tbro).next.y + 8})
+	_vuibd_begin(baseid, {cast(f32)indent, 0, cast(f32)width, tbro_last(tbro).next.y + 8})
 
 	record_color_normal    := hotv->u8x4_inv("record_color_normal")
 	record_color_highlight := hotv->u8x4_inv("record_color_highlight")
@@ -310,6 +311,7 @@ record_card :: proc(vr: ^VisualRecord) {
 				strings.builder_reset(&recordwjt.record.text)
 				strings.write_string(&recordwjt.record.text, gapbuffer_get_string(&editting_record.gapbuffer, context.temp_allocator))
 				textedit_end(ed)
+				toggle_text_input(false)
 				editting_record.record = nil
 				return
 			}
@@ -322,6 +324,7 @@ record_card :: proc(vr: ^VisualRecord) {
 				gpb := &editting_record.gapbuffer
 				gapbuffer_clear(gpb)
 				gapbuffer_insert_string(gpb, 0, strings.to_string(recordwjt.record.text))
+				toggle_text_input(true)
 				textedit_begin(&editting_record.textedit, &editting_record.gapbuffer, 0)
 				editting_record.record = recordwjt.record
 				return

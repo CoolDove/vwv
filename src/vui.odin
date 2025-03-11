@@ -219,13 +219,13 @@ _vuibd_begin :: proc(id: u64, rect: Rect) {
 			using state.basic
 			switch layout.direction {
 			case .Vertical:
-				rect.x = layout.next.x
+				rect.x += layout.next.x
 				rect.y = layout.next.y
 				if rect.w < 0 do rect.w = layout_size.x
 				layout.next.y += rect.h + cast(f32)layout.padding
 			case .Horizontal:
 				rect.x = layout.next.x
-				rect.y = layout.next.y
+				rect.y += layout.next.y
 				if rect.h < 0 do rect.h = layout_size.y
 				layout.next.x += rect.w + cast(f32)layout.padding
 			}
