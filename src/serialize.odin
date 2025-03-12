@@ -90,25 +90,29 @@ _read_v01 :: proc(value: json.Value) {
 	for r, idx in records {
 		if idx == 0 do continue
 		record : ^Record
+		data := r.(Object)
 		if len(current) == 0 {
 			record = record_append_child(root)
-			strings.write_string(&record.text, r.(Object)["text"].(String))
+			strings.write_string(&record.text, data["text"].(String))
 		} else {
 			crnt := &current[len(current)-1]
 			if crnt.last_child == nil do record = record_add_child(crnt.r)
 			else do record = record_add_sibling(crnt.last_child) // record_append_child(crnt.r)
-			strings.write_string(&record.text, r.(Object)["text"].(String))
+			strings.write_string(&record.text, data["text"].(String))
 			crnt.children -= 1
 			crnt.last_child = record
 		}
-		if children := cast(int)r.(Object)["children_count"].(Float); children > 0 {
+		if children := cast(int)data["children_count"].(Float); children > 0 {
 			append(&current, Node{record, nil, children})
 		}
 
 		length := len(current)
 		for i in 0..<len(current) {
 			i := length-1-i
-			if current[i].children == 0 do pop(&current)
+			if current[i].children > 0 {
+				break
+			}
+			pop(&current)
 		}
 	}
 	
