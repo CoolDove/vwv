@@ -117,6 +117,21 @@ window_init :: proc(title: string, width, height: int) {
 	}
 }
 
+@(private="file")
+_always_on_top : bool
+window_set_always_on_top :: proc(on: bool) {
+	if on {
+		win32.SetWindowPos(hwnd, win32.HWND_TOPMOST, 0,0,0,0, win32.SWP_NOMOVE|win32.SWP_NOSIZE)
+		_always_on_top = true
+	} else {
+		win32.SetWindowPos(hwnd, win32.HWND_NOTOPMOST, 0,0,0,0, win32.SWP_NOMOVE|win32.SWP_NOSIZE)
+		_always_on_top = false
+	}
+}
+window_get_always_on_top :: proc() -> bool {
+	return _always_on_top
+}
+
 wndproc :: proc "system" (hwnd: win32.HWND, msg: win32.UINT, wparam: win32.WPARAM, lparam: win32.LPARAM) -> win32.LRESULT {
 	context = the_context
 	input_process_win32_wndproc({hwnd,msg,wparam,lparam})

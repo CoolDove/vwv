@@ -6,6 +6,7 @@ import "core:math"
 import "core:math/rand"
 import "core:math/linalg"
 import "core:fmt"
+import "core:hash/xxhash"
 import "core:strconv"
 import "core:log"
 import win32 "core:sys/windows"
@@ -166,20 +167,25 @@ vwv_update :: proc(delta_s: f64) {
 	status_bar_rect := rect_bottom(window_rect, 46)
 	_vuibd_begin(500, status_bar_rect)
 	_vuibd_draw_rect(hotv->u8x4_inv("status_bar_bg_color"))
-	_vuibd_layout(.Horizontal).padding = 6
-	for i in 0..<5 {
-		_vuibd_begin(60+auto_cast i, {0,0, 60, 60})
+	_vuibd_layout(.Horizontal).padding = 3
+
+	always_on_top := window_get_always_on_top()
+	if _ui_status_toggle("置顶", {3,3, 40,40}, always_on_top) != always_on_top {
+		window_set_always_on_top(!always_on_top)
+	}
+
+	_vuibd_end()
+
+	_ui_status_toggle :: proc(text: string, rect: Rect, on: bool) -> bool {
+		_vuibd_begin(500+xxhash.XXH3_64_with_seed(transmute([]u8)text, 42)%200, rect)
 		_vuibd_clickable()
-		_vuibd_draw_rect({233, 90, 80, 255})
+		_vuibd_draw_rect({233, 90, 80, 255}, 6)
 		_vuibd_draw_rect_hot({255, 100, 70, 255})
 		_vuibd_draw_rect_hot_animation(0.2)
 		_vuibd_draw_rect_active({255, 244, 255, 255})
-		if _vuibd_end().clicked {
-			log.debugf("status bar button")
-		}
+		_vuibd_draw_text(dgl.WHITE if on else dgl.DARK_GRAY, text, 22)
+		return !on if _vuibd_end().clicked else on
 	}
-	_vuibd_end()
-
 
 	vui_layout_begin(6000-1, rect_bottom(window_rect, 60+(24+6)*auto_cast bubble_messages.count), .Vertical, 6)
 	ite : int
@@ -359,12 +365,11 @@ record_card :: proc(vr: ^VisualRecord) {
 		for e in tbro.elems {
 			d := e.quad_dst
 			x, y := textpos.x, textpos.y
-
 			draw_texture_ex(fsctx.atlas, e.quad_src, {d.x+x+1.2, d.y+y+1.2, d.w, d.h}, {0,0}, 0, text_shadow_color)
 			draw_texture_ex(fsctx.atlas, e.quad_src, {d.x+x, d.y+y, d.w, d.h}, {0,0}, 0, e.color)
 			if recordwjt.editting {
 				cursor := recordwjt.visual_cursor
-				draw_rect(rect_from_position_size(textpos+cursor-{0, 22}, {2, 22}), e.color)
+				draw_rect(rect_from_position_size(textpos+cursor-{0, 22}+{0, 3}, {2, 22}), e.color)
 			}
 		}
 		tbro_release(tbro)
