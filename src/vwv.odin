@@ -14,6 +14,7 @@ import "vendor:fontstash"
 
 import "dgl"
 import "hotvalue"
+import hla "collections/hollow_array"
 import "tween"
 
 
@@ -29,6 +30,8 @@ id_used : u64
 records : [dynamic]^Record
 root : ^Record
 
+key_handled : bool
+
 begin :: proc() {
 	vui_init()
 	vwv_begin()
@@ -40,9 +43,16 @@ end :: proc() {
 
 main_rect : dgl.Rect
 
-
 debug_draw_data : struct { vertex_count : int, indices_count : int, vbuffer_size : int}
 
+BubbleMessage :: struct {
+	message: string,
+	duration, time: f64 
+}
+bubble_messages : hla.HollowArray(BubbleMessage)
+push_bubble_msg :: proc(msg: string, duration: f64) {
+	hla.hla_append(&bubble_messages, BubbleMessage{ msg, duration, 0 })
+}
 
 frameid : int
 update :: proc() {
@@ -123,8 +133,11 @@ visual_records : [dynamic]VisualRecord
 vwv_update :: proc(delta_s: f64) {
 	hotvalue.update(&hotv)
 
+	key_handled = false
 	if is_key_pressed(.S) && is_key_down(.Ctrl) {
 		doc_write()
+		push_bubble_msg("SAVED", 1.0)
+		key_handled = true
 	}
 
 	main_rect = rect_padding({0,0, auto_cast window_size.x, auto_cast window_size.y}, 10, 10, 10, 10)
@@ -149,37 +162,12 @@ vwv_update :: proc(delta_s: f64) {
 		}
 		vui_layout_end()
 	}
-	// vui_end_layout()
 
-	// vui_layout_begin(6, {60,60, 200, 400}, .Vertical, 6); {
-	// 	if vui_test_button(16, {60,60, -1, 60}, "A").clicked {
-	// 		log.debugf("clicked A")
-	// 	}
-	// 	if vui_test_button(17, {60,60, 100, 40}, "B").clicked {
-	// 		log.debugf("clicked B")
-	// 	}
-
-	// 	vui_layout_begin(7, {0,0, 200, 60}, .Horizontal, 10, {0,0,0,32}); {
-	// 		for i in 0..<5 {
-	// 			if vui_test_button(20+auto_cast i, {0,0, 30, 60}, "o").clicked {
-	// 				log.debugf("clicked h {}", i)
-	// 			}
-	// 		}
-	// 		vui_layout_end()
-	// 	}
-
-	// 	if vui_test_button(18, {60,60, 100, 40}, "C").clicked {
-	// 		log.debugf("clicked C")
-	// 	}
-	// 	vui_layout_end()
-	// }
-
-	status_bar_rect := rect_split_bottom(window_rect, 46)
+	status_bar_rect := rect_bottom(window_rect, 46)
 	_vuibd_begin(500, status_bar_rect)
 	_vuibd_draw_rect(hotv->u8x4_inv("status_bar_bg_color"))
 	_vuibd_layout(.Horizontal).padding = 6
 	for i in 0..<5 {
-		// vui_test_button(60+auto_cast i, {0,0, 60, 60}, "do")
 		_vuibd_begin(60+auto_cast i, {0,0, 60, 60})
 		_vuibd_clickable()
 		_vuibd_draw_rect({233, 90, 80, 255})
@@ -192,10 +180,23 @@ vwv_update :: proc(delta_s: f64) {
 	}
 	_vuibd_end()
 
-	// draw_rect(status_bar_rect, )
-	// draw_text(font_default, "Status Bar", {status_bar_rect.x + 5, status_bar_rect.y + 4} , 28, {69,153,49, 255})
-	// if vui_button(1280, rect_padding(rect_split_right(status_bar_rect, 46), 4,4,4,4), "hello") do fmt.printf("hello!\n")
-	// vui_draggable_button(1222, rect_split_left(status_bar_rect, 32), "Drag me")
+
+	vui_layout_begin(6000-1, rect_bottom(window_rect, 60+(24+6)*auto_cast bubble_messages.count), .Vertical, 6)
+	ite : int
+	for h in hla.ite_alive_handle(&bubble_messages, &ite) {
+		bubble_rect := Rect{60,0, window_rect.w-120, 24}
+		bmsg := hla.hla_get_pointer(h)
+		_vuibd_begin(6000+auto_cast ite, bubble_rect)
+		t := cast(f32)(bmsg.time/bmsg.duration)
+		alpha := (1-math.pow(2*tween.ease_outcirc(t)-1, 10))
+		_vuibd_draw_rect(dgl.col_f2u({0,0,0,alpha}), 8)
+		_vuibd_draw_text(dgl.col_f2u({1,0.8,0,alpha}), bmsg.message, 22)
+		_vuibd_end()
+		bmsg.time += delta_s
+		if bmsg.time >= bmsg.duration do hla.hla_remove_handle(h)
+	}
+	vui_layout_end()
+
 	if _update_time > 0 {
 		_update_time -= delta_s
 		mark_update()
@@ -321,12 +322,17 @@ record_card :: proc(vr: ^VisualRecord) {
 		} else {
 			r := recordwjt.record
 			if editting_record.record == nil && (_vui_ctx().hot == state.basic.id || _vui_ctx().active == state.basic.id) {
-				if is_key_pressed(.A) {
-					if r != root do record_add_sibling(r)
-				} else if is_key_pressed(.S) {
-					record_add_child(r)
-				} else if is_key_pressed(.D) {
-					record_remove(r)
+				if !key_handled {
+					if is_key_pressed(.A) {
+						if r != root do record_add_sibling(r)
+						key_handled = true
+					} else if is_key_pressed(.S) {
+						record_add_child(r)
+						key_handled = true
+					} else if is_key_pressed(.D) {
+						record_remove(r)
+						key_handled = true
+					}
 				}
 			}
 			if interact.clicked {
@@ -358,7 +364,7 @@ record_card :: proc(vr: ^VisualRecord) {
 			draw_texture_ex(fsctx.atlas, e.quad_src, {d.x+x, d.y+y, d.w, d.h}, {0,0}, 0, e.color)
 			if recordwjt.editting {
 				cursor := recordwjt.visual_cursor
-				draw_rect(rect_from_position_size(textpos+cursor-{0, 22}, {2, 22}), dgl.BLACK)
+				draw_rect(rect_from_position_size(textpos+cursor-{0, 22}, {2, 22}), e.color)
 			}
 		}
 		tbro_release(tbro)
@@ -554,10 +560,13 @@ vwv_begin :: proc() {
 	// 	write_string(&b2.text, "B2")
 	// 	b0 := record_add_child(bbb)
 	// 	write_string(&b0.text, "B0")
-
 	update_visual_records(root)
+
+	bubble_messages = hla.hla_make(BubbleMessage)
 }
 vwv_end :: proc() {
+	hla.hla_delete(&bubble_messages)
+
 	gapbuffer_release(&editting_record.gapbuffer)
 	for r in records {
 		strings.builder_destroy(&r.text)
