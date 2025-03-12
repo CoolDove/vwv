@@ -173,7 +173,6 @@ vwv_update :: proc(delta_s: f64) {
 	if _ui_status_toggle("置顶", {3,3, 40,40}, always_on_top) != always_on_top {
 		window_set_always_on_top(!always_on_top)
 	}
-
 	_vuibd_end()
 
 	_ui_status_toggle :: proc(text: string, rect: Rect, on: bool) -> bool {
@@ -187,6 +186,7 @@ vwv_update :: proc(delta_s: f64) {
 		return !on if _vuibd_end().clicked else on
 	}
 
+	// bubble messages
 	vui_layout_begin(6000-1, rect_bottom(window_rect, 60+(24+6)*auto_cast bubble_messages.count), .Vertical, 6)
 	ite : int
 	for h in hla.ite_alive_handle(&bubble_messages, &ite) {
