@@ -11,6 +11,7 @@ import hla "collections/hollow_array"
 Color :: dgl.Color4u8
 Rect :: dgl.Rect
 Vec2 :: dgl.Vec2
+Vec4 :: dgl.Vec4
 
 
 VuiWidgetHandle :: #type hla.HollowArrayHandle(VuiWidget)
@@ -172,6 +173,7 @@ VuiWidget_LayoutContainer :: struct {
 	enable : bool,
 	direction : VuiLayoutDirection,
 	spacing : f32,
+	padding : Vec4, // left, top, right, bottom
 
 	_used_space : f32,
 	_fit_elem_count : int,
@@ -231,11 +233,11 @@ _vuibd_begin :: proc(id: u64, rect: Rect) {
 			using state.basic
 			switch layout.direction {
 			case .Vertical:
-				if rect.w < 0 && layout_size.x > 0 do rect.w = layout_size.x
+				if rect.w < 0 && layout_size.x > 0 do rect.w = layout_size.x - layout.padding.x - layout.padding.z
 				if rect.h < 0 do layout._fit_elem_count += 1
 				else do layout._used_space += auto_cast rect.h
 			case .Horizontal:
-				if rect.h < 0 && layout_size.y > 0 do rect.h = layout_size.y
+				if rect.h < 0 && layout_size.y > 0 do rect.h = layout_size.y - layout.padding.y - layout.padding.w
 				if rect.w < 0 do layout._fit_elem_count += 1
 				else do layout._used_space += auto_cast rect.w
 			}
@@ -325,18 +327,20 @@ vui_test_button :: proc(id: u64, rect: Rect, text: string) -> VuiInteract {
 	return _vuibd_end()
 }
 
-vui_layout_begin :: proc(id: u64, rect: Rect, direction: VuiLayoutDirection, spacing: f32, color: Color={}) {
+vui_layout_begin :: proc(id: u64, rect: Rect, direction: VuiLayoutDirection, spacing: f32=0, padding: Vec4={}, color: Color={}) {
 	_vuibd_begin(id, rect)
-	if color != {} do _vuibd_draw_rect(color)
-	_vuibd_layout(direction).spacing = spacing
+	if color != {} do _vuibd_draw_rect(color, 4, 4)
+	layout := _vuibd_layout(direction)
+	layout.spacing = spacing
+	layout.padding = padding
 }
 vui_layout_end :: proc() {
 	_vuibd_end()
 }
 
 @(deferred_none=vui_layout_end)
-vui_layout_scoped :: proc(id: u64, rect: Rect, direction: VuiLayoutDirection, spacing: f32, color: Color={}) -> bool {
-	vui_layout_begin(id, rect, direction, spacing, color)
+vui_layout_scoped :: proc(id: u64, rect: Rect, direction: VuiLayoutDirection, spacing: f32=0, padding: Vec4={}, color: Color={}) -> bool {
+	vui_layout_begin(id, rect, direction, spacing, padding, color)
 	return true
 }
 
@@ -399,7 +403,6 @@ _vui_widget :: proc(state: VuiWidgetHandle) -> VuiInteract {
 		stateh := state
 		state := hla.hla_get_pointer(state)
 		using state.basic
-		position : Vec2
 		// PASS A: sizes
 		if pass == 0 && hla.hla_get_pointer(child) != nil {
 			layout := state.layout
@@ -407,8 +410,8 @@ _vui_widget :: proc(state: VuiWidgetHandle) -> VuiInteract {
 
 			fittable_size :f32= 0.0; if state.layout.enable {
 				switch state.layout.direction {
-				case .Vertical: fittable_size = auto_cast state.basic.rect.h
-				case .Horizontal: fittable_size = auto_cast state.basic.rect.w
+				case .Vertical: fittable_size = auto_cast state.basic.rect.h - state.layout.padding.w
+				case .Horizontal: fittable_size = auto_cast state.basic.rect.w - state.layout.padding.z
 				}
 				fittable_size -= cast(f32)(state.basic.children_count-1)*state.layout.spacing
 				fittable_size -= state.layout._used_space
@@ -446,9 +449,9 @@ _vui_widget :: proc(state: VuiWidgetHandle) -> VuiInteract {
 			if state.layout.enable {
 				switch state.layout.direction {
 				case .Vertical:
-					state.basic.rect.h = math.max(container_size.y, state.basic.rect.h)
+					state.basic.rect.h = math.max(container_size.y+layout.padding.y+layout.padding.w, state.basic.rect.h)
 				case .Horizontal:
-					state.basic.rect.w = math.max(container_size.x, state.basic.rect.w)
+					state.basic.rect.w = math.max(container_size.x+layout.padding.x+layout.padding.z, state.basic.rect.w)
 				}
 			}
 		}
@@ -456,23 +459,28 @@ _vui_widget :: proc(state: VuiWidgetHandle) -> VuiInteract {
 		// PASS B: positions
 		if pass == 1 && hla.hla_get_pointer(child) != nil {
 			layout := state.layout
+			container_rect := state.basic.rect
+			position :Vec2= rect_position(container_rect)
+			if layout.enable {
+				position += {layout.padding.x, layout.padding.y}
+			}
+
 			p := child
 			for true {
 				s := hla.hla_get_pointer(p)
 				if s == nil do break
 				using s.basic
 				if state.layout.enable {
-					container_rect := state.basic.rect
 					switch state.layout.direction {
 					case .Vertical:
-						rect.x = container_rect.x
-						rect.y = position.y + container_rect.y
-						if rect.w < 0 do rect.w = state.basic.rect.w
+						rect.x = position.x
+						rect.y = position.y
+						if rect.w < 0 do rect.w = state.basic.rect.w - state.layout.padding.x - state.layout.padding.z
 						position += {0, rect.h + cast(f32)layout.spacing}
 					case .Horizontal:
-						rect.x = position.x + container_rect.x
-						rect.y = container_rect.y
-						if rect.h < 0 do rect.h = state.basic.rect.h
+						rect.x = position.x
+						rect.y = position.y
+						if rect.h < 0 do rect.h = state.basic.rect.h - state.layout.padding.y - state.layout.padding.w
 						position += {rect.w + cast(f32)layout.spacing, 0}
 					}
 				}
@@ -596,103 +604,3 @@ _vui_layout_push :: proc(width, height: f32, process : proc(rect: Rect, data: ra
 	if layout == nil do return
 	layout->_push(width, height, process, data)
 }
-
-// ... as examples ...
-
-// vui_button :: proc(id: u64, rect: Rect, text: string) -> bool {
-// 	state := _vui_state(id, struct { hover_time:f64, clicked_flash:f64 })
-// 	hovering := false
-// 	hovering = rect_in(rect, input.mouse_position)
-// 
-// 	state.hover_time += ctx.delta_s if hovering else -ctx.delta_s
-// 	state.hover_time = math.clamp(state.hover_time, 0, 0.2)
-// 
-// 	clicked := hovering && is_button_pressed(.Left)
-// 	if clicked {
-// 		state.clicked_flash = 0.2
-// 	} else {
-// 		if state.clicked_flash > 0 {
-// 			state.clicked_flash -= ctx.delta_s
-// 		}
-// 	}
-// 
-// 	color_normal := dgl.col_u2f({195,75,75,   255})
-// 	color_hover  := dgl.col_u2f({215,105,95,  255})
-// 	color_flash  := dgl.col_u2f({245,235,235, 255})
-// 
-// 	hovert :f32= cast(f32)(math.min(state.hover_time, 0.2)/0.2)
-// 	hovert = tween.ease_inoutsine(hovert)
-// 	color := hovert*(color_hover-color_normal) + color_normal
-// 	if state.clicked_flash > 0 do color = cast(f32)(state.clicked_flash/0.2)*(color_flash-color) + color
-// 	draw_rect_rounded(rect, 8+hovert*4, 4, dgl.col_f2u(color))
-// 
-// 	text_color := dgl.col_u2f({218,218,218, 255})
-// 	clickt := math.clamp(cast(f32)(state.clicked_flash/0.2), 0,1)
-// 	if state.clicked_flash > 0 do text_color = clickt*(color_normal-color) + color
-// 	draw_text(font_default, text, {rect.x, rect.y+rect.h*0.5-11-3*hovert-3*clickt}, 22, dgl.col_f2u(text_color))
-// 	return clicked
-// }
-// 
-// vui_draggable_button :: proc(id: u64, rect: Rect, text: string) {
-// 	state := _vui_state(id, struct {
-// 		hover_time:f64,
-// 		dragging:bool,
-// 		// In dragging mode, this represents the offset from mouse pos to the anchor.
-// 		// In nondragging mode, this is the current rect anchor.
-// 		drag_offset:Vec2 
-// 	})
-// 	input_rect := rect
-// 	rect := rect
-// 	hovering := false
-// 	if state.dragging {
-// 		hovering = true
-// 		rect.x = input.mouse_position.x-state.drag_offset.x
-// 		rect.y = input.mouse_position.y-state.drag_offset.y
-// 
-// 		if is_button_released(.Left) {
-// 			if state.dragging {
-// 				state.dragging = false
-// 				state.drag_offset = {rect.x, rect.y}
-// 			}
-// 		}
-// 	} else {
-// 		if state.drag_offset != {} { // drag recovering
-// 			topos := rect_position(input_rect)
-// 			state.drag_offset = 40 * cast(f32)ctx.delta_s * (topos - state.drag_offset) + state.drag_offset
-// 			if linalg.distance(topos, state.drag_offset) < 2 {
-// 				state.drag_offset = {}
-// 			} else {
-// 				rect.x = state.drag_offset.x
-// 				rect.y = state.drag_offset.y
-// 			}
-// 		}
-// 		hovering = rect_in(rect, input.mouse_position)
-// 		if hovering && is_button_pressed(.Left) {
-// 			// start dragging
-// 			state.dragging = true
-// 			state.drag_offset = input.mouse_position - {rect.x, rect.y}
-// 		}
-// 	}
-// 
-// 	state.hover_time += ctx.delta_s if hovering else -ctx.delta_s
-// 	state.hover_time = math.clamp(state.hover_time, 0, 0.2)
-// 
-// 	if is_button_released(.Left) {
-// 		if state.dragging {
-// 			state.dragging = false
-// 			state.drag_offset = {rect.x, rect.y}
-// 		}
-// 	}
-// 
-// 	color_normal := dgl.col_u2f({195,75,75,   255})
-// 	color_hover  := dgl.col_u2f({215,105,95,  255})
-// 	color_flash  := dgl.col_u2f({245,235,235, 255})
-// 
-// 	hovert :f32= cast(f32)(math.min(state.hover_time, 0.2)/0.2)
-// 	hovert = tween.ease_inoutsine(hovert)
-// 	color := hovert*(color_hover-color_normal) + color_normal
-// 
-// 	draw_rect(rect, dgl.col_f2u(color))
-// 	text_color := dgl.col_u2f({218,218,218, 255})
-// 	draw_text(font_default, text, {rect.x, rect.y+rect.h*0.5-11-3*hovert}, 22, dgl.col_f2u(text_color))
-// }

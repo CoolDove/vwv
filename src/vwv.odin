@@ -158,9 +158,9 @@ vwv_update :: proc(delta_s: f64) {
 	draw_rect(main_rect, hotv->u8x4_inv("background_color"))
 
 	panel_height := math.max(cast(f32)window_size.y - 200, 0)
-	if LAYOUT(36, {26,26, cast(f32)window_size.x * 0.6, panel_height}, .Vertical, 4, dgl.RED) {
+	if LAYOUT(36, {26,26, cast(f32)window_size.x * 0.6, panel_height}, .Vertical, 4, {12,12,12,12}, dgl.RED) {
 		if BUTTON(37, {0,0, 60, 20}, "AAA").clicked do log.debugf("AAA")
-		if LAYOUT(80, {0,0, -200, -120}, .Horizontal, 6, dgl.BLUE) {
+		if LAYOUT(80, {0,0, -200, -120}, .Horizontal, 6, {}, dgl.BLUE) {
 			if BUTTON(81, {0,0, 20, 60}, "b1").clicked do log.debugf("b1")
 			if BUTTON(82, {0,0, -80, 40}, "b2").clicked do log.debugf("b2")
 			if BUTTON(83, {0,0, 15, -20}, "b3").clicked do log.debugf("b3")
@@ -178,16 +178,20 @@ vwv_update :: proc(delta_s: f64) {
 		}
 	}
 
-	status_bar_rect := rect_bottom(window_rect, 46)
-	_vuibd_begin(500, status_bar_rect)
-	_vuibd_draw_rect(hotv->u8x4_inv("status_bar_bg_color"))
-	_vuibd_layout(.Horizontal).spacing = 3
+	status_bar_rect := rect_bottom(window_rect, 48)
+	if vui_layout_scoped(500, status_bar_rect, .Horizontal, 3, {4,4,4,4}, hotv->u8x4_inv("status_bar_bg_color")) {
+		always_on_top := window_get_always_on_top()
+		if _ui_status_toggle("置顶", {3,3, 40,-1}, always_on_top) != always_on_top {
+			window_set_always_on_top(!always_on_top)
+		}
 
-	always_on_top := window_get_always_on_top()
-	if _ui_status_toggle("置顶", {3,3, 40,40}, always_on_top) != always_on_top {
-		window_set_always_on_top(!always_on_top)
+		@static va, vb, vc, vd := false, false, false, false
+		va = _ui_status_toggle("&&", {0,0, 40,-1}, va)
+		if vui_layout_scoped(500+66, {0,0, 40, 40}, .Vertical, 2) {
+			vb = _ui_status_toggle("**", {0,0, -1,-1}, vb)
+			vc = _ui_status_toggle("??", {0,0, -1,-1}, vc)
+		}
 	}
-	_vuibd_end()
 
 	_ui_status_toggle :: proc(text: string, rect: Rect, on: bool) -> bool {
 		_vuibd_begin(500+xxhash.XXH3_64_with_seed(transmute([]u8)text, 42)%200, rect)
@@ -409,12 +413,12 @@ record_card :: proc(vr: ^VisualRecord) {
 
 	empty(CHILDID(&chid))
 
-	if vui_layout_scoped(CHILDID(&chid), {0,0, 25, -1}, .Vertical, 0) {
+	if vui_layout_scoped(CHILDID(&chid), {0,0, 25, -1}, .Vertical, 0, {0,0,0, 5}) {
 		empty(CHILDID(&chid))
 		if _mini_button(CHILDID(&chid), rect_anchor(current.basic.rect, {1,1,1,1}, {-25, -25, -5, -5})).clicked {
 			log.debugf("You clicked the mini button of {}", strings.to_string(vr.r.text))
 		}
-		empty(CHILDID(&chid), {0,0,-1, 5})
+		// empty(CHILDID(&chid), {0,0,-1, 5})
 	}
 
 	_mini_button :: proc(id: u64, rect: Rect) -> VuiInteract {
