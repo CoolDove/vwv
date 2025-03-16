@@ -231,11 +231,11 @@ _vuibd_begin :: proc(id: u64, rect: Rect) {
 			using state.basic
 			switch layout.direction {
 			case .Vertical:
-				if rect.w < 0 do rect.w = layout_size.x
+				if rect.w < 0 && layout_size.x > 0 do rect.w = layout_size.x
 				if rect.h < 0 do layout._fit_elem_count += 1
 				else do layout._used_space += auto_cast rect.h
 			case .Horizontal:
-				if rect.h < 0 do rect.h = layout_size.y
+				if rect.h < 0 && layout_size.y > 0 do rect.h = layout_size.y
 				if rect.w < 0 do layout._fit_elem_count += 1
 				else do layout._used_space += auto_cast rect.w
 			}
@@ -303,8 +303,6 @@ _vuibd_layout :: proc(direction: VuiLayoutDirection) -> ^VuiWidget_LayoutContain
 	layout.enable = true
 	layout.direction = direction
 	layout._used_space = 0
-	layout_length := state.basic.rect.w if direction == .Horizontal else state.basic.rect.h
-	assert(layout_length >= 0, "Layout element cannot have VUI_FIT layout direction.")
 	layout._fit_elem_count = 0
 	return layout
 }
@@ -384,18 +382,17 @@ _vui_widget :: proc(state: VuiWidgetHandle) -> VuiInteract {
 		state.update_custom.update(stateh)
 	}
 
-	_layout_widget :: proc(state: VuiWidgetHandle) {
+	_layout_widget :: proc(state: VuiWidgetHandle, pass: int) {
 		stateh := state
 		state := hla.hla_get_pointer(state)
 		using state.basic
-		// layout child tree
 		position : Vec2
 		// PASS A: sizes
-		if hla.hla_get_pointer(child) != nil {
+		if pass == 0 && hla.hla_get_pointer(child) != nil {
 			layout := state.layout
 			p := child
 
-			fittable_size :f32= 0.0; if state.layout.enable {// just for layout
+			fittable_size :f32= 0.0; if state.layout.enable {
 				switch state.layout.direction {
 				case .Vertical: fittable_size = auto_cast state.basic.rect.h
 				case .Horizontal: fittable_size = auto_cast state.basic.rect.w
@@ -404,13 +401,11 @@ _vui_widget :: proc(state: VuiWidgetHandle) -> VuiInteract {
 				fittable_size -= state.layout._used_space
 				fittable_size = math.max(0, fittable_size)
 			}
-			container_size : f32
+			container_size : Vec2
 			for true {
 				s := hla.hla_get_pointer(p)
 				using s.basic
 				if s == nil do break
-				_layout_widget(p)
-				p = next
 				if state.layout.enable {
 					switch state.layout.direction {
 					case .Vertical:
@@ -419,55 +414,66 @@ _vui_widget :: proc(state: VuiWidgetHandle) -> VuiInteract {
 							height = math.max(height, fittable_size/cast(f32)layout._fit_elem_count)
 							rect.h = height
 						}
-						container_size += rect.h + layout.spacing
+						container_size.y += rect.h + layout.spacing
+						if p == state.basic.child do container_size.y -= layout.spacing
 					case .Horizontal:
 						if rect.w < 0 {
-							width := -rect.h
+							width := -rect.w
 							width = math.max(width, fittable_size/cast(f32)layout._fit_elem_count)
 							rect.w = width
 						}
-						container_size += rect.w + layout.spacing
+						container_size.x += rect.w + layout.spacing
+						if p == state.basic.child do container_size.x -= layout.spacing
 					}
 				}
+				_layout_widget(p, 0)
+				p = next
 			}
-			if container_size > 0 do container_size -= layout.spacing
-			switch state.layout.direction {
-			case .Vertical:
-				state.basic.rect.h = math.max(container_size, state.basic.rect.h)
-			case .Horizontal:
-				state.basic.rect.w = math.max(container_size, state.basic.rect.w)
+			if container_size.y > 0 do container_size.y -= layout.spacing
+
+			if state.layout.enable {
+				switch state.layout.direction {
+				case .Vertical:
+					state.basic.rect.h = math.max(container_size.y, state.basic.rect.h)
+				case .Horizontal:
+					state.basic.rect.w = math.max(container_size.x, state.basic.rect.w)
+				}
 			}
 		}
+
 		// PASS B: positions
-		if hla.hla_get_pointer(child) != nil {
+		if pass == 1 && hla.hla_get_pointer(child) != nil {
 			layout := state.layout
 			p := child
 			for true {
 				s := hla.hla_get_pointer(p)
 				if s == nil do break
+				using s.basic
 				if state.layout.enable {
-					using state.basic
 					container_rect := state.basic.rect
 					switch state.layout.direction {
 					case .Vertical:
-						s.basic.rect.x = container_rect.x
-						s.basic.rect.y = position.y + container_rect.y
-						position += {0, s.basic.rect.h + cast(f32)layout.spacing}
+						rect.x = container_rect.x
+						rect.y = position.y + container_rect.y
+						if rect.w < 0 do rect.w = state.basic.rect.w
+						position += {0, rect.h + cast(f32)layout.spacing}
 					case .Horizontal:
-						s.basic.rect.x = position.x + container_rect.x
-						s.basic.rect.y = container_rect.y
-						position += {s.basic.rect.w + cast(f32)layout.spacing, 0}
+						rect.x = position.x + container_rect.x
+						rect.y = container_rect.y
+						if rect.h < 0 do rect.h = state.basic.rect.h
+						position += {rect.w + cast(f32)layout.spacing, 0}
 					}
 				}
-				_layout_widget(p)
-				p = s.basic.next
-				s.basic.baked_rect = s.basic.rect
+				_layout_widget(p, 1)
+				p = next
+				baked_rect = rect
 			}
 		}
 		state.basic.ready = true
 	}
 	if _, parent := _peek_state(); parent == nil {
-		_layout_widget(stateh)
+		_layout_widget(stateh, 0)
+		_layout_widget(stateh, 1)
 	}
 
 	_draw_widget :: proc(state: VuiWidgetHandle) {

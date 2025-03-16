@@ -157,10 +157,10 @@ vwv_update :: proc(delta_s: f64) {
 	panel_height := math.max(cast(f32)window_size.y - 200, 0)
 	vui_layout_begin(36, {26,26, cast(f32)window_size.x * 0.6, panel_height}, .Vertical, 4, dgl.RED); {
 		if vui_test_button(37, {0,0, 60, 20}, "AAA").clicked do log.debugf("AAA")
-		vui_layout_begin(80, {0,0, -200, 60}, .Horizontal, 6, dgl.BLUE); {
+		vui_layout_begin(80, {0,0, -200, -120}, .Horizontal, 6, dgl.BLUE); {
 			if vui_test_button(81, {0,0, 20, 60}, "b1").clicked do log.debugf("b1")
 			if vui_test_button(82, {0,0, -80, 40}, "b2").clicked do log.debugf("b2")
-			if vui_test_button(83, {0,0, 15, 40}, "b3").clicked do log.debugf("b3")
+			if vui_test_button(83, {0,0, 15, -20}, "b3").clicked do log.debugf("b3")
 			vui_layout_end()
 		}
 		if vui_test_button(39, {0,0, -1, -20}, "AUTO LAYOUT BOX").clicked do log.debugf("AUTO LAYOUT BOX")
@@ -171,12 +171,12 @@ vwv_update :: proc(delta_s: f64) {
 
 	update_visual_records(root)
 
-	// vui_layout_begin(6789, {20, cast(f32)scroll_offset, cast(f32)window_size.x- 40, 600}, .Vertical, 10); {
-	// 	for &vr in visual_records {
-	// 		record_card(&vr)
-	// 	}
-	// 	vui_layout_end()
-	// }
+	vui_layout_begin(6789, {20, cast(f32)scroll_offset, cast(f32)window_size.x- 40, 600}, .Vertical, 10); {
+		for &vr in visual_records {
+			record_card(&vr)
+		}
+		vui_layout_end()
+	}
 
 	status_bar_rect := rect_bottom(window_rect, 46)
 	_vuibd_begin(500, status_bar_rect)
