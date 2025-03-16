@@ -429,7 +429,6 @@ _vui_widget :: proc(state: VuiWidgetHandle) -> VuiInteract {
 				_layout_widget(p, 0)
 				p = next
 			}
-			if container_size.y > 0 do container_size.y -= layout.spacing
 
 			if state.layout.enable {
 				switch state.layout.direction {
