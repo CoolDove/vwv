@@ -16,6 +16,7 @@ Vec2 :: dgl.Vec2
 VuiWidgetHandle :: #type hla.HollowArrayHandle(VuiWidget)
 
 VuiContext :: struct {
+	frameid : u64,
 	hot, active : u64,
 	delta_s : f64,
 	current_layout : ^VuiLayout,
@@ -53,25 +54,15 @@ VuiState :: VuiWidget
 @(private="file")
 ctx : VuiContext
 
-@(private="file")
-_builtin_layout_vertical : VuiLayout={
-	_push = proc(layout: ^VuiLayout, width, height: f32, process : VuiLayoutElemProcessor, data: rawptr) {
-		rect :Rect= {layout.next.x, layout.next.y, width, height}
-		append(&layout.elems, VuiLayoutElem{ process, rect, data })
-		layout.next.y += height
-	},
-	_process = proc(layout: ^VuiLayout) {
-		// TODO:
-	},
-}
-
 _vui_state :: proc(id: u64) -> (VuiWidgetHandle, ^VuiWidget) {
 	s, ok := ctx.states[id] 
 	if !ok {
 		ctx.states[id] = hla.hla_append(&ctx._state_pool, VuiWidget{})
 		s = ctx.states[id]
 	}
-	return s, hla.hla_get_pointer(s)
+	wjt := hla.hla_get_pointer(s)
+	wjt.basic.frameid = ctx.frameid
+	return s, wjt
 }
 
 _vui_ctx :: proc() -> ^VuiContext {
@@ -92,11 +83,19 @@ vui_release :: proc() {
 }
 
 vui_begin :: proc(delta_s: f64, rect: Rect) {
+	ctx.frameid += 1
 	ctx.delta_s = delta_s
 	ctx.hot = 0
 	clear(&ctx.widget_stack)
 }
 vui_end :: proc() {
+	for k, v in ctx.states {
+		wjt := _vuibd_helper_get_pointer_from_handle(v)
+		if wjt.basic.frameid != ctx.frameid {
+			delete_key(&ctx.states, k)
+			hla.hla_remove(v)
+		}
+	}
 }
 
 VuiWidget :: struct {
@@ -117,10 +116,16 @@ VuiWidget :: struct {
 }
 
 VuiWidget_Basic :: struct {
-	id : u64,
-	rect : Rect,
+	// keep between frames
+	id, frameid : u64,
+	ready : bool,
+	rect, baked_rect : Rect,
 
-	parent, child, next, last : VuiWidgetHandle,
+	// reset
+	children_count : int,
+	using _tree : struct {
+		parent, child, next, last : VuiWidgetHandle,
+	},
 	interact : VuiInteract,
 }
 VuiWidget_Clickable :: struct {
@@ -166,8 +171,10 @@ VuiWidget_DrawCustom :: struct {
 VuiWidget_LayoutContainer :: struct {
 	enable : bool,
 	direction : VuiLayoutDirection,
-	next : Vec2,
-	padding : f64,
+	spacing : f32,
+
+	_used_space : f32,
+	_fit_elem_count : int,
 }
 VuiLayoutDirection :: enum {
 	Vertical, Horizontal
@@ -195,10 +202,15 @@ _vuibd_helper_get_pointer_from_handle :: proc(h: VuiWidgetHandle) -> ^VuiWidget 
 
 _vuibd_begin :: proc(id: u64, rect: Rect) {
 	h, state := _vui_state(id)
-	state.basic = {
-		id   = id,
-		rect = rect,
+	state.basic.rect = rect
+	state.basic.children_count = 0
+	if state.basic.ready {
+		state.basic._tree = {}
+		state.basic.interact = {}
+	} else {
+		state.basic.id = id
 	}
+
 	state.clickable.enable               = false
 	state.update_custom.enable           = false
 
@@ -219,15 +231,13 @@ _vuibd_begin :: proc(id: u64, rect: Rect) {
 			using state.basic
 			switch layout.direction {
 			case .Vertical:
-				rect.x += layout.next.x
-				rect.y = layout.next.y
 				if rect.w < 0 do rect.w = layout_size.x
-				layout.next.y += rect.h + cast(f32)layout.padding
+				if rect.h < 0 do layout._fit_elem_count += 1
+				else do layout._used_space += auto_cast rect.h
 			case .Horizontal:
-				rect.x = layout.next.x
-				rect.y += layout.next.y
 				if rect.h < 0 do rect.h = layout_size.y
-				layout.next.x += rect.w + cast(f32)layout.padding
+				if rect.w < 0 do layout._fit_elem_count += 1
+				else do layout._used_space += auto_cast rect.w
 			}
 		}
 	}
@@ -292,24 +302,28 @@ _vuibd_layout :: proc(direction: VuiLayoutDirection) -> ^VuiWidget_LayoutContain
 	layout := &state.layout
 	layout.enable = true
 	layout.direction = direction
-	layout.next = {state.basic.rect.x, state.basic.rect.y}
+	layout._used_space = 0
+	layout_length := state.basic.rect.w if direction == .Horizontal else state.basic.rect.h
+	assert(layout_length >= 0, "Layout element cannot have VUI_FIT layout direction.")
+	layout._fit_elem_count = 0
 	return layout
 }
 
 vui_test_button :: proc(id: u64, rect: Rect, text: string) -> VuiInteract {
 	_vuibd_begin(id, rect)
-	_vuibd_draw_rect({140, 180, 190, 255})
+	_vuibd_draw_rect({140, 180, 190, 255}, 6, 3)
 	_vuibd_draw_rect_hot({165, 210, 226, 255})
 	_vuibd_draw_rect_hot_animation(0.3)
+	_vuibd_draw_rect_active({200, 200, 210, 255})
 	_vuibd_clickable()
 	_vuibd_draw_text(dgl.WHITE, text, 20)
 	return _vuibd_end()
 }
 
-vui_layout_begin :: proc(id: u64, rect: Rect, direction: VuiLayoutDirection, padding: f64, color: Color={}) {
+vui_layout_begin :: proc(id: u64, rect: Rect, direction: VuiLayoutDirection, spacing: f32, color: Color={}) {
 	_vuibd_begin(id, rect)
 	if color != {} do _vuibd_draw_rect(color)
-	_vuibd_layout(direction).padding = padding
+	_vuibd_layout(direction).spacing = spacing
 }
 vui_layout_end :: proc() {
 	_vuibd_end()
@@ -326,6 +340,7 @@ __widget_append_child :: proc(parent, child: VuiWidgetHandle) {
 	}
 	hla.hla_get_pointer(child).basic.parent = parenth
 	parent.basic.last = child
+	parent.basic.children_count += 1
 }
 
 _vui_widget :: proc(state: VuiWidgetHandle) -> VuiInteract {
@@ -333,8 +348,8 @@ _vui_widget :: proc(state: VuiWidgetHandle) -> VuiInteract {
 	state := hla.hla_get_pointer(state)
 	using state.basic
 
-	if state.clickable.enable {
-		inrect := rect_in(state.basic.rect, input.mouse_position)
+	if state.clickable.enable && state.basic.ready {
+		inrect := rect_in(state.basic.baked_rect, input.mouse_position)
 		if inrect {
 			if ctx.active == id || (ctx.active == 0 && ctx.hot == 0) {
 				ctx.hot = id
@@ -365,9 +380,94 @@ _vui_widget :: proc(state: VuiWidgetHandle) -> VuiInteract {
 			}
 		}
 	}
-
 	if state.update_custom.enable {
 		state.update_custom.update(stateh)
+	}
+
+	_layout_widget :: proc(state: VuiWidgetHandle) {
+		stateh := state
+		state := hla.hla_get_pointer(state)
+		using state.basic
+		// layout child tree
+		position : Vec2
+		// PASS A: sizes
+		if hla.hla_get_pointer(child) != nil {
+			layout := state.layout
+			p := child
+
+			fittable_size :f32= 0.0; if state.layout.enable {// just for layout
+				switch state.layout.direction {
+				case .Vertical: fittable_size = auto_cast state.basic.rect.h
+				case .Horizontal: fittable_size = auto_cast state.basic.rect.w
+				}
+				fittable_size -= cast(f32)(state.basic.children_count-1)*state.layout.spacing
+				fittable_size -= state.layout._used_space
+				fittable_size = math.max(0, fittable_size)
+			}
+			container_size : f32
+			for true {
+				s := hla.hla_get_pointer(p)
+				using s.basic
+				if s == nil do break
+				_layout_widget(p)
+				p = next
+				if state.layout.enable {
+					switch state.layout.direction {
+					case .Vertical:
+						if rect.h < 0 {
+							height := -rect.h
+							height = math.max(height, fittable_size/cast(f32)layout._fit_elem_count)
+							rect.h = height
+						}
+						container_size += rect.h + layout.spacing
+					case .Horizontal:
+						if rect.w < 0 {
+							width := -rect.h
+							width = math.max(width, fittable_size/cast(f32)layout._fit_elem_count)
+							rect.w = width
+						}
+						container_size += rect.w + layout.spacing
+					}
+				}
+			}
+			if container_size > 0 do container_size -= layout.spacing
+			switch state.layout.direction {
+			case .Vertical:
+				state.basic.rect.h = math.max(container_size, state.basic.rect.h)
+			case .Horizontal:
+				state.basic.rect.w = math.max(container_size, state.basic.rect.w)
+			}
+		}
+		// PASS B: positions
+		if hla.hla_get_pointer(child) != nil {
+			layout := state.layout
+			p := child
+			for true {
+				s := hla.hla_get_pointer(p)
+				if s == nil do break
+				if state.layout.enable {
+					using state.basic
+					container_rect := state.basic.rect
+					switch state.layout.direction {
+					case .Vertical:
+						s.basic.rect.x = container_rect.x
+						s.basic.rect.y = position.y + container_rect.y
+						position += {0, s.basic.rect.h + cast(f32)layout.spacing}
+					case .Horizontal:
+						s.basic.rect.x = position.x + container_rect.x
+						s.basic.rect.y = container_rect.y
+						position += {s.basic.rect.w + cast(f32)layout.spacing, 0}
+					}
+				}
+				_layout_widget(p)
+				p = s.basic.next
+				s.basic.baked_rect = s.basic.rect
+			}
+		}
+		state.basic.ready = true
+	}
+	if _, parent := _peek_state(); parent == nil {
+		_layout_widget(stateh)
 	}
 
 	_draw_widget :: proc(state: VuiWidgetHandle) {
@@ -447,10 +547,6 @@ _vui_widget :: proc(state: VuiWidgetHandle) -> VuiInteract {
 	}
 
 	return interact
-}
-
-vui_begin_layoutv :: proc(rect: Rect) {
-	vui_begin_layout(&_builtin_layout_vertical, rect)
 }
 
 vui_begin_layout :: proc(layout: ^VuiLayout, rect: Rect) {

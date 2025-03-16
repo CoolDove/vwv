@@ -95,7 +95,7 @@ update :: proc() {
 	y :f32= 5
 	if debug_lines {
 		pushlinef(&y, "delta ms: {:.2f}", delta_ms)
-		// pushlinef(&y, "窗口大小: {}", window_size)
+		pushlinef(&y, "窗口大小: {}", window_size)
 		pushlinef(&y, "draw state: {}", debug_draw_data)
 		pushlinef(&y, "frameid: {}", frameid)
 		// pushlinef(&y, "mouse: {}", input.mouse_position)
@@ -154,20 +154,34 @@ vwv_update :: proc(delta_s: f64) {
 	draw_rect(window_rect, {15,16,23, 255})
 	draw_rect(main_rect, hotv->u8x4_inv("background_color"))
 
-	update_visual_records(root)
-
-	// vui_begin_layoutv({20, cast(f32)scroll_offset, cast(f32)window_size.x- 40, 600})
-	vui_layout_begin(6789, {20, cast(f32)scroll_offset, cast(f32)window_size.x- 40, 600}, .Vertical, 10); {
-		for &vr in visual_records {
-			record_card(&vr)
+	panel_height := math.max(cast(f32)window_size.y - 200, 0)
+	vui_layout_begin(36, {26,26, cast(f32)window_size.x * 0.6, panel_height}, .Vertical, 4, dgl.RED); {
+		if vui_test_button(37, {0,0, 60, 20}, "AAA").clicked do log.debugf("AAA")
+		vui_layout_begin(80, {0,0, -200, 60}, .Horizontal, 6, dgl.BLUE); {
+			if vui_test_button(81, {0,0, 20, 60}, "b1").clicked do log.debugf("b1")
+			if vui_test_button(82, {0,0, -80, 40}, "b2").clicked do log.debugf("b2")
+			if vui_test_button(83, {0,0, 15, 40}, "b3").clicked do log.debugf("b3")
+			vui_layout_end()
 		}
+		if vui_test_button(39, {0,0, -1, -20}, "AUTO LAYOUT BOX").clicked do log.debugf("AUTO LAYOUT BOX")
+		if vui_test_button(40, {0,0, 100, -10}, "AUTO LAYOUT BOX2").clicked do log.debugf("AUTO LAYOUT BOX2")
+		if vui_test_button(42, {0,0, -1, 20}, "DDD").clicked do log.debugf("DDD")
 		vui_layout_end()
 	}
+
+	update_visual_records(root)
+
+	// vui_layout_begin(6789, {20, cast(f32)scroll_offset, cast(f32)window_size.x- 40, 600}, .Vertical, 10); {
+	// 	for &vr in visual_records {
+	// 		record_card(&vr)
+	// 	}
+	// 	vui_layout_end()
+	// }
 
 	status_bar_rect := rect_bottom(window_rect, 46)
 	_vuibd_begin(500, status_bar_rect)
 	_vuibd_draw_rect(hotv->u8x4_inv("status_bar_bg_color"))
-	_vuibd_layout(.Horizontal).padding = 3
+	_vuibd_layout(.Horizontal).spacing = 3
 
 	always_on_top := window_get_always_on_top()
 	if _ui_status_toggle("置顶", {3,3, 40,40}, always_on_top) != always_on_top {
