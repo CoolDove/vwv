@@ -132,6 +132,9 @@ VisualRecord :: struct {
 visual_records : [dynamic]VisualRecord
 
 vwv_update :: proc(delta_s: f64) {
+	LAYOUT, BUTTON :: vui_layout_scoped, vui_test_button
+	ELEMENT :: _vuibd_element_scoped
+
 	hotvalue.update(&hotv)
 
 	key_handled = false
@@ -155,28 +158,25 @@ vwv_update :: proc(delta_s: f64) {
 	draw_rect(main_rect, hotv->u8x4_inv("background_color"))
 
 	panel_height := math.max(cast(f32)window_size.y - 200, 0)
-	vui_layout_begin(36, {26,26, cast(f32)window_size.x * 0.6, panel_height}, .Vertical, 4, dgl.RED); {
-		if vui_test_button(37, {0,0, 60, 20}, "AAA").clicked do log.debugf("AAA")
-		vui_layout_begin(80, {0,0, -200, -120}, .Horizontal, 6, dgl.BLUE); {
-			if vui_test_button(81, {0,0, 20, 60}, "b1").clicked do log.debugf("b1")
-			if vui_test_button(82, {0,0, -80, 40}, "b2").clicked do log.debugf("b2")
-			if vui_test_button(83, {0,0, 15, -20}, "b3").clicked do log.debugf("b3")
-			vui_layout_end()
+	if LAYOUT(36, {26,26, cast(f32)window_size.x * 0.6, panel_height}, .Vertical, 4, dgl.RED) {
+		if BUTTON(37, {0,0, 60, 20}, "AAA").clicked do log.debugf("AAA")
+		if LAYOUT(80, {0,0, -200, -120}, .Horizontal, 6, dgl.BLUE) {
+			if BUTTON(81, {0,0, 20, 60}, "b1").clicked do log.debugf("b1")
+			if BUTTON(82, {0,0, -80, 40}, "b2").clicked do log.debugf("b2")
+			if BUTTON(83, {0,0, 15, -20}, "b3").clicked do log.debugf("b3")
 		}
-		if vui_test_button(39, {0,0, -1, -30}, "AUTO LAYOUT BOX").clicked do log.debugf("AUTO LAYOUT BOX")
-		if vui_test_button(40, {0,0, 100, -25}, "AUTO LAYOUT BOX2").clicked do log.debugf("AUTO LAYOUT BOX2")
-		if vui_test_button(42, {0,0, -1, 20}, "DDD").clicked do log.debugf("DDD")
-		vui_layout_end()
+		if BUTTON(39, {0,0, -1, -30}, "AUTO LAYOUT BOX").clicked do log.debugf("AUTO LAYOUT BOX")
+		if BUTTON(40, {0,0, 100, -25}, "AUTO LAYOUT BOX2").clicked do log.debugf("AUTO LAYOUT BOX2")
+		if BUTTON(42, {0,0, -1, 20}, "DDD").clicked do log.debugf("DDD")
 	}
 
 	update_visual_records(root)
 
-	// vui_layout_begin(6789, {20, cast(f32)scroll_offset, cast(f32)window_size.x- 40, 600}, .Vertical, 10); {
-	// 	for &vr in visual_records {
-	// 		record_card(&vr)
-	// 	}
-	// 	vui_layout_end()
-	// }
+	if vui_layout_scoped(6789, {20, cast(f32)scroll_offset, cast(f32)window_size.x- 40, 600}, .Vertical, 10) {
+		for &vr in visual_records {
+			record_card(&vr)
+		}
+	}
 
 	status_bar_rect := rect_bottom(window_rect, 46)
 	_vuibd_begin(500, status_bar_rect)
@@ -201,21 +201,21 @@ vwv_update :: proc(delta_s: f64) {
 	}
 
 	// bubble messages
-	vui_layout_begin(6000-1, rect_bottom(window_rect, 60+(24+6)*auto_cast bubble_messages.count), .Vertical, 6)
-	ite : int
-	for h in hla.ite_alive_handle(&bubble_messages, &ite) {
-		bubble_rect := Rect{60,0, window_rect.w-120, 24}
-		bmsg := hla.hla_get_pointer(h)
-		_vuibd_begin(6000+auto_cast ite, bubble_rect)
-		t := cast(f32)(bmsg.time/bmsg.duration)
-		alpha := (1-math.pow(2*tween.ease_outcirc(t)-1, 10))
-		_vuibd_draw_rect(dgl.col_f2u({0,0,0,alpha}), 8)
-		_vuibd_draw_text(dgl.col_f2u({1,0.8,0,alpha}), bmsg.message, 22)
-		_vuibd_end()
-		bmsg.time += delta_s
-		if bmsg.time >= bmsg.duration do hla.hla_remove_handle(h)
+	if vui_layout_scoped(6000-1, rect_bottom(window_rect, 60+(24+6)*auto_cast bubble_messages.count), .Vertical, 6) {
+		ite : int
+		for h in hla.ite_alive_handle(&bubble_messages, &ite) {
+			bubble_rect := Rect{60,0, window_rect.w-120, 24}
+			bmsg := hla.hla_get_pointer(h)
+			if ELEMENT(6000+auto_cast ite, bubble_rect) {
+				t := cast(f32)(bmsg.time/bmsg.duration)
+				alpha := (1-math.pow(2*tween.ease_outcirc(t)-1, 10))
+				_vuibd_draw_rect(dgl.col_f2u({0,0,0,alpha}), 8)
+				_vuibd_draw_text(dgl.col_f2u({1,0.8,0,alpha}), bmsg.message, 22)
+			}
+			bmsg.time += delta_s
+			if bmsg.time >= bmsg.duration do hla.hla_remove_handle(h)
+		}
 	}
-	vui_layout_end()
 
 	if _update_time > 0 {
 		_update_time -= delta_s
@@ -252,11 +252,15 @@ get_record_id :: proc(r: ^Record) -> u64 {
 }
 
 record_card :: proc(vr: ^VisualRecord) {
-	empty :: proc(id: u64) {
-		_vuibd_begin(id, {0,0,-1,-1}); _vuibd_end()
+	empty :: proc(id: u64, rect:Rect={0,0,-1,-1}) {
+		_vuibd_begin(id, rect); _vuibd_end()
 	}
-
 	baseid :u64= get_record_id(vr.r)
+	chid :u64= baseid // child id
+	CHILDID :: proc(id: ^u64) -> u64 {
+		id^ += 1
+		return id^
+	}
 
 	_, parent := _vuibd_helper_get_current()
 	assert(parent != nil && parent.layout.enable, "Record card must be under a layout")
@@ -280,7 +284,13 @@ record_card :: proc(vr: ^VisualRecord) {
 		tbro_write_string(tbro, strings.to_string(vr.r.text), hotv->u8x4_inv("record_text_color"))
 	}
 
-	_vuibd_begin(baseid, {cast(f32)indent, 0, cast(f32)width, (tbro_last(tbro).next.y if len(tbro.elems)>0 else 22) + 8})
+	card_height :f32= (tbro_last(tbro).next.y) if len(tbro.elems)>0 else 22
+	vui_layout_begin(CHILDID(&chid), {0, 0, -1, card_height + 8}, .Horizontal, 0); defer _vuibd_end()
+
+	empty(CHILDID(&chid)) // indent spacing
+
+	// card body
+	_vuibd_begin(baseid, {0, 0, cast(f32)width, -1}); defer _vuibd_end()
 
 	record_color_normal    := hotv->u8x4_inv("record_color_normal")
 	record_color_highlight := hotv->u8x4_inv("record_color_highlight")
@@ -397,19 +407,15 @@ record_card :: proc(vr: ^VisualRecord) {
 
 	_, current := _vuibd_helper_get_current()
 
-	empty(baseid+1)
+	empty(CHILDID(&chid))
 
-	_vuibd_begin(baseid+2, {0,0, 25, -1}); {
-		_vuibd_layout(.Vertical)
-		empty(baseid+3)
-		if _mini_button(baseid+4, rect_anchor(current.basic.rect, {1,1,1,1}, {-25, -25, -5, -5})).clicked {
+	if vui_layout_scoped(CHILDID(&chid), {0,0, 25, -1}, .Vertical, 0) {
+		empty(CHILDID(&chid))
+		if _mini_button(CHILDID(&chid), rect_anchor(current.basic.rect, {1,1,1,1}, {-25, -25, -5, -5})).clicked {
 			log.debugf("You clicked the mini button of {}", strings.to_string(vr.r.text))
 		}
-		empty(baseid+5)
-		_vuibd_end()
+		empty(CHILDID(&chid), {0,0,-1, 5})
 	}
-
-	_vuibd_end()
 
 	_mini_button :: proc(id: u64, rect: Rect) -> VuiInteract {
 		_vuibd_begin(id, rect); 

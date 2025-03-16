@@ -248,6 +248,13 @@ _vuibd_end :: proc() -> VuiInteract {
 	state := pop(&ctx.widget_stack)
 	return _vui_widget(state)
 }
+
+@(deferred_none=_vuibd_end)
+_vuibd_element_scoped :: proc(id: u64, rect: Rect) -> bool {
+	_vuibd_begin(id, rect)
+	return true
+}
+
 _vuibd_draw_rect :: proc(color: Color, round := 0.0, seg: int=2) -> ^VuiWidget_DrawRect {
 	_, state := _peek_state()
 	state.draw_rect.enable = true
@@ -325,6 +332,12 @@ vui_layout_begin :: proc(id: u64, rect: Rect, direction: VuiLayoutDirection, spa
 }
 vui_layout_end :: proc() {
 	_vuibd_end()
+}
+
+@(deferred_none=vui_layout_end)
+vui_layout_scoped :: proc(id: u64, rect: Rect, direction: VuiLayoutDirection, spacing: f32, color: Color={}) -> bool {
+	vui_layout_begin(id, rect, direction, spacing, color)
+	return true
 }
 
 @(private="file")
