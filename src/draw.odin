@@ -44,7 +44,6 @@ begin_draw :: proc(viewport: dgl.Vec4i) {
 	_state.texture0 = {}
 	_state.viewport = viewport
 	dgl.mesh_builder_clear(&_state.mesh)
-	dgl.state_set_blend(dgl.GlStateBlendSimp { true, .FUNC_ADD, .SRC_ALPHA, .ONE_MINUS_SRC_ALPHA })
 }
 end_draw :: proc() {
 	submit_batch()
@@ -171,6 +170,7 @@ is_batchable :: proc(shader: dgl.ShaderId, texture0: dgl.TextureId) -> bool {
 	return _state.shader == shader && _state.texture0 == texture0
 }
 submit_batch :: proc() {
+	dgl.state_set_blend(dgl.GlStateBlendSimp { true, .FUNC_ADD, .SRC_ALPHA, .ONE_MINUS_SRC_ALPHA })
 	dgl.state_set_viewport(_state.viewport)
 	if _state.shader != 0 {
 		if _state.shader == _shader_default {

@@ -106,4 +106,11 @@ tbro_write_string :: proc(tbro: ^TextBro, text: string, color: dgl.Color4u8) -> 
 	}
 	fontstash.EndState(fs)
 	return tbro_length(tbro)
+
+	peek_quad :: proc(fs: ^fontstash.FontContext, iter: fontstash.TextIter) -> fontstash.Quad {
+		q : fontstash.Quad
+		iter := iter
+		fontstash.TextIterNext(fs, &iter, &q) // try again
+		return q
+	}
 }
