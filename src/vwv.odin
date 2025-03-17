@@ -205,10 +205,13 @@ vwv_update :: proc(delta_s: f64) {
 	}
 
 	// bubble messages
-	if vui_layout_scoped(6000-1, rect_bottom(window_rect, 60+(24+6)*auto_cast bubble_messages.count), .Vertical, 6) {
+	bubble_rect := rect_bottom(window_rect, 60+(24+6)*auto_cast bubble_messages.count)
+	bubble_rect.w = window_rect.w-120	
+	bubble_rect.x += 60
+	if vui_layout_scoped(6000-1, bubble_rect, .Vertical, 6) {
 		ite : int
 		for h in hla.ite_alive_handle(&bubble_messages, &ite) {
-			bubble_rect := Rect{60,0, window_rect.w-120, 24}
+			bubble_rect := Rect{0,0, -1, 24}
 			bmsg := hla.hla_get_pointer(h)
 			if ELEMENT(6000+auto_cast ite, bubble_rect) {
 				t := cast(f32)(bmsg.time/bmsg.duration)
