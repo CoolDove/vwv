@@ -103,7 +103,7 @@ update :: proc() {
 		// pushlinef(&y, "button: {}", input.buttons)
 		// pushlinef(&y, "button_prev: {}", input.buttons_prev)
 		// pushlinef(&y, "update time: {}", _update_time)
-		pushlinef(&y, "vui hot: {}", _vui_ctx().hot)
+		pushlinef(&y, "vui hover: {}", _vui_ctx().hover)
 	}
 
 	debug_draw_data = {
@@ -197,8 +197,8 @@ vwv_update :: proc(delta_s: f64) {
 		_vuibd_begin(500+xxhash.XXH3_64_with_seed(transmute([]u8)text, 42)%200, rect)
 		_vuibd_clickable()
 		_vuibd_draw_rect({233, 90, 80, 255}, 6)
-		_vuibd_draw_rect_hot({255, 100, 70, 255})
-		_vuibd_draw_rect_hot_animation(0.2)
+		_vuibd_draw_rect_hover({255, 100, 70, 255})
+		_vuibd_draw_rect_hover_animation(0.2)
 		_vuibd_draw_rect_active({255, 244, 255, 255})
 		_vuibd_draw_text(dgl.WHITE if on else dgl.DARK_GRAY, text, 22)
 		return !on if _vuibd_end().clicked else on
@@ -305,8 +305,8 @@ record_card :: proc(vr: ^VisualRecord) {
 
 	_vuibd_clickable()
 	_vuibd_draw_rect(record_color_normal, 8, 4)
-	_vuibd_draw_rect_hot(record_color_highlight)
-	_vuibd_draw_rect_hot_animation(0.25)
+	_vuibd_draw_rect_hover(record_color_highlight)
+	_vuibd_draw_rect_hover_animation(0.25)
 	_vuibd_draw_rect_active(record_color_active)
 	_vuibd_layout(.Horizontal)
 
@@ -321,7 +321,7 @@ record_card :: proc(vr: ^VisualRecord) {
 		return auto_cast &state.update_custom.data
 	}
 	// TODO: make a size safe check
-	wjt := cast(^RecordWidget)_vuibd_update_custom(proc(w: VuiWidgetHandle) {
+	wjt := cast(^RecordWidget)_vuibd_update_custom(proc(w: VuiWjtHd) {
 		state := _vuibd_helper_get_pointer_from_handle(w)
 		recordwjt := get_record_wjt(state)
 		recordwjt.visual_cursor = (recordwjt.cursor - recordwjt.visual_cursor) * cast(f32)_vui_ctx().delta_s * 12 + recordwjt.visual_cursor
@@ -363,7 +363,7 @@ record_card :: proc(vr: ^VisualRecord) {
 			}
 		} else {
 			r := recordwjt.record
-			if editting_record.record == nil && (_vui_ctx().hot == state.basic.id) {
+			if editting_record.record == nil && (_vui_ctx().hover == state.basic.id) {
 				if !key_handled {
 					if is_key_pressed(.A) {
 						if r != root do record_add_sibling(r)
@@ -392,7 +392,7 @@ record_card :: proc(vr: ^VisualRecord) {
 	wjt.record = vr.r
 	wjt.cursor = cursor_offset
 
-	_vuibd_draw_custom(proc(w: VuiWidgetHandle) {
+	_vuibd_draw_custom(proc(w: VuiWjtHd) {
 		state := _vuibd_helper_get_pointer_from_handle(w)
 		recordwjt := get_record_wjt(state)
 		tbro := cast(^TextBro)state.draw_custom.data
@@ -428,8 +428,8 @@ record_card :: proc(vr: ^VisualRecord) {
 		_vuibd_begin(id, rect); 
 		_vuibd_clickable()
 		_vuibd_draw_rect({233, 90, 80, 255}, 4)
-		_vuibd_draw_rect_hot({255, 120, 90, 255})
-		_vuibd_draw_rect_hot_animation(0.2)
+		_vuibd_draw_rect_hover({255, 120, 90, 255})
+		_vuibd_draw_rect_hover_animation(0.2)
 		_vuibd_draw_rect_active({255, 244, 255, 255})
 		return _vuibd_end()
 	}
