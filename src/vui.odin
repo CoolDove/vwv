@@ -18,7 +18,10 @@ VuiWidgetHandle :: #type hla.HollowArrayHandle(VuiWidget)
 
 VuiContext :: struct {
 	frameid : u64,
-	hot, active : u64,
+	hot : u64,
+	hot_old : u64,
+	hot_priority : u64,
+
 	delta_s : f64,
 	current_layout : ^VuiLayout,
 
@@ -87,6 +90,8 @@ vui_begin :: proc(delta_s: f64, rect: Rect) {
 	ctx.frameid += 1
 	ctx.delta_s = delta_s
 	ctx.hot = 0
+	ctx.hot_priority = 0
+
 	clear(&ctx.widget_stack)
 }
 vui_end :: proc() {
@@ -97,6 +102,7 @@ vui_end :: proc() {
 			hla.hla_remove(v)
 		}
 	}
+	ctx.hot_old = ctx.hot
 }
 
 VuiWidget :: struct {
@@ -119,6 +125,7 @@ VuiWidget :: struct {
 VuiWidget_Basic :: struct {
 	// keep between frames
 	id, frameid : u64,
+	priority : u64,
 	ready : bool,
 	rect, baked_rect : Rect,
 
@@ -356,6 +363,8 @@ __widget_append_child :: proc(parent, child: VuiWidgetHandle) {
 	hla.hla_get_pointer(child).basic.parent = parenth
 	parent.basic.last = child
 	parent.basic.children_count += 1
+	chd := hla.hla_get_pointer(child)
+	chd.basic.priority = parent.basic.priority + 1
 }
 
 _vui_widget :: proc(state: VuiWidgetHandle) -> VuiInteract {
@@ -365,34 +374,14 @@ _vui_widget :: proc(state: VuiWidgetHandle) -> VuiInteract {
 
 	if state.clickable.enable && state.basic.ready {
 		inrect := rect_in(state.basic.baked_rect, input.mouse_position)
-		if inrect {
-			if ctx.active == id || (ctx.active == 0 && ctx.hot == 0) {
-				ctx.hot = id
-				if is_button_pressed(.Left) {
-					ctx.active = id
-				}
-			}
+
+		if is_button_pressed(.Left) && ctx.hot_old == id {
+			interact.clicked = true
 		}
-		if is_button_pressed(.Left) {
-			if ctx.active == id {
-				if inrect {
-					interact.pressed = true
-				}
-			}
-			if !inrect {
-				interact.pressed_outside = true
-			}
-		}
-		if is_button_released(.Left) {
-			if ctx.active == id {
-				if inrect {
-					interact.clicked = true
-				}
-				ctx.active = 0
-			}
-			if !inrect {
-				interact.clicked_outside = true
-			}
+
+		if inrect && priority > ctx.hot_priority {
+			ctx.hot = id
+			ctx.hot_priority = state.basic.priority
 		}
 	}
 	if state.update_custom.enable {
@@ -505,7 +494,7 @@ _vui_widget :: proc(state: VuiWidgetHandle) -> VuiInteract {
 			using state.draw_rect
 			c := color
 			if state.draw_rect_hot.enable {
-				if ctx.hot == id {
+				if ctx.hot_old == id {
 					if state.draw_rect_hot_animation.enable {
 						anim := &state.draw_rect_hot_animation
 						anim.time += ctx.delta_s
@@ -526,11 +515,11 @@ _vui_widget :: proc(state: VuiWidgetHandle) -> VuiInteract {
 						c = dgl.col_f2u(cast(f32)t * (toc - fromc) + fromc)
 					}
 				}
-				if ctx.active == id {
-					if state.draw_rect_active.enable {
-						c = state.draw_rect_active.color
-					}
-				}
+				// if ctx.active == id {
+				// 	if state.draw_rect_active.enable {
+				// 		c = state.draw_rect_active.color
+				// 	}
+				// }
 			}
 			if round <= 0 {
 				draw_rect(rect, c)

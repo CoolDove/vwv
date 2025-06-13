@@ -103,7 +103,7 @@ update :: proc() {
 		// pushlinef(&y, "button: {}", input.buttons)
 		// pushlinef(&y, "button_prev: {}", input.buttons_prev)
 		// pushlinef(&y, "update time: {}", _update_time)
-		pushlinef(&y, "vui hot: {}, active: {}", _vui_ctx().hot, _vui_ctx().active)
+		pushlinef(&y, "vui hot: {}", _vui_ctx().hot)
 	}
 
 	debug_draw_data = {
@@ -363,7 +363,7 @@ record_card :: proc(vr: ^VisualRecord) {
 			}
 		} else {
 			r := recordwjt.record
-			if editting_record.record == nil && (_vui_ctx().hot == state.basic.id || _vui_ctx().active == state.basic.id) {
+			if editting_record.record == nil && (_vui_ctx().hot == state.basic.id) {
 				if !key_handled {
 					if is_key_pressed(.A) {
 						if r != root do record_add_sibling(r)
